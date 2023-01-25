@@ -1,6 +1,8 @@
 import {GM_getValue} from "$";
 import {Site} from "../site/site";
 import $ from "jquery";
+import {dictionary} from "../dictionary";
+import {toRaw} from "vue";
 
 class Pagination {
   currentURL: string = location.toString()
@@ -42,9 +44,8 @@ export default class {
 
       // 开启关闭瀑布流判断
       if (waterfallScrollStatus > 0) {
-        document.addEventListener('scroll', this.scroll.bind(this));
 
-        document.addEventListener('wheel', this.wheel.bind(this));
+        $(window).on('scroll', () => this.scroll());
 
         this.loadNext()
       }
@@ -61,7 +62,7 @@ export default class {
     if (nextUrl === null) {
       // TODO: 2022/12/28
       this.page.isEnd = true;
-      console.log('当前已经是最后一页')
+      console.log('===当前已经是最后一页===')
       return
     }
     this.page.nextUrl = nextUrl;
@@ -157,51 +158,57 @@ export default class {
     return `${this.baseURI}${a.pathname}${a.search}`
   }
 
-  private reachBottom(limit: number) {
-    if (this.anchor === null) {
-      console.log('找不到分页栏')
-      return false
-    }
-    const height = $(window).height()
-    if (height === undefined) {
-      console.log('获取不到窗口高度')
-      return false
-    }
-    return (this.anchor.getBoundingClientRect().top - height) < limit;
-  }
-
   private end() {
-    document.removeEventListener('scroll', this.scroll.bind(this))
-    document.removeEventListener('wheel', this.wheel.bind(this))
-    if (this.anchor===null) return
+    $(window).off('scroll');
+    if (this.anchor === null) return
     let $end = $(`<h1>The End</h1>`)
     $(this.anchor).replaceWith($end)
   }
 
   private scroll() {
-    this.appendNext(500);
-  }
-
-  private wheel() {
-    this.appendNext(1000);
-  }
-
-  private appendNext(limit: number) {
-    if (this.reachBottom(limit)) {
-      console.log(`到达底部`)
-      if (this.page.isEnd) {
-        console.log(`没有下一页`);
-        return this.end();
-      }
-      if (this.page.nextDetail === null) {
-        console.log(`没有获取到下一页内容`);
-        return
-      }
-      $(this.selector.container).append(this.page.nextDetail);
-      console.log(`解锁`);
-      this.lock.unlock()
-      return this.fetchNextSync();
+    // console.log('滚动')
+    //窗口给高度
+    const windowHeight = $(window).height()
+    if (windowHeight === undefined) {
+      console.log('获取不到窗口高度')
+      return false
     }
+    //滚动高度
+    const scrollTop = $(window).scrollTop();
+    if (scrollTop === undefined) {
+      console.log('获取不到滚动高度')
+      return false
+    }
+    this.site.scroll(windowHeight, scrollTop);
+    if (this.reachBottom(windowHeight, 500)) {
+      this.appendNext();
+    }
+
+  }
+
+  private reachBottom(height: number, limit: number) {
+    if (this.anchor === null) {
+      console.log('找不到分页栏')
+      return false
+    }
+    return (this.anchor.getBoundingClientRect().top - height) < limit;
+  }
+
+
+  private appendNext() {
+    console.log(`到达底部`)
+    if (this.page.isEnd) {
+      console.log(`没有下一页`);
+      return this.end();
+    }
+    if (this.page.nextDetail === null) {
+      console.log(`没有获取到下一页内容`);
+      return
+    }
+    $(this.selector.container).append(this.page.nextDetail);
+    console.log(`解锁`);
+    this.lock.unlock()
+    return this.fetchNextSync();
   }
 }
 

@@ -9,6 +9,8 @@ abstract class Site {
   abstract mount(): void
 
   abstract findImages(elems: JQuery) : void
+
+  abstract scroll(windowHeight:number,scrollTop:number):void;
 }
 
 export {

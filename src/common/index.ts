@@ -25,30 +25,8 @@ export function getAvCode(avid: string): string {
   return letter.toString().replace(/,/g, '-') + '-' + num;
 }
 
-export function addPreview(avid: string, preview: Function = function () {
-}, isZoom: boolean = false, javstore: Function = function () {
-}) {
-
-  const java = getBigPreviewImgUrlFromJavStore(avid)
-
-  java.then(() => {
-
-    const javstoreUrl = GM_getValue(`${dictionary.temp_javstore_url}${avid}`, null)
-    if (javstoreUrl === null) {
-
-    }
-    const imgUrl = GM_getValue(`${dictionary.temp_img_url}${avid}`, null);
-    if (imgUrl === null) {
-      console.log(`${avid} 没有找到预览图`)
-    } else {
-      addImg(imgUrl, preview, isZoom)
-      GM_deleteValue(`temp_img_url_${avid}`)
-    }
-  })
-}
-
-function addImg(targetImgUrl: string, func: Function, isZoom: boolean) {
-  console.log('显示的图片地址:' + targetImgUrl)
+export function getPreviewElement(targetImgUrl: string, isZoom: boolean) {
+  // console.log('显示的图片地址:' + targetImgUrl)
   //创建img元素,加载目标图片地址
   //创建新img元素
   let className = 'max'
@@ -71,18 +49,17 @@ function addImg(targetImgUrl: string, func: Function, isZoom: boolean) {
         $(this).attr('class', 'max')
       }
     })
-  //将新img元素插入指定位置
-  func($img)
+  return $img;
 }
 
-function getBigPreviewImgUrlFromJavStore(avid: string) {
+export function getJavstoreUrl(avid: string) {
   //异步请求搜索JavStore的番号
-  let promise1 = request(`https://javstore.net/search/${avid}.html`)
-  return promise1.then((result) => {
+  let promise = request(`https://javstore.net/search/${avid}.html`)
+  return promise.then((result) => {
     let overview = parseText(result.responseText)
     // 查找包含avid番号的a标签数组,忽略大小写
     let a_array = $(overview).find(`.news_1n li h3 span a`);
-    console.log(a_array)
+    // console.log(a_array)
     let a = a_array[0]
     //如果找到全高清大图优先获取全高清的
     for (let i = 0; i < a_array.length; i++) {
@@ -98,36 +75,40 @@ function getBigPreviewImgUrlFromJavStore(avid: string) {
       }
     }
     if (a) {
-      //异步请求调用内页详情的访问地址
       // @ts-ignore
-      const javstore = `https://javstore.net${a.pathname}`;
-      GM_setValue(`${dictionary.temp_javstore_url}${avid}`,javstore)
-      let promise2 = request(javstore, 'https://pixhost.to/')
-      return promise2.then((result) => {
-        let detail = parseText(result.responseText);
-        let img_array = $(detail).find('.news a img[alt*=".th"]');
-        console.log('原方法找到', img_array.length)
-        if (img_array.length > 0) {
-          // @ts-ignore
-          let imgUrl = img_array[img_array.length - 1].src
-          imgUrl = imgUrl ? imgUrl : img_array[0].dataset.src
-          imgUrl = imgUrl.replace('pixhost.org', 'pixhost.to').replace('.th', '')
-            .replace('thumbs', 'images').replace('//t', '//img')
-            .replace(/[?*"]/, '')
-          console.log('javstore获取的图片地址:' + imgUrl)
-          GM_setValue(`temp_img_url_${avid}`, imgUrl)
-          return Promise.resolve(imgUrl)
-        } else {
-          img_array = $(detail).find('.news > a');
-          console.log(`新方法找到`, img_array.length)
-          if (img_array.length > 0) {
-            // @ts-ignore
-            let imgUrl = img_array[0].href
-            console.log('javstore获取的图片地址:' + imgUrl)
-            GM_setValue(`temp_img_url_${avid}`, imgUrl)
-          }
-        }
-      })
+      return Promise.resolve(`https://javstore.net${a.pathname}`);
+    } else {
+      return Promise.resolve(null)
+    }
+  })
+}
+
+export function getPreviewUrlFromJavStore(javstore: string, avid: string) {
+
+  //异步请求调用内页详情的访问地址
+  let promise2 = request(javstore, 'https://pixhost.to/')
+  return promise2.then((result) => {
+    let detail = parseText(result.responseText);
+    let img_array = $(detail).find('.news a img[alt*=".th"]');
+    // console.log('原方法找到', img_array.length)
+    if (img_array.length <= 0) {
+      img_array = $(detail).find('.news > a');
+      // console.log(`新方法找到`, img_array.length)
+      if (img_array.length > 0) {
+        // @ts-ignore
+        let imgUrl = img_array[0].href
+        // console.log('javstore获取的图片地址:' + imgUrl)
+        return Promise.resolve(imgUrl)
+      }
+    } else {
+      // @ts-ignore
+      let imgUrl = img_array[img_array.length - 1].src
+      imgUrl = imgUrl ? imgUrl : img_array[0].dataset.src
+      imgUrl = imgUrl.replace('pixhost.org', 'pixhost.to').replace('.th', '')
+        .replace('thumbs', 'images').replace('//t', '//img')
+        .replace(/[?*"]/, '')
+      // console.log('javstore获取的图片地址:' + imgUrl)
+      return Promise.resolve(imgUrl)
     }
   })
 }
@@ -163,7 +144,7 @@ function requestGM_XHR(details: { headers: { referrer: any }; method: 'GET' | 'H
 function request(url: string, referrerStr: string = '', timeoutInt: number = -1) {
 
   return new Promise<any>((resolve, reject) => {
-    console.log(`发起网址请求：${url}`)
+    // console.log(`发起网址请求：${url}`)
     GM_xmlhttpRequest({
       url,
       method: 'GET',
