@@ -166,7 +166,6 @@ export default class {
   }
 
   private scroll() {
-    // console.log('滚动')
     //窗口给高度
     const windowHeight = $(window).height()
     if (windowHeight === undefined) {
@@ -183,13 +182,15 @@ export default class {
     if (this.reachBottom(windowHeight, 500)) {
       this.appendNext();
     }
-
   }
 
   private reachBottom(height: number, limit: number) {
+    if (this.page.isEnd) {
+      return false;
+    }
     if (this.anchor === null) {
-      console.log('找不到分页栏')
-      return false
+      console.log('找不到分页栏');
+      return false;
     }
     return (this.anchor.getBoundingClientRect().top - height) < limit;
   }

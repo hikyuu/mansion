@@ -25,7 +25,7 @@ export function getAvCode(avid: string): string {
   return letter.toString().replace(/,/g, '-') + '-' + num;
 }
 
-export function getPreviewElement(targetImgUrl: string, isZoom: boolean) {
+export function getPreviewElement(avid: string, targetImgUrl: string, isZoom: boolean) {
   // console.log('显示的图片地址:' + targetImgUrl)
   //创建img元素,加载目标图片地址
   //创建新img元素
@@ -33,10 +33,11 @@ export function getPreviewElement(targetImgUrl: string, isZoom: boolean) {
   if (isZoom != undefined && !isZoom) {
     className = 'min'
   }
-  let $img = $(`<div id="preview"><img id="picture" title="点击可放大缩小 (图片正常时)" class="${className}"/></div>`)
+  let $img = $(`<div id="preview"><img id="img_${avid}" title="点击可放大缩小 (图片正常时)" class="${className}"/></div>`)
   $img.css({'text-align': 'center'});
-  $img.children('#picture')
+  $img.children(`#img_${avid}`)
     .attr('src', targetImgUrl)
+    .attr('retry',0)
     .on('click', function () {
       if ($(this).hasClass('max')) {
         $(this).attr('class', 'min')
@@ -48,7 +49,22 @@ export function getPreviewElement(targetImgUrl: string, isZoom: boolean) {
       } else {
         $(this).attr('class', 'max')
       }
-    })
+    }).on('error', function () {
+    let retryString = $(this).attr("retry");
+    if (retryString === undefined) return
+    let retry = Number(retryString);
+    setTimeout( () => {
+      if (retry > 3) {
+        $(this).attr("src", "https://raw.githubusercontent.com/hikyuu/gallery/main/assets/failed.png");//设置碎图
+        $(this).css('width', 200).css('height',200);
+      } else {
+        retry++;
+        $(this).attr("retry", retry);//重试次数+1
+        $(this).attr('src', targetImgUrl);//继续刷新图片
+      }
+    }, 5000)
+
+  });
   return $img;
 }
 
