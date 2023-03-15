@@ -1,8 +1,6 @@
 import {GM_getValue} from "$";
 import {Site} from "../site/site";
 import $ from "jquery";
-import {dictionary} from "../dictionary";
-import {toRaw} from "vue";
 
 class Pagination {
   currentURL: string = location.toString()
@@ -26,6 +24,8 @@ export default class {
 
   private site: Site;
 
+  private recordHeight = 0;
+
   constructor(site: Site, selector: Selector) {
     this.site = site
     this.selector = selector
@@ -45,7 +45,7 @@ export default class {
       // 开启关闭瀑布流判断
       if (waterfallScrollStatus > 0) {
 
-        $(window).on('scroll', () => this.scroll());
+        $(window).on('scroll', () => this.scroll(true));
 
         this.loadNext()
       }
@@ -66,7 +66,7 @@ export default class {
       return
     }
     this.page.nextUrl = nextUrl;
-    this.fetchNextSync()
+    this.fetchNextSync();
   }
 
   // private appendElems() {
@@ -106,23 +106,19 @@ export default class {
       }
     }).then(() => {
       return this.fetchURL().then();
-    }).catch((err) => {
+    }).catch(() => {
       // Locked!
     });
   }
 
   private fetchURL() {
-    console.log(`fetchUrl = ${this.page.nextUrl}`)
     if (this.page.nextUrl === null) throw Error('fetchUrl为空')
+    console.log(`fetchUrl = ${this.page.nextUrl}`)
     const fetchWithCookie = fetch(this.page.nextUrl, {credentials: 'same-origin'});
     return fetchWithCookie.then(response => response.text())
       .then(html => new DOMParser().parseFromString(html, 'text/html'))
       .then(doc => {
-        let nextUrl = this.getNextUrl(doc);
-        if (nextUrl === null) {
-          this.page.isEnd = true;
-        }
-        this.page.nextUrl = nextUrl
+        this.page.nextUrl = this.getNextUrl(doc)
 
         this.page.nextDetail = this.getDetail(doc);
 
@@ -134,7 +130,7 @@ export default class {
         //     elems = []
         //   }
         // }
-      }).catch((reason) => {
+      }).catch(() => {
 
       })
   }
@@ -159,14 +155,15 @@ export default class {
   }
 
   private end() {
-    $(window).off('scroll');
+    // $(window).off('scroll');
     if (this.anchor === null) return
     let $end = $(`<h1>The End</h1>`)
     $(this.anchor).replaceWith($end)
   }
 
-  private scroll() {
-    //窗口给高度
+  public scroll(frequencyLimit: boolean) {
+
+    //窗口高度
     const windowHeight = $(window).height()
     if (windowHeight === undefined) {
       console.log('获取不到窗口高度')
@@ -178,35 +175,42 @@ export default class {
       console.log('获取不到滚动高度')
       return false
     }
-    this.site.scroll(windowHeight, scrollTop);
-    if (this.reachBottom(windowHeight, 500)) {
+
+    if (!frequencyLimit || scrollTop - this.recordHeight > 50 || this.recordHeight - scrollTop > 50) {
+      this.recordHeight = scrollTop;
+      this.site.scroll(windowHeight, scrollTop);
+    }
+
+    if (this.reachBottom(windowHeight, scrollTop, 3000)) {
       this.appendNext();
     }
+
   }
 
-  private reachBottom(height: number, limit: number) {
-    if (this.page.isEnd) {
-      return false;
+  private reachBottom(windowHeight: number, scrollTop: number, limit: number) {
+    //scrollHeight是滚动条的总高度
+    const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+    //滚动条到底部的条件
+    if (scrollTop + windowHeight >= scrollHeight - limit) {
+      //到了这个就可以进行业务逻辑加载后台数据了
+      console.log("到了底部");
+      return true;
     }
-    if (this.anchor === null) {
-      console.log('找不到分页栏');
-      return false;
-    }
-    return (this.anchor.getBoundingClientRect().top - height) < limit;
   }
-
 
   private appendNext() {
-    console.log(`到达底部`)
     if (this.page.isEnd) {
       console.log(`没有下一页`);
       return this.end();
     }
     if (this.page.nextDetail === null) {
+      this.page.isEnd = true;
       console.log(`没有获取到下一页内容`);
-      return
+      return;
     }
+    console.log(`加载下一页内容`)
     $(this.selector.container).append(this.page.nextDetail);
+    this.page.nextDetail = null;
     console.log(`解锁`);
     this.lock.unlock()
     return this.fetchNextSync();
