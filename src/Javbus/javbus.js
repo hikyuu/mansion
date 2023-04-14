@@ -1018,7 +1018,7 @@
     static addBrowseJavidCache(javId) {
       if (!this.browseJavidHasCache(javId)) {
         let myBrowseJavidArray = JSON.parse(GM_getValue("myBrowseJavidArray", '[]'));
-        myBrowseJavidArray.push(javId);
+        myBrowseJavidArray.push(avid, 'https://raw.githubusercontent.com/hikyuu/gallery/main/assets/load.svg', date);
         GM_setValue("myBrowseJavidArray", JSON.stringify(myBrowseJavidArray));
       }
     }
@@ -1086,13 +1086,7 @@
       let todo = async () => {    // todo 190628
         await loadPageNumData(pageName, 1);
         for (let i = 2; i < GM_getValue(pageName + "_pageNum") + 1; i++) {
-          queue.push(() => {
-            let defer = $.Deferred();
-            loadPageNumData(pageName, i).then(() => {
-              defer.resolve();
-            });
-            return defer.promise();
-          });
+          queue.push(avid, 'https://raw.githubusercontent.com/hikyuu/gallery/main/assets/load.svg', date);
         }
       };
       return todo();

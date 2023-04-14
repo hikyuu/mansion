@@ -1,6 +1,4 @@
-import {GM_setValue} from "$";
 import {GM_deleteValue, GM_getValue, GM_xmlhttpRequest} from "vite-plugin-monkey/dist/client";
-import {dictionary} from "../dictionary";
 
 export function getAvCode(avid: string): string {
   // 带-的番号不处理，除了-0 如：DSVR-01167
@@ -37,7 +35,7 @@ export function getPreviewElement(avid: string, targetImgUrl: string, isZoom: bo
   $img.css({'text-align': 'center'});
   $img.children(`#IMG_${avid}`)
     .attr('src', targetImgUrl)
-    .attr('retry',0)
+    .attr('retry', 0)
     .on('click', function () {
       if ($(this).hasClass('max')) {
         $(this).attr('class', 'min')
@@ -53,10 +51,10 @@ export function getPreviewElement(avid: string, targetImgUrl: string, isZoom: bo
     let retryString = $(this).attr("retry");
     if (retryString === undefined) return
     let retry = Number(retryString);
-    setTimeout( () => {
+    setTimeout(() => {
       if (retry > 3) {
         $(this).attr("src", "https://raw.githubusercontent.com/hikyuu/gallery/main/assets/failed.png");//设置碎图
-        $(this).css('width', 200).css('height',200);
+        $(this).css('width', 200).css('height', 200);
       } else {
         retry++;
         $(this).attr("retry", retry);//重试次数+1
@@ -68,7 +66,7 @@ export function getPreviewElement(avid: string, targetImgUrl: string, isZoom: bo
   return $img;
 }
 
-export function getJavstoreUrl(avid: string) {
+export function getJavstoreUrl(avid: string, retry = 1): Promise<string | null> {
   //异步请求搜索JavStore的番号
   let promise = request(`https://javstore.net/search/${avid}.html`)
   return promise.then((result) => {
@@ -96,10 +94,18 @@ export function getJavstoreUrl(avid: string) {
     } else {
       return Promise.resolve(null)
     }
+  }).catch(reason => {
+    console.error(reason);
+    if (retry > 0) {
+      console.log('重试获取搜索结果', avid);
+      return getJavstoreUrl(avid, retry--);
+    } else {
+      return Promise.resolve(null);
+    }
   })
 }
 
-export function getPreviewUrlFromJavStore(javstore: string, avid: string) {
+export function getPreviewUrlFromJavStore(javstore: string, avid: string, retry = 1): Promise<string> {
 
   //异步请求调用内页详情的访问地址
   let promise2 = request(javstore, 'https://pixhost.to/')
@@ -126,7 +132,13 @@ export function getPreviewUrlFromJavStore(javstore: string, avid: string) {
       // console.log('javstore获取的图片地址:' + imgUrl)
       return Promise.resolve(imgUrl)
     }
-  })
+  }).catch(reason => {
+    console.error(reason);
+    if (retry > 0) {
+      console.log('重试获取图片', avid)
+      return getPreviewUrlFromJavStore(javstore, avid, retry--);
+    }
+  });
 }
 
 function requestGM_XHR(details: { headers: { referrer: any }; method: 'GET' | 'HEAD' | 'POST'; url: any; timeout: number }) {
@@ -199,6 +211,10 @@ function parseText(text: string): Document {
     alert('parse error')
     throw Error('parse error')
   }
+}
+
+export function getId() {
+  return Math.random().toString(36).substring(3)
 }
 
 

@@ -2,8 +2,9 @@
 
 <script lang="ts">
 import Home from "./components/Home.vue";
-import {getSite} from "./site";
+import {getSite, Sisters} from "./site";
 import {defineComponent} from 'vue'
+import {Site} from "./site/site";
 
 export default defineComponent({
   name: 'App',
@@ -12,14 +13,20 @@ export default defineComponent({
   },
   data() {
     return {
-      site: getSite(),
+      site: {} as Site,
+      sisters: new Sisters() as Sisters,
     }
   },
   created() {
-    if (this.site === undefined) {
+
+    const site = getSite(this.sisters);
+    if (site === undefined) {
       console.log(`不支持当前网站!`)
       return
     }
+
+    this.site = site;
+
     this.site.mount();
   },
 })
@@ -27,7 +34,7 @@ export default defineComponent({
 </script>
 
 <template>
-  <Home v-if="site" :site="site"/>
+  <Home v-if="site" :site="site" :sisters="sisters"/>
   <!--  <HelloWorld msg="Vite + Vue" />-->
 </template>
 

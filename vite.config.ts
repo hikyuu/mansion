@@ -4,6 +4,9 @@ import monkey, {cdn} from 'vite-plugin-monkey';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  server: {
+    hmr: false
+  },
   plugins: [
     vue(),
     monkey({
@@ -18,6 +21,7 @@ export default defineConfig({
       },
       build: {
         externalGlobals: {
+          //key对应npm包名称,exportVarName对应jsdelivr包名
           vue: cdn.jsdelivr('Vue', 'dist/vue.global.prod.js'),
           jquery: cdn.jsdelivr('jQuery', 'dist/jquery.min.js'),
           "realm-web": cdn.jsdelivr("Realm",'dist/bundle.iife.js'),

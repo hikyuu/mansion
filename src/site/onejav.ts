@@ -1,12 +1,13 @@
 import Waterfall, {Selector} from "../waterfall";
-import {getAvCode, getPreviewUrlFromJavStore, getJavstoreUrl, getPreviewElement} from "../common";
+import {getAvCode, getPreviewUrlFromJavStore, getJavstoreUrl, getPreviewElement, getId} from "../common";
 import {Site} from "./site";
 import $ from "jquery";
 import {GM_getValue, GM_setValue} from "$";
-import {dictionary} from "../dictionary";
+import {dictionary, picx} from "../dictionary";
 import waterfall from "../waterfall";
 import * as Realm from "realm-web";
-import {GM_deleteValue} from "vite-plugin-monkey/dist/client";
+import {GM_addStyle, GM_deleteValue} from "vite-plugin-monkey/dist/client";
+import {Sisters} from "./index";
 
 const {
   BSON: {ObjectId},
@@ -14,11 +15,15 @@ const {
 
 class Onejav implements Site {
 
+  constructor(sisters: Sisters) {
+    this.sisters = sisters;
+  }
+
   currentPreviewId: string | undefined = undefined;
 
-  currentHaveRead: boolean = false;
-
   private waterfall: Waterfall | undefined;
+
+  private sisters: Sisters;
 
   selector: Selector = {
     next: 'a.pagination-next.button.is-primary',
@@ -31,40 +36,75 @@ class Onejav implements Site {
 
   private lockPool = new LockPool();
 
-  async mount() {
+  async mount(): Promise<void> {
 
     //todo 190404
+    this.addStyle();
 
-    // GM_addStyle(`
+    const user = await this.loginApiKey(); // add previously generated API key
+
+    await this.syncHistory();
+
+    this.home();
+
+    this.homeLoadObserve();
+
+    this.homeVisible();
+
+    const $onejav = this.homeContainer();
+    // 瀑布流脚本
+    this.enableWaterfall($onejav, this.sisters);
+  }
+
+  private addStyle() {
+    GM_addStyle(`
     //               .container {max-width: 99%;width: 99%;}
     //               .columns {justify-content:center;}
     //               .column.is-5 {max-width: 82%;flex-grow:0 flex-shrink:0;flex-basis:100%}
     //               .column {flex-grow: 0;flex-shrink: 1;flex-basis: auto;}
-    //           `)
-    // console.log(`样式添加成功`)
+    .max{width:100%}
+    .min{width:100%}
+              `)
+    console.log(`样式添加成功`)
+  }
 
-    try {
-      const user = await this.loginApiKey(); // add previously generated API key
-      await this.syncHistory();
-
-    } catch (e) {
-      console.log(e);
-    }
-
-    this.home();
-
-    this.observe();
-
-    // GM_deleteValue(dictionary.onejav_history_key);
-
+  private homeContainer() {
     // 插入自己创建的div
     $('div.container nav.pagination.is-centered').before('<div id=\'card\' ></div>')
     // 将所有番号内容移到新建的div里
     const $onejav = $('div.container div.card.mb-3');
     $('div#card').append($onejav)
+    return $onejav;
+  }
 
-    // 瀑布流脚本
-    this.enableWaterfall($onejav);
+  private homeVisible() {
+    console.log(`监听页面切换状态`, document.visibilityState)
+    $(document).on('visibilitychange', () => {
+      if (document.visibilityState == 'visible') {
+        console.log(`重新加载首页数据`)
+        const windowHeight = $(window).height()
+        if (windowHeight === undefined) {
+          console.log('获取不到窗口高度')
+          return false
+        }
+
+        const scrollTop = $(window).scrollTop();
+        if (scrollTop === undefined) {
+          console.log('获取不到滚动高度')
+          return false
+        }
+        const histories = this.getHistories();
+        for (let card of $('#overview_list div.card.mb-1.card-overview')) {
+          const cardTop = $(card).offset()!.top;
+          const cardHeight = $(card)!.height();
+          if (cardHeight === undefined) return;
+
+          if (cardTop >= scrollTop - cardHeight && cardTop <= scrollTop + windowHeight) {
+            this.loadHistory($(card), histories);
+          }
+        }
+      }
+    });
   }
 
   private async syncHistory() {
@@ -88,42 +128,32 @@ class Onejav implements Site {
   }
 
   private async loginApiKey() {
-
-    const app = new Realm.App({id: 'mansion-daygh'});
-    // Create an API Key credential
-    const credentials = Realm.Credentials.apiKey(this.apiKey);
-
-    // Authenticate the user
-    const user = await app.logIn(credentials);
-
-    // console.log(user);
-    console.log('用户登陆成功');
-
-    return user;
+    try {
+      const app = new Realm.App({id: 'mansion-daygh'});
+      // Create an API Key credential
+      const credentials = Realm.Credentials.apiKey(this.apiKey);
+      // Authenticate the user
+      const user = await app.logIn(credentials);
+      // console.log(user);
+      console.log('用户登陆成功');
+      return user;
+    } catch (e) {
+      console.log('MongoDB登录出错', e);
+    }
   }
 
-  private async washData() {
-
-    const app = Realm.App.getApp('mansion-daygh');
-    const mongo = app.currentUser?.mongoClient('mongodb-atlas');
-    const onejav = mongo?.db('mansion').collection('onejav');
-
-  }
-
-
-  private observe() {
+  private homeLoadObserve() {
     const overview = $('#overview_list')[0];
     if (overview === undefined) {
       return
     }
     const mutationObserver = new MutationObserver((mutationsList, observer) => {
-      console.log(mutationsList);
       const histories = this.getHistories();
       for (let mutationRecord of mutationsList) {
-        const nodes = mutationRecord.addedNodes;
-        for (let i = 0; i < nodes.length; i++) {
-          this.loadHistory($(nodes[i]), histories);
-        }
+        mutationRecord.addedNodes.forEach((node, number, parentNode) => {
+          if (node.nodeType !== 1) return
+          this.loadHistory($(node), histories);
+        })
       }
     });
 
@@ -145,25 +175,35 @@ class Onejav implements Site {
     for (let card of $('#overview_list div.card.mb-1.card-overview')) {
       this.loadHistory($(card), history);
     }
+
     this.markAsRead($('div.column .card'), history);
   }
 
   private loadHistory(card: JQuery<Node>, history: Array<History>) {
     $('body').find('div.thumbnail-text').css('display', 'unset');
-    const header = card.children('header.card-header');
-    const title = $(header).children('a.card-header-title')
-    const date = title.text().trim()
-    // console.log(date);
+    const title = card.find('header.card-header a.card-header-title');
+    const content = title.contents()[0].nodeValue;
+    if (content === null) return
+
+    const date = content.trim();
+
+    let id = title.attr('id');
+    if (id === undefined) {
+      id = getId();
+      title.attr('id', id);
+    }
+
     if (date !== undefined) {
       const histories = history.filter(item => item.releaseDate === date);
 
       if (histories.length > 0) {
-        title.append(`<span style="white-space:pre">  ${histories.length}部已阅</span>`)
 
+        title.children(`#${id}`).remove();
+        title.append(`<div id="${id}" style="white-space:pre">  ${histories.length}部已阅</div>`)
         this.markAsRead(card, histories);
-
       } else {
-        title.append(`<span style="white-space:pre;color: red">  新！！！</span>`)
+        title.children(`#${id}`).remove();
+        title.append(`<div id="${id}" style="white-space:pre;color: red">  新！！！</div>`)
       }
     }
   }
@@ -206,63 +246,84 @@ class Onejav implements Site {
     const onejav = this.getOnejav();
     if (!onejav) return;
 
-    onejav.updateOne({serialNumber: id}, history, {upsert: true}).then(
-      result => {
-        console.log(id, '上传成功');
-        const histories = this.getHistories();
-        histories.push(history);
-        this.setHistory(histories);
-        //解锁
-        this.lockPool.unlock(id);
-      }
-    ).catch(reason => {
-      console.log('上传重试');
-      if (retry >= 3) {
-        this.lockPool.unlock(id);
-        return
-      }
-      this.uploadHistory(id, date, retry += 1);
-    });
+    onejav.updateOne({serialNumber: id}, history, {upsert: true})
+      .then(
+        result => {
+          console.log(id, '上传成功');
+          const histories = this.getHistories();
+          histories.push(history);
+          this.setHistory(histories);
+          //解锁
+          this.lockPool.unlock(id);
+        })
+      .catch(reason => {
+        console.log('上传重试');
+        if (retry >= 3) {
+          this.lockPool.unlock(id);
+          return
+        }
+        this.uploadHistory(id, date, retry += 1);
+      });
   }
 
-  async findImages(elems: JQuery): Promise<void> {
+  findImages(elems: JQuery) {
     if (document.title.search(/OneJAV/) > 0 && elems) {
-      // 增加对应所有番号的Javlib的跳转链接,
       for (let index = 0; index < elems.length; index++) {
-        await this.addPreview(elems, index);
+        this.addPreview($(elems[index])).then();
       }
     }
   }
 
-  private async addPreview(elems: JQuery, index: number) {
-    let aEle = $(elems[index]).find('h5.title.is-4.is-spaced a')[0]
+  private async addPreview(elem: JQuery, retry = 0) {
+    let detail = elem.find('h5.title.is-4.is-spaced a')[0]
+    const date = elem.find('p.subtitle a').text().trim();
 
-    let originalAvid = $(aEle).text().replace(/ /g, '').replace(/[\r\n]/g, '') //去掉空格//去掉回车换行
+    let originalAvid = $(detail).text().replace(/ /g, '').replace(/[\r\n]/g, '') //去掉空格//去掉回车换行
 
-    $(elems[index]).attr('id', originalAvid);
+    // let avid: string = this.getAvId(originalAvid)
+    let avid: string = 'test123456'
 
-    let avid: string = this.getAvId(originalAvid)
 
-    const javstoreUrl = await getJavstoreUrl(avid);
-    // const javstoreUrl = null
+    console.log('添加', avid, date);
 
-    const titleElement = aEle.parentElement;
+    elem.attr('id', avid);
+    const loadUrl = picx('/load.svg');
+    this.sisters.push(avid, loadUrl, date);
+    const preview = getPreviewElement(avid, loadUrl, false);
+    let divEle = elem.find('div.container')[0]
 
+    if (divEle) {
+      $(divEle).remove('#preview');
+      $(divEle).append(preview)
+    }
+
+    const javstoreUrl = await getJavstoreUrl(avid,3);
+
+    const titleElement = detail.parentElement;
+
+    const failedUrl = picx("/failed.svg");
     if (javstoreUrl === null) {
-      this.addLink('没找到', titleElement, avid, elems, index);
+      this.sisters.push(avid, failedUrl, date);
+      preview.children("img").attr('src', failedUrl)
+      this.addLink('没找到', titleElement, avid, elem);
       return
     }
     if (titleElement !== null) {
-      $(titleElement).append(`<a style='color:red;' href="${javstoreUrl}" target='_blank' title='点击到Javlib看看'>&nbsp;&nbsp;Javlib</a>`);
+      $(titleElement).append(`<a style='color:red;' href="${javstoreUrl}" target='_blank' title='点击到JavStore看看'>&nbsp;&nbsp;JavStore</a>`);
     }
     // 番号预览大图
-    const imgUrl = await getPreviewUrlFromJavStore(javstoreUrl, avid);
+    const imgUrl = await getPreviewUrlFromJavStore(javstoreUrl, avid, 3);
 
     if (imgUrl === null) {
-      this.addLink('图片获取失败', titleElement, avid, elems, index);
+      this.sisters.push(avid, failedUrl, date);
+      preview.children("img").attr('src', failedUrl)
+
+      this.addLink('图片获取失败', titleElement, avid, elem);
     } else {
-      const preview = getPreviewElement(avid, imgUrl, false);
-      let divEle = $(elems[index]).find('div.container')[0]
+      this.sisters.push(avid, imgUrl, date);
+      preview.children("img").attr('src', imgUrl)
+
+      let divEle = elem.find('div.container')[0]
       if (divEle) {
         $(divEle).append(preview)
       }
@@ -278,27 +339,27 @@ class Onejav implements Site {
       return groups[0][1] + "-" + groups[0][2];
     }
 
-
     return originalAvid;
   }
 
-  private addLink(text: string, titleElement: HTMLElement | null, avid: string, elems: JQuery, index: number) {
+  private addLink(text: string, titleElement: HTMLElement | null, avid: string, elem: JQuery) {
     //
-    const javlib_key = `${dictionary.javlib_key}${avid}`;
-    const javlib_id_key = `#${javlib_key}`;
-    $(javlib_id_key).remove();
+    const javstore_key = `${dictionary.javstore_key}${avid}`;
+    const javlib_id_key = `#${javstore_key}`;
+    const $javstore_key = $(javlib_id_key);
+    $javstore_key.remove();
     if (titleElement !== null) {
-      $(titleElement).append(`<a id="${javlib_key}" style='color:red;' target='_blank' title='点击重试'>&nbsp;&nbsp;${text}</a>`);
+      const $title = $(titleElement);
+      $title.append(`<a id="${javstore_key}" style='color:red;' target='_blank' title='点击重试'>&nbsp;&nbsp;${text}</a>`);
       $(javlib_id_key).on('click', () => {
-        $(javlib_id_key).remove();
-        $(titleElement).append(`<a id="${javlib_key}" style='color:blue;' target='_blank' title='点击重试'>&nbsp;&nbsp;${text}重试中</a>`);
+        $(javlib_id_key).css('color','blue').text(`&nbsp;&nbsp;${text}重试中`)
         console.log(`重试`);
-        this.addPreview(elems, index).then();
+        this.addPreview(elem).then();
       });
     }
   }
 
-  private enableWaterfall($onejav: JQuery) {
+  private enableWaterfall($onejav: JQuery, sisters: Sisters) {
     if ($onejav.length) {
       if ($onejav[0].parentElement === null) {
         console.log('当前页面有变动,通知开发者')
@@ -306,8 +367,28 @@ class Onejav implements Site {
       }
       $onejav[0].parentElement.id = "waterfall";
 
-      this.waterfall = new Waterfall(this, this.selector);
+      this.waterfall = new Waterfall(this, this.selector, sisters);
       this.waterfall.flow();
+    }
+  }
+
+  save(avid: string): void {
+    const histories = this.getHistories();
+
+    const history = histories.find(item => item.serialNumber === avid);
+
+    if (history) {
+      console.log('已经记录', avid)
+      return;
+    }
+    const info = this.sisters.queue.find(item => item.avid = avid);
+    if (info) {
+      const date = info.date;
+      if (date === undefined || date === '') {
+        alert('日期样式有变动');
+        return;
+      }
+      this.uploadHistory(avid, date);
     }
   }
 
@@ -330,26 +411,7 @@ class Onejav implements Site {
   private record(elementTop: number, elementHeight: number, scrollTop: number, windowHeight: number, detail: HTMLElement) {
     if (elementTop + elementHeight >= scrollTop && elementTop + elementHeight <= scrollTop + windowHeight) {
       const id = $(detail).attr('id');
-      if (id === undefined) {
-        alert('番号样式有变动')
-        return;
-      }
-
-      const histories = this.getHistories();
-
-      const history = histories.find(item => item.serialNumber === id);
-
-      if (history) {
-        // console.log('已经记录', id)
-        return;
-      }
-
-      const date = $(detail).find('p.subtitle a').text().trim();
-      if (date === undefined || date === '') {
-        alert('日期样式有变动');
-        return;
-      }
-      this.uploadHistory(id, date);
+      if (id === undefined) return;
     }
   }
 
@@ -370,49 +432,45 @@ class Onejav implements Site {
       }
       this.currentPreviewId = currentPreviewId;
       console.log('当前图片:' + this.currentPreviewId);
-      this.currentHaveRead = this.getHistories().findIndex(item => item.serialNumber === currentPreviewId) >= 0;
     }
   }
 
+  haveRead() {
+    return this.getHistories().findIndex(item => item.serialNumber === this.sisters.current_key) >= 0;
+  }
+
   download(): void {
-    console.log('下载', this.currentPreviewId);
-    const $id = $('#' + this.currentPreviewId);
-    // console.log($id);
+    console.log('下载', this.sisters.current_key);
+    const $id = $('#' + this.sisters.current_key);
     const $download = $id.find("a[title='Download .torrent']");
-    // console.log($download);
     $download[0].click();
   }
 
   nextStep(): void {
-    const nextPreview = $('#' + this.currentPreviewId).next().find("#preview");
-    if (nextPreview.length === 0) {
-      console.log('找不到下一张图片')
-      return;
-    }
+    const nextPreview = $('#' + this.sisters.current_key).find("#preview");
+    if (nextPreview.length === 0) return;
     const offset = nextPreview.offset();
-    if (offset === undefined) {
-      return
-    }
-    $('html,body').animate({scrollTop: offset.top + 50}, 1000)
+    if (offset === undefined) return
+    $('html,body').animate({scrollTop: offset.top}, 1000)
 
   }
 
   previous(): void {
-    const prev = $('#' + this.currentPreviewId).prev().find("#preview");
-    if (prev.length === 0) {
-      console.log('找不到上一张图片')
-      return;
-    }
+    const prev = $('#' + this.sisters.current_key).find("#preview");
+    if (prev.length === 0) return;
     const offset = prev.offset();
-    if (offset === undefined) {
-      return
-    }
+    if (offset === undefined) return
     $('html,body').animate({scrollTop: offset.top}, 1000)
   }
 
   whetherToDisplay(): boolean {
     const $overview = $('body').find('#overview_list');
     return $overview.length === 0;
+  }
+
+  loadNext(): void {
+    this.waterfall?.appendNext();
+
   }
 }
 

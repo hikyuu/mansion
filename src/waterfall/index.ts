@@ -1,12 +1,17 @@
 import {GM_getValue} from "$";
 import {Site} from "../site/site";
 import $ from "jquery";
+import {Sisters} from "../site";
 
 class Pagination {
+  constructor(detail: JQuery) {
+    this.detail = detail;
+  }
+
   currentURL: string = location.toString()
   isEnd: boolean = false
   nextUrl: string | null = null
-  detail: JQuery | null = null;
+  detail: JQuery;
   nextDetail: JQuery | null = null
 }
 
@@ -20,20 +25,26 @@ export default class {
 
   private readonly anchor: HTMLElement | null = null;
 
-  private page: Pagination = new Pagination();
+  private page: Pagination;
 
   private site: Site;
 
-  private recordHeight = 0;
+  private recordHeight = 0
 
-  constructor(site: Site, selector: Selector) {
+  private sisters: Sisters;
+
+  constructor(site: Site, selector: Selector, sisters: Sisters) {
     this.site = site
     this.selector = selector
-    this.page.detail = this.getDetail(document);
-    const htmlElements = $(this.selector.pagination);
-    if (htmlElements.length > 0) {
-      this.anchor = $(this.selector.pagination)[0];
+    this.page = new Pagination(this.getDetail(document))
+
+    this.site.findImages(this.page.detail);
+
+    const $pageNation = $(this.selector.pagination);
+    if ($pageNation.length > 0) {
+      this.anchor = $pageNation[0];
     }
+    this.sisters = sisters;
   }
 
   flow() {
@@ -45,18 +56,15 @@ export default class {
       // 开启关闭瀑布流判断
       if (waterfallScrollStatus > 0) {
 
-        $(window).on('scroll', () => this.scroll(true));
+        // $(window).on('scroll', () => this.scroll(true));
 
         this.loadNext()
       }
     }
   }
 
-  private loadNext() {
+  loadNext() {
     console.log(`===加载下一页===`)
-    this.page.detail = this.getDetail(document);
-
-    this.site.findImages(this.page.detail);
 
     let nextUrl = this.getNextUrl(document);
     if (nextUrl === null) {
@@ -68,25 +76,6 @@ export default class {
     this.page.nextUrl = nextUrl;
     this.fetchNextSync();
   }
-
-  // private appendElems() {
-  //   // let nextPage = this.pageIterator.next()
-  //   if (!nextPage.done) {
-  //     nextPage.value.then(elems => {
-  //       const cb = (this.count === 0) ? this._1func : this._2func
-  //       cb($(this.selector.container), elems)
-  //       this.count += 1
-  //       // hobby mod script
-  //       this._3func(elems)
-  //       this._4func(elems)
-  //     })
-  //   }
-  //   return nextPage.done
-  // }
-
-  // _2func(cont, elems) {
-  //   cont.append(elems)
-  // }
 
   private getBaseURI() {
     let _ = location
@@ -122,7 +111,6 @@ export default class {
 
         this.page.nextDetail = this.getDetail(doc);
 
-        this.site.findImages(this.page.nextDetail);
         // javdb列表 bug：一直有最后一页 console.log(`1 ${url}`);console.log(`2 ${nextURL}`);
         // if ($(JAVDB_ITEM_SELECTOR).length && (this.count !== 0) && url === nextURL) {
         //   if ($(`#waterfall > div > a[href="${$(elems[0]).find('a.box')[0].attr('href')}"]`).length > 0) {
@@ -136,14 +124,14 @@ export default class {
   }
 
   private getDetail(doc: Document): JQuery {
-    const detail = $(doc).find(this.selector.item);
-    for (const elem of detail) {
+    const details = $(doc).find(this.selector.item);
+    for (const elem of details) {
       const links = elem.getElementsByTagName('a')
       for (let i = 0; i < links.length; i++) {
         links[i].target = '_blank'
       }
     }
-    return detail;
+    return details;
   }
 
   private getNextUrl(doc: Document) {
@@ -198,7 +186,7 @@ export default class {
     }
   }
 
-  private appendNext() {
+  appendNext() {
     if (this.page.isEnd) {
       console.log(`没有下一页`);
       return this.end();
@@ -208,11 +196,14 @@ export default class {
       console.log(`没有获取到下一页内容`);
       return;
     }
+
     console.log(`加载下一页内容`)
+    this.site.findImages(this.page.nextDetail);
     $(this.selector.container).append(this.page.nextDetail);
     this.page.nextDetail = null;
     console.log(`解锁`);
     this.lock.unlock()
+
     return this.fetchNextSync();
   }
 }
