@@ -1,4 +1,5 @@
 import {GM_deleteValue, GM_getValue, GM_xmlhttpRequest} from "vite-plugin-monkey/dist/client";
+import {error} from "jquery";
 
 export function getAvCode(avid: string): string {
   // 带-的番号不处理，除了-0 如：DSVR-01167
@@ -70,7 +71,10 @@ export function getJavstoreUrl(avid: string, retry = 1): Promise<string | null> 
   //异步请求搜索JavStore的番号
   let promise = request(`https://javstore.net/search/${avid}.html`)
   return promise.then((result) => {
-    let overview = parseText(result.responseText)
+    if (result.responseText === null) {
+      throw Error('请求失败');
+    }
+    let overview = parseText(result.responseText);
     // 查找包含avid番号的a标签数组,忽略大小写
     let a_array = $(overview).find(`.news_1n li h3 span a`);
     // console.log(a_array)
@@ -141,7 +145,12 @@ export function getPreviewUrlFromJavStore(javstore: string, avid: string, retry 
   });
 }
 
-function requestGM_XHR(details: { headers: { referrer: any }; method: 'GET' | 'HEAD' | 'POST'; url: any; timeout: number }) {
+function requestGM_XHR(details: {
+  headers: { referrer: any };
+  method: 'GET' | 'HEAD' | 'POST';
+  url: any;
+  timeout: number
+}) {
   return new Promise((resolve, reject) => {
     console.log(`发起网址请求：${details.url}`)
     let req = GM_xmlhttpRequest({
@@ -187,16 +196,14 @@ function request(url: string, referrerStr: string = '', timeoutInt: number = -1)
       },
       onabort: () => {
         console.log(url + ' abort')
-        resolve(null)
+        throw Error('请求中止');
       },
       onerror: response => {
         console.log(url + ' error')
-        console.log(response)
-        resolve(response)
+        throw Error('请求出错');
       },
       ontimeout: () => {
-        console.log(`${url} ${timeoutInt > 0 ? timeoutInt : 20000}ms timeout`)
-        resolve(null)
+        throw Error(`${timeoutInt > 0 ? timeoutInt : 20000}ms timeout`);
       }
     })
   })
