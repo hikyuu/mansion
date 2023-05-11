@@ -1,11 +1,14 @@
 import {Selector} from "../waterfall";
+import {SiteInterface} from "./SiteInterface";
+import {Sisters} from "./Sisters";
 
-abstract class Site {
+export abstract class AbstractSite implements SiteInterface{
 
   abstract selector: Selector
 
-  abstract currentPreviewId: string | undefined;
+  abstract sisters: Sisters;
 
+  abstract currentPreviewId: string | undefined;
   // 声明抽象的方法，让子类去实现
   abstract mount(): void;
 
@@ -28,6 +31,19 @@ abstract class Site {
   abstract haveRead(): boolean;
 }
 
-export {
-  Site
-};
+export class LockPool {
+
+  keyPool = new Set<string>();
+
+  lock(key: string) {
+    this.keyPool.add(key);
+  }
+
+  unlock(key: string) {
+    this.keyPool.delete(key);
+  }
+
+  locked(key: string) {
+    return this.keyPool.has(key);
+  }
+}

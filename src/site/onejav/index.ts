@@ -1,19 +1,20 @@
-import Waterfall, {Selector} from "../waterfall";
-import {getAvCode, getPreviewUrlFromJavStore, getJavstoreUrl, getPreviewElement, getId} from "../common";
-import {Site} from "./site";
+import Waterfall, {Selector} from "../../waterfall";
+import {getId, getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore} from "../../common";
+import {AbstractSite, LockPool} from "../AbstractSite";
 import $ from "jquery";
 import {GM_getValue, GM_setValue} from "$";
-import {dictionary, picx} from "../dictionary";
-import waterfall from "../waterfall";
+import {dictionary, picx} from "../../dictionary";
 import * as Realm from "realm-web";
-import {GM_addStyle, GM_deleteValue} from "vite-plugin-monkey/dist/client";
-import {Sisters} from "./index";
+import {GM_addStyle} from "vite-plugin-monkey/dist/client";
+import {Sisters} from "../Sisters";
 
 const {
   BSON: {ObjectId},
 } = Realm;
 
-class Onejav implements Site {
+export class Onejav implements AbstractSite {
+
+  private onejav: any | undefined = undefined;
 
   constructor(sisters: Sisters) {
     this.sisters = sisters;
@@ -23,7 +24,7 @@ class Onejav implements Site {
 
   private waterfall: Waterfall | undefined;
 
-  private sisters: Sisters;
+  sisters: Sisters;
 
   selector: Selector = {
     next: 'a.pagination-next.button.is-primary',
@@ -93,6 +94,7 @@ class Onejav implements Site {
           console.log('获取不到滚动高度')
           return false
         }
+
         const histories = this.getHistories();
         for (let card of $('#overview_list div.card.mb-1.card-overview')) {
           const cardTop = $(card).offset()!.top;
@@ -118,13 +120,16 @@ class Onejav implements Site {
   }
 
   private getOnejav() {
-    const app = Realm.App.getApp('mansion-daygh');
-    if (app.currentUser === null) {
-      console.log('用户未登录');
-      return
+    if (this.onejav === undefined) {
+      const app = Realm.App.getApp('mansion-daygh');
+      if (app.currentUser === null) {
+        console.log('用户未登录');
+        return
+      }
+      const mongo = app.currentUser.mongoClient('mongodb-atlas');
+      this.onejav = mongo.db('mansion').collection('onejav');
     }
-    const mongo = app.currentUser.mongoClient('mongodb-atlas');
-    return mongo.db('mansion').collection('onejav');
+    return this.onejav;
   }
 
   private async loginApiKey() {
@@ -231,7 +236,7 @@ class Onejav implements Site {
     GM_setValue(dictionary.onejav_history_key, history);
   }
 
-  private uploadHistory(id: string, date: string, retry = 0) {
+  private uploadHistory(id: string, date: string, retry = 3) {
 
     if (this.lockPool.locked(id)) return;
 
@@ -247,112 +252,135 @@ class Onejav implements Site {
     if (!onejav) return;
 
     onejav.updateOne({serialNumber: id}, history, {upsert: true})
-      .then(
-        result => {
-          console.log(id, '上传成功');
-          const histories = this.getHistories();
-          histories.push(history);
-          this.setHistory(histories);
-          //解锁
-          this.lockPool.unlock(id);
-        })
-      .catch(reason => {
+      .then(() => {
+        console.log(id, '上传成功');
+        const histories = this.getHistories();
+        histories.push(history);
+        this.setHistory(histories);
+        //解锁
+        this.lockPool.unlock(id);
+      })
+      .catch(() => {
         console.log('上传重试');
-        if (retry >= 3) {
+        if (retry > 0) {
           this.lockPool.unlock(id);
-          return
+          return;
         }
-        this.uploadHistory(id, date, retry += 1);
+        this.uploadHistory(id, date, retry--);
       });
   }
 
   findImages(elems: JQuery) {
     if (document.title.search(/OneJAV/) > 0 && elems) {
       for (let index = 0; index < elems.length; index++) {
-        this.addPreview($(elems[index])).then();
+        this.addPreview($(elems[index])).then().catch(reason => {
+          console.error(reason);
+        });
       }
     }
   }
 
-  private async addPreview(elem: JQuery, retry = 0) {
-    let detail = elem.find('h5.title.is-4.is-spaced a')[0]
-    const date = elem.find('p.subtitle a').text().trim();
+  private async addPreview($elem: JQuery, type = 0) {
+
+    let detail = $elem.find('h5.title.is-4.is-spaced a')[0]
+    const date = $elem.find('p.subtitle a').text().trim();
 
     let originalAvid = $(detail).text().replace(/ /g, '').replace(/[\r\n]/g, '') //去掉空格//去掉回车换行
 
-    // let avid: string = this.getAvId(originalAvid)
-    let avid: string = 'test123456'
+    let sortId = this.getAvId(originalAvid, type)
+    // let avid: string = 'test123456'
+    const titleElement = detail.parentElement;
 
+    this.addLink('搜索中', titleElement, originalAvid, $elem);
 
-    console.log('添加', avid, date);
+    if (type > 0) {
+      this.addLink('智能搜索中', titleElement, originalAvid, $elem);
+    }
 
-    elem.attr('id', avid);
+    console.log('添加', originalAvid, date);
+
+    $elem.attr('id', originalAvid);
     const loadUrl = picx('/load.svg');
-    this.sisters.push(avid, loadUrl, date);
-    const preview = getPreviewElement(avid, loadUrl, false);
-    let divEle = elem.find('div.container')[0]
+    const failedUrl = picx("/failed.svg");
+
+    this.sisters.push(originalAvid, loadUrl, date);
+    const preview = getPreviewElement(originalAvid, loadUrl, false);
+    let divEle = $elem.find('div.container')[0]
 
     if (divEle) {
-      $(divEle).remove('#preview');
+      $(divEle).find('#preview').remove();
       $(divEle).append(preview)
     }
 
-    const javstoreUrl = await getJavstoreUrl(avid,3);
+    if (sortId === undefined) {
+      this.addLink('没找到', titleElement, originalAvid, $elem);
+      this.sisters.push(originalAvid, failedUrl, date);
+      preview.children("img").attr('src', failedUrl);
+      return;
+    }
 
-    const titleElement = detail.parentElement;
+    const javstoreUrl = await getJavstoreUrl(sortId, 3);
 
-    const failedUrl = picx("/failed.svg");
     if (javstoreUrl === null) {
-      this.sisters.push(avid, failedUrl, date);
-      preview.children("img").attr('src', failedUrl)
-      this.addLink('没找到', titleElement, avid, elem);
-      return
+      this.sisters.push(originalAvid, failedUrl, date);
+      preview.children("img").attr('src', failedUrl);
+      this.addPreview($elem, type + 1).then();
+      return;
+    } else {
+      this.addLink('JavStore', titleElement, originalAvid, $elem, javstoreUrl);
     }
-    if (titleElement !== null) {
-      $(titleElement).append(`<a style='color:red;' href="${javstoreUrl}" target='_blank' title='点击到JavStore看看'>&nbsp;&nbsp;JavStore</a>`);
-    }
+
     // 番号预览大图
-    const imgUrl = await getPreviewUrlFromJavStore(javstoreUrl, avid, 3);
+    const imgUrl = await getPreviewUrlFromJavStore(javstoreUrl, originalAvid, 3);
 
     if (imgUrl === null) {
-      this.sisters.push(avid, failedUrl, date);
+      this.sisters.push(originalAvid, failedUrl, date);
       preview.children("img").attr('src', failedUrl)
 
-      this.addLink('图片获取失败', titleElement, avid, elem);
+      this.addLink('图片获取失败', titleElement, originalAvid, $elem);
     } else {
-      this.sisters.push(avid, imgUrl, date);
+      this.sisters.push(originalAvid, imgUrl, date);
       preview.children("img").attr('src', imgUrl)
-
-      let divEle = elem.find('div.container')[0]
-      if (divEle) {
-        $(divEle).append(preview)
-      }
     }
   }
 
-  private getAvId(originalAvid: string) {
-    const result = originalAvid.matchAll(/(heyzo)(\d+)/gi);
+  private getAvId(originalAvid: string, type: number): string | undefined {
+    switch (type) {
+      case 0:
+        const heyzo = originalAvid.matchAll(/(heyzo)(\d+)/gi);
 
-    const groups = Array.from(result);
-    if (groups.length > 0) {
-      console.log(groups);
-      return groups[0][1] + "-" + groups[0][2];
+        const heyzoGroups = Array.from(heyzo);
+
+        if (heyzoGroups.length > 0) {
+          console.log(heyzoGroups);
+          return heyzoGroups[0][1] + "-" + heyzoGroups[0][2];
+        }
+        return originalAvid;
+      case 1:
+        const result = originalAvid.matchAll(/(\d+|[A-Za-z]+)/gi);
+        const groups = Array.from(result);
+        console.log(groups);
+        return groups[1][0] + "-" + groups[2][0];
+      default:
+        return undefined;
     }
-
-    return originalAvid;
   }
 
-  private addLink(text: string, titleElement: HTMLElement | null, avid: string, elem: JQuery) {
-    //
+  private addLink(text: string, titleElement: HTMLElement | null, avid: string, elem: JQuery, javstoreUrl: null | string = null) {
+
     const javstore_key = `${dictionary.javstore_key}${avid}`;
-    const javlib_id_key = `#${javstore_key}`;
-    const $javstore_key = $(javlib_id_key);
-    $javstore_key.remove();
+    const javstore_id_key = `#${javstore_key}`;
+    const $javstore = $(javstore_id_key);
+    $javstore.remove();
     if (titleElement !== null) {
+      if (javstoreUrl) {
+        $(titleElement).append(`<a id="${javstore_key}" style='color:red;' href="${javstoreUrl}" target='_blank' title='点击到JavStore看看'>&nbsp;&nbsp;JavStore</a>`);
+        return
+      }
       const $title = $(titleElement);
       $title.append(`<a id="${javstore_key}" style='color:red;' target='_blank' title='点击重试'>&nbsp;&nbsp;${text}</a>`);
-      $(javlib_id_key).on('click', () => {
-        $(javlib_id_key).css('color','blue').text(`&nbsp;&nbsp;${text}重试中`)
+      $(javstore_id_key).on('click', () => {
+        $(javstore_id_key).css('color', 'blue').text(`\u00A0\u00A0${text}重试中`)
         console.log(`重试`);
         this.addPreview(elem).then();
       });
@@ -381,7 +409,7 @@ class Onejav implements Site {
       console.log('已经记录', avid)
       return;
     }
-    const info = this.sisters.queue.find(item => item.avid = avid);
+    const info = this.sisters.queue.find(item => item.avid === avid);
     if (info) {
       const date = info.date;
       if (date === undefined || date === '') {
@@ -404,7 +432,8 @@ class Onejav implements Site {
 
       this.determineTheCurrentElement(detail, scrollTop, windowHeight);
 
-      this.record(elementTop, elementHeight, scrollTop, windowHeight, detail);
+      // this.record(elementTop, elementHeight, scrollTop, windowHeight, detail);
+
     }
   }
 
@@ -416,22 +445,18 @@ class Onejav implements Site {
   }
 
   private determineTheCurrentElement(detail: HTMLElement, scrollTop: number, windowHeight: number) {
-    const preview = $(detail).find("#preview");
-    if (preview.length == 0) {
-      return;
-    }
-    const previewTop = $(preview).offset()?.top;
-    if (previewTop === undefined) return
-    const previewHeight = $(preview).height();
-    if (previewHeight === undefined) return;
 
-    if (previewTop <= scrollTop && previewTop + previewHeight > scrollTop) {
-      const currentPreviewId = $(detail).attr('id');
-      if (this.currentPreviewId === currentPreviewId) {
+    const detailTop = $(detail).offset()?.top;
+    if (detailTop === undefined) return
+    const detailHeight = $(detail).height();
+    if (detailHeight === undefined) return;
+
+    if (detailTop <= scrollTop && detailTop + detailHeight > scrollTop) {
+      const avid = $(detail).attr('id');
+      if (!avid || this.sisters.current_key === avid) {
         return;
       }
-      this.currentPreviewId = currentPreviewId;
-      console.log('当前图片:' + this.currentPreviewId);
+      this.sisters.setCurrent(avid);
     }
   }
 
@@ -451,8 +476,7 @@ class Onejav implements Site {
     if (nextPreview.length === 0) return;
     const offset = nextPreview.offset();
     if (offset === undefined) return
-    $('html,body').animate({scrollTop: offset.top}, 1000)
-
+    $('html,body').animate({scrollTop: offset.top - 52}, 300)
   }
 
   previous(): void {
@@ -460,7 +484,7 @@ class Onejav implements Site {
     if (prev.length === 0) return;
     const offset = prev.offset();
     if (offset === undefined) return
-    $('html,body').animate({scrollTop: offset.top}, 1000)
+    $('html,body').animate({scrollTop: offset.top}, 300)
   }
 
   whetherToDisplay(): boolean {
@@ -470,24 +494,6 @@ class Onejav implements Site {
 
   loadNext(): void {
     this.waterfall?.appendNext();
-
-  }
-}
-
-class LockPool {
-
-  keyPool = new Set();
-
-  lock(key: string) {
-    this.keyPool.add(key);
-  }
-
-  unlock(key: string) {
-    this.keyPool.delete(key);
-  }
-
-  locked(key: string) {
-    return this.keyPool.has(key);
   }
 }
 
@@ -496,8 +502,4 @@ export interface History {
   releaseDate: string,
   watchTime: Date
 }
-
-export {
-  Onejav
-};
 

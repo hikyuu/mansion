@@ -2,9 +2,10 @@
 
 <script lang="ts">
 import Home from "./components/Home.vue";
-import {getSite, Sisters} from "./site";
+import {getSite} from "./site";
 import {defineComponent} from 'vue'
-import {Site} from "./site/site";
+import {Sisters} from "./site/Sisters";
+import { SiteInterface } from "./site/SiteInterface";
 
 export default defineComponent({
   name: 'App',
@@ -13,7 +14,7 @@ export default defineComponent({
   },
   data() {
     return {
-      site: {} as Site,
+      site: {} as SiteInterface,
       sisters: new Sisters() as Sisters,
     }
   },
@@ -35,7 +36,6 @@ export default defineComponent({
 
 <template>
   <Home v-if="site" :site="site" :sisters="sisters"/>
-  <!--  <HelloWorld msg="Vite + Vue" />-->
 </template>
 
 <style scoped>

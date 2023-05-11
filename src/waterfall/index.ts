@@ -1,7 +1,7 @@
 import {GM_getValue} from "$";
-import {Site} from "../site/site";
+import {AbstractSite} from "../site/AbstractSite";
 import $ from "jquery";
-import {Sisters} from "../site";
+import {Sisters} from "../site/Sisters";
 
 class Pagination {
   constructor(detail: JQuery) {
@@ -27,13 +27,13 @@ export default class {
 
   private page: Pagination;
 
-  private site: Site;
+  private site: AbstractSite;
 
   private recordHeight = 0
 
   private sisters: Sisters;
 
-  constructor(site: Site, selector: Selector, sisters: Sisters) {
+  constructor(site: AbstractSite, selector: Selector, sisters: Sisters) {
     this.site = site
     this.selector = selector
     this.page = new Pagination(this.getDetail(document))
@@ -56,7 +56,7 @@ export default class {
       // 开启关闭瀑布流判断
       if (waterfallScrollStatus > 0) {
 
-        // $(window).on('scroll', () => this.scroll(true));
+        $(document).on('scroll', () => this.scroll(true));
 
         this.loadNext()
       }
@@ -169,10 +169,9 @@ export default class {
       this.site.scroll(windowHeight, scrollTop);
     }
 
-    if (this.reachBottom(windowHeight, scrollTop, 3000)) {
-      this.appendNext();
-    }
-
+    // if (this.reachBottom(windowHeight, scrollTop, 3000)) {
+    //   this.appendNext();
+    // }
   }
 
   private reachBottom(windowHeight: number, scrollTop: number, limit: number) {

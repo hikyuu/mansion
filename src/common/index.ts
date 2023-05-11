@@ -31,7 +31,7 @@ export function getPreviewElement(avid: string, targetImgUrl: string, isZoom: bo
   if (isZoom != undefined && !isZoom) {
     className = 'min'
   }
-  let $img = $(`<div id="preview"><img id="IMG_${avid}" title="点击可放大缩小 (图片正常时)" class="${className}"/></div>`)
+  let $img = $(`<div id='preview'><img id="IMG_${avid}" title="点击可放大缩小 (图片正常时)" class="${className}"/></div>`)
   $img.css({'text-align': 'center'});
   $img.children(`#IMG_${avid}`)
     .attr('src', targetImgUrl)

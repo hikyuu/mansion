@@ -20,12 +20,13 @@
     <!--  </div>-->
     <!--</div>-->
     <div id="show-image" class="show-image-wrap vertical">
-      <img :src="src" alt="">
+      <img class="img_size" :src="src" alt="">
     </div>
 
   </div>
   <div v-if="showNavigation" class="mansion">
     <div class="img">
+
       <img @click="viewOrClose" class="icon-button fullscreen"
            :src="picx('/fullscreen_1.svg')"
            alt="图片浏览">
@@ -50,18 +51,18 @@
 </template>
 
 <script lang="ts">
-import {Site} from "../site/site";
 import {defineComponent, PropType} from "vue";
 import $ from "jquery";
-import {Sisters} from "../site";
 import {picx} from "../dictionary";
+import {Sisters} from "../site/Sisters";
+import {SiteInterface} from "../site/SiteInterface";
 
 export default defineComponent({
   name: 'Home',
   props: {
     // 类型检查
     site: {
-      type: Object as PropType<Site>, required: true
+      type: Object as PropType<SiteInterface>, required: true
     },
     sisters: {
       type: Object as PropType<Sisters>, required: true
@@ -75,11 +76,32 @@ export default defineComponent({
   },
   created() {
     this.showNavigation = this.site.whetherToDisplay();
+    $(document).on('keydown', event => {
+      console.log(event.key);
+
+      switch (event.key) {
+        case 'ArrowLeft':
+          this.previous();
+          break;
+        case 'ArrowRight':
+          this.nextStep();
+          break;
+        case 'Enter':
+          this.download();
+          break;
+        case 'ArrowUp':
+          this.scroll(true);
+          break;
+        case 'ArrowDown':
+          this.scroll();
+          break;
+      }
+    })
   },
 
   computed: {
     src() {
-      if (this.sisters.current_index===undefined) return
+      if (this.sisters.current_index === undefined) return
       return this.sisters.queue[this.sisters.current_index]!.src;
     },
 
@@ -120,11 +142,27 @@ export default defineComponent({
     nextStep() {
       this.sisters.nextStep();
       this.site.nextStep();
-
-      const index = this.sisters.current_index;
-      if (index !== undefined && index >= this.sisters.queue.length - 3) {
-        this.site.loadNext();
+    },
+    scroll(reverse = false) {
+      const windowHeight = $(window).height()
+      if (windowHeight === undefined) {
+        console.log('获取不到窗口高度')
+        return false
       }
+
+      const scrollTop = $(window).scrollTop();
+      if (scrollTop === undefined) {
+        console.log('获取不到滚动高度')
+        return false
+      }
+      let offset
+      if (reverse) {
+        offset = scrollTop - windowHeight / 2;
+      } else {
+        offset = scrollTop + windowHeight / 2;
+      }
+
+      $('html,body').animate({scrollTop: offset}, 150);
     },
   },
   watch: {
@@ -134,6 +172,13 @@ export default defineComponent({
     'sisters.current_key': {
       handler(key, oldVal) {
         this.site.save(key);
+      }
+    },
+    'sisters.current_index': {
+      handler(index, oldVal) {
+        if (index !== undefined && index >= this.sisters.queue.length - 3) {
+          this.site.loadNext();
+        }
       }
     }
   }
@@ -253,5 +298,10 @@ export default defineComponent({
 .vertical {
   flex-direction: column;
   justify-content: start;
+}
+
+.img_size {
+  width: 1400px;
+  max-width: 1400px;
 }
 </style>
