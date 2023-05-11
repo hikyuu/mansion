@@ -273,9 +273,11 @@ export class Onejav implements AbstractSite {
   findImages(elems: JQuery) {
     if (document.title.search(/OneJAV/) > 0 && elems) {
       for (let index = 0; index < elems.length; index++) {
-        this.addPreview($(elems[index])).then().catch(reason => {
-          console.error(reason);
-        });
+        this.addPreview($(elems[index]))
+          .then()
+          .catch(reason => {
+            console.error(reason);
+          });
       }
     }
   }
