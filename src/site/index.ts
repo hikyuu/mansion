@@ -1,8 +1,8 @@
 import {Onejav} from "./onejav";
-import {AbstractSite} from "./AbstractSite";
-import {Sisters} from "./Sisters";
+import {SiteAbstract} from "./site-abstract";
+import {Sisters} from "./sisters";
 
-export function getSite(sisters: Sisters): AbstractSite | undefined {
+export function getSite(sisters: Sisters): SiteAbstract | undefined {
   if ((/(OneJAV)/g).test(document.title)) {
     return new Onejav(sisters);
   }

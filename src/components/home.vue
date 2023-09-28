@@ -54,8 +54,8 @@
 import {defineComponent, PropType} from "vue";
 import $ from "jquery";
 import {picx} from "../dictionary";
-import {Sisters} from "../site/Sisters";
-import {SiteInterface} from "../site/SiteInterface";
+import {Sisters} from "../site/sisters";
+import {SiteInterface} from "../site/site-interface";
 
 export default defineComponent({
   name: 'Home',

@@ -1,8 +1,8 @@
 import {Selector} from "../waterfall";
-import {SiteInterface} from "./SiteInterface";
-import {Sisters} from "./Sisters";
+import {SiteInterface} from "./site-interface";
+import {Sisters} from "./sisters";
 
-export abstract class AbstractSite implements SiteInterface{
+export abstract class SiteAbstract implements SiteInterface{
 
   abstract selector: Selector
 

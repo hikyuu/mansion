@@ -1,7 +1,7 @@
 import {GM_getValue} from "$";
-import {AbstractSite} from "../site/AbstractSite";
-import $ from "jquery";
-import {Sisters} from "../site/Sisters";
+import {SiteAbstract} from "../site/site-abstract";
+import $, {error} from "jquery";
+import {Sisters} from "../site/sisters";
 
 class Pagination {
   constructor(detail: JQuery) {
@@ -27,13 +27,13 @@ export default class {
 
   private page: Pagination;
 
-  private site: AbstractSite;
+  private site: SiteAbstract;
 
   private recordHeight = 0
 
   private sisters: Sisters;
 
-  constructor(site: AbstractSite, selector: Selector, sisters: Sisters) {
+  constructor(site: SiteAbstract, selector: Selector, sisters: Sisters) {
     this.site = site
     this.selector = selector
     this.page = new Pagination(this.getDetail(document))
@@ -95,13 +95,14 @@ export default class {
       }
     }).then(() => {
       return this.fetchURL().then();
-    }).catch(() => {
+    }).catch((reason) => {
+      console.error(reason.message);
       // Locked!
     });
   }
 
   private fetchURL() {
-    if (this.page.nextUrl === null) throw Error('fetchUrl为空')
+    if (this.page.nextUrl === null) throw error('fetchUrl为空')
     console.log(`fetchUrl = ${this.page.nextUrl}`)
     const fetchWithCookie = fetch(this.page.nextUrl, {credentials: 'same-origin'});
     return fetchWithCookie.then(response => response.text())
@@ -150,28 +151,29 @@ export default class {
   }
 
   public scroll(frequencyLimit: boolean) {
+    return new Promise((resolve, reject) => {
+      //窗口高度
+      const windowHeight = $(window).height()
+      if (windowHeight === undefined) {
+        console.log('获取不到窗口高度')
+        return false
+      }
+      //滚动高度
+      const scrollTop = $(window).scrollTop();
+      if (scrollTop === undefined) {
+        console.log('获取不到滚动高度')
+        return false
+      }
 
-    //窗口高度
-    const windowHeight = $(window).height()
-    if (windowHeight === undefined) {
-      console.log('获取不到窗口高度')
-      return false
-    }
-    //滚动高度
-    const scrollTop = $(window).scrollTop();
-    if (scrollTop === undefined) {
-      console.log('获取不到滚动高度')
-      return false
-    }
+      if (!frequencyLimit || scrollTop - this.recordHeight > 50 || this.recordHeight - scrollTop > 50) {
+        this.recordHeight = scrollTop;
+        this.site.scroll(windowHeight, scrollTop);
+      }
 
-    if (!frequencyLimit || scrollTop - this.recordHeight > 50 || this.recordHeight - scrollTop > 50) {
-      this.recordHeight = scrollTop;
-      this.site.scroll(windowHeight, scrollTop);
-    }
-
-    // if (this.reachBottom(windowHeight, scrollTop, 3000)) {
-    //   this.appendNext();
-    // }
+      // if (this.reachBottom(windowHeight, scrollTop, 3000)) {
+      //   this.appendNext();
+      // }
+    });
   }
 
   private reachBottom(windowHeight: number, scrollTop: number, limit: number) {
