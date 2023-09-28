@@ -1,11 +1,11 @@
 // This starter template is using Vue 3
 
 <script lang="ts">
-import Home from "./components/Home.vue";
+import Home from "./components/home.vue";
 import {getSite} from "./site";
 import {defineComponent} from 'vue'
-import {Sisters} from "./site/Sisters";
-import { SiteInterface } from "./site/SiteInterface";
+import {Sisters} from "./site/sisters";
+import { SiteInterface } from "./site/site-interface";
 
 export default defineComponent({
   name: 'App',

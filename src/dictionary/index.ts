@@ -4,7 +4,7 @@ enum dictionary {
 }
 
 function picx(url: string) {
-  return 'https://cdn.staticaly.com/gh/hikyuu/gallery@main/picx/'+url.replace(/^\//, "")
+  return 'https://cdn.jsdelivr.net/gh/hikyuu/gallery@main/picx/'+url.replace(/^\//, "")
 }
 
 export {
