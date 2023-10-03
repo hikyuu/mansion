@@ -3,6 +3,7 @@ export class Sisters {
   current_index: number | undefined = undefined;
   current_key: string | null = null;
   queue: Array<Info> = [];
+  sisterNumber = 0
 
   previous() {
     // console.log(this)
