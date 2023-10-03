@@ -26,25 +26,40 @@
   </div>
   <div v-if="showNavigation" class="mansion">
     <div class="img">
+      <div class="img-box " style="height: 40px">
+        <div class="count-group">
+          <img class="menu-count-img" :src="picx('/all.svg')" alt="全部">
+          <span :style="loadAll">{{ sisters.sisterNumber }}</span>
+        </div>
 
-      <img @click="viewOrClose" class="icon-button fullscreen"
-           :src="picx('/fullscreen_1.svg')"
-           alt="图片浏览">
-
-      <img @click="previous" class="icon-button"
-           :src="picx('/last.svg')"
-           alt="上一部">
-
-      <div style="display:flex; justify-content:center;">
-        <img v-if="haveRead" class="download"
-             src="https://raw.githubusercontent.com/hikyuu/gallery/main/assets/readed.svg" alt="已读">
-        <img @click="download" class="download"
-             :src="picx('/download.svg')" alt="下载">
-
+        <div class="count-group">
+          <img class="menu-count-img" v-bind="icon.HAVE_READ">
+          <span style="color:green">{{ haveReadNumber }}</span>
+        </div>
       </div>
-      <img @click="nextStep" class="icon-button"
-           :src="picx('/next.svg')"
-           alt="下一部">
+
+      <div class="img-box">
+        <img @click="viewOrClose" class="icon-button fullscreen" :src="picx('/fullscreen_1.svg')" alt="图片浏览">
+      </div>
+
+
+      <div class="img-box">
+        <img @click="previous" class="icon-button" :src="picx('/last.svg')" alt="上一部">
+      </div>
+
+      <div class="img-box">
+        <div style="display:flex; justify-content:center;">
+          <img v-if="haveRead" class="download" v-bind="icon.HAVE_READ">
+          <div class="img-box">
+            <img @click="download" class="download" :src="picx('/download.svg')" alt="下载">
+          </div>
+
+        </div>
+      </div>
+
+      <div class="img-box">
+        <img @click="nextStep" class="icon-button" :src="picx('/next.svg')" alt="下一部">
+      </div>
     </div>
 
   </div>
@@ -53,16 +68,16 @@
 <script lang="ts">
 import {defineComponent, PropType} from "vue";
 import $ from "jquery";
-import {picx} from "../dictionary";
 import {Sisters} from "../site/sisters";
-import {SiteInterface} from "../site/site-interface";
+import {SiteAbstract} from "../site/site-abstract";
+import {ICON, picx} from "../dictionary";
 
 export default defineComponent({
   name: 'Home',
   props: {
     // 类型检查
     site: {
-      type: Object as PropType<SiteInterface>, required: true
+      type: Object as PropType<SiteAbstract>, required: true
     },
     sisters: {
       type: Object as PropType<Sisters>, required: true
@@ -71,7 +86,10 @@ export default defineComponent({
   data() {
     return {
       showImage: false,
-      showNavigation: false
+      showNavigation: false,
+      loadAll: {
+        color: 'red'
+      }
     }
   },
   created() {
@@ -100,11 +118,13 @@ export default defineComponent({
   },
 
   computed: {
+    icon() {
+      return ICON
+    },
     src() {
       if (this.sisters.current_index === undefined) return
       return this.sisters.queue[this.sisters.current_index]!.src;
     },
-
     isEnd() {
       if (this.sisters.current_index === undefined) return true;
       return this.sisters.current_index + 1 >= this.sisters.queue.length;
@@ -115,6 +135,9 @@ export default defineComponent({
     haveRead() {
       return this.site.haveRead();
     },
+    haveReadNumber() {
+      return this.site.haveReadNumber();
+    }
   },
   methods: {
     picx,
@@ -166,9 +189,7 @@ export default defineComponent({
     },
   },
   watch: {
-    'site.currentHaveRead': function (val, oldVal) {
-      this.haveRead = val;
-    },
+
     'sisters.current_key': {
       handler(key, oldVal) {
         this.site.save(key);
@@ -176,8 +197,20 @@ export default defineComponent({
     },
     'sisters.current_index': {
       handler(index, oldVal) {
-        if (index !== undefined && index >= this.sisters.queue.length - 3) {
+        const pageSisterNumber = $(this.site.selector.container).find('div.card').length;
+        console.log('当前番号', index, '页面妹妹数量', pageSisterNumber)
+        if (index !== undefined && index >= pageSisterNumber - 3) {
+          console.log('加载下一页')
           this.site.loadNext();
+        }
+      }
+    },
+    'site.waterfall.page.isEnd': {
+      deep: true,
+      handler(val, oldVal) {
+        console.log('是否加载完毕', val)
+        if (val) {
+          this.loadAll.color = 'green'
         }
       }
     }
@@ -243,7 +276,6 @@ export default defineComponent({
 
 .download {
   cursor: pointer;
-  margin: 20px 15px 20px 0;
   width: 50px;
 }
 
@@ -279,7 +311,6 @@ export default defineComponent({
 }
 
 .fullscreen {
-  margin: 20px 10px;
   width: 60px;
 }
 
@@ -303,5 +334,25 @@ export default defineComponent({
 .img_size {
   width: 1400px;
   max-width: 1400px;
+}
+
+.img-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 80px;
+  height: 80px;
+}
+
+.menu-count-img {
+  width: 30px;
+  height: 30px;
+}
+
+.count-group {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
 }
 </style>

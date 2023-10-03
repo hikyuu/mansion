@@ -1,49 +1,57 @@
-import {Selector} from "../waterfall";
+import Waterfall, {Selector} from "../waterfall";
 import {SiteInterface} from "./site-interface";
 import {Sisters} from "./sisters";
 
-export abstract class SiteAbstract implements SiteInterface{
+export abstract class SiteAbstract implements SiteInterface {
 
-  abstract selector: Selector
+	abstract selector: Selector
 
-  abstract sisters: Sisters;
+	abstract sisters: Sisters;
 
-  abstract currentPreviewId: string | undefined;
-  // 声明抽象的方法，让子类去实现
-  abstract mount(): void;
+	abstract currentPreviewId: string | undefined;
 
-  abstract findImages(elems: JQuery): void;
+	// 声明抽象的方法，让子类去实现
 
-  abstract scroll(windowHeight: number, scrollTop: number): void;
+	abstract mount(): void;
 
-  abstract previous(): void;
+	abstract findImages(elems: JQuery): void;
 
-  abstract download(): void;
+	abstract addPreview($elem: JQuery): void;
 
-  abstract nextStep(): void;
+	abstract scroll(windowHeight: number, scrollTop: number): void;
 
-  abstract whetherToDisplay(): boolean;
+	abstract previous(): void;
 
-  abstract save(avid:string): void;
+	abstract download(): void;
 
-  abstract loadNext(): void;
+	abstract nextStep(): void;
 
-  abstract haveRead(): boolean;
+	abstract whetherToDisplay(): boolean;
+
+	abstract save(avid: string): void;
+
+	abstract loadNext(): void;
+
+	abstract haveRead(): boolean;
+
+	abstract haveReadNumber() : number;
 }
 
 export class LockPool {
 
-  keyPool = new Set<string>();
+	keyPool = new Set<string>();
 
-  lock(key: string) {
-    this.keyPool.add(key);
-  }
+	lock(key: string) {
+		this.keyPool.add(key);
+	}
 
-  unlock(key: string) {
-    this.keyPool.delete(key);
-  }
+	unlock(key: string) {
+		this.keyPool.delete(key);
+	}
 
-  locked(key: string) {
-    return this.keyPool.has(key);
-  }
+	locked(key: string) {
+		return this.keyPool.has(key);
+	}
+
+
 }

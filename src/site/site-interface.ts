@@ -17,6 +17,4 @@ export interface SiteInterface {
   save(avid:string): void;
 
   loadNext(): void;
-
-  haveRead(): boolean;
 }

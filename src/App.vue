@@ -5,7 +5,7 @@ import Home from "./components/home.vue";
 import {getSite} from "./site";
 import {defineComponent} from 'vue'
 import {Sisters} from "./site/sisters";
-import { SiteInterface } from "./site/site-interface";
+import { SiteAbstract } from "./site/site-abstract";
 
 export default defineComponent({
   name: 'App',
@@ -14,7 +14,7 @@ export default defineComponent({
   },
   data() {
     return {
-      site: {} as SiteInterface,
+      site: {} as SiteAbstract,
       sisters: new Sisters() as Sisters,
     }
   },

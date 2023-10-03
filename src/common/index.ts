@@ -90,8 +90,7 @@ export function getJavstoreUrl(avid: string, retry = 1): Promise<string | null> 
 			}
 		}
 		if (a) {
-			// @ts-ignore
-			return Promise.resolve(`https://javstore.net${a.pathname}`);
+			return Promise.resolve(a.getAttribute('href'));
 		} else {
 			return Promise.resolve(null)
 		}
@@ -106,52 +105,73 @@ export function getJavstoreUrl(avid: string, retry = 1): Promise<string | null> 
 	})
 }
 
-export function getPreviewUrlFromJavStore(javstore: string, avid: string, retry = 1): Promise<string> {
+async function getImgUrlFromPixhost(javUrl: string, retry: number = 3): Promise<string | undefined> {
+	try {
+		let response = await request(javUrl, 'https://javstore.net/')
+		return $(response.responseText).find('#image').attr('src');
+	} catch (reason) {
+		console.error(reason);
+		if (retry > 0) {
+			console.log('重试Pixhost图片链接', javUrl);
+			return getImgUrlFromPixhost(javUrl, retry--);
+		} else {
+			return undefined;
+		}
+	}
+}
+
+export function getPreviewUrlFromJavStore(javstore: string, avid: string, retry = 1): Promise<any> {
 
 	//异步请求调用内页详情的访问地址
-	let promise2 = request(javstore, 'https://javstore.net/')
-	return promise2.then((result) => {
+	return request(javstore, 'https://javstore.net/').then(async (result) => {
 		let detail = parseText(result.responseText);
 		let img_array = $(detail).find('.news a img[alt*=".th"]');
 		// console.log('原方法找到', img_array.length)
 
-		let imgUrl = null;
+		let imgUrl: string | undefined = undefined;
 
 		//新方法
 		if (img_array.length <= 0) {
 			img_array = $(detail).find('.news > a');
 			// console.log(`新方法找到`, img_array.length)
 			if (img_array.length > 0) {
-				// @ts-ignore
-				imgUrl = img_array[0].href.replace('pixhost.to/show/', 'img89.pixhost.to/images/')
-				console.log('javstore获取的图片地址:' + imgUrl)
+				const javUrl = img_array[0].getAttribute('href');
+				//如果 javUrl不是以http开头的,则返回null
+				if (javUrl === null) return Promise.resolve(null);
+				console.log(avid+' javstore获取的图片地址:' + javUrl)
+				imgUrl = javUrl
+				if (javUrl.match(/(pixhost)/gi)) {
+					imgUrl = await getImgUrlFromPixhost(javUrl)
+					console.log(avid+' pixhost获取的图片地址:' + imgUrl)
+				}
 			}
 			//原方法
 		} else {
 			// @ts-ignore
 			imgUrl = img_array[img_array.length - 1].src
 			imgUrl = imgUrl ? imgUrl : img_array[0].dataset.src
-			imgUrl = imgUrl.replace('pixhost.org', 'pixhost.to').replace('.th', '')
+			if (imgUrl === undefined) return Promise.resolve(null);
+			imgUrl = imgUrl.replace('pixhost.org', 'pixhost.to')
+				.replace('.th', '')
 				.replace('thumbs', 'images').replace('//t', '//img')
 				.replace(/[?*"]/, '')
 			// console.log('javstore获取的图片地址:' + imgUrl)
 		}
 
-		if (!imgUrl) {
-			return Promise.resolve(null);
-		}
+		if (!imgUrl) return Promise.resolve(null);
 
 		const array = imgUrl.match(/(http:\/\/|https:\/\/)((\w|=|\?|\.|\/|&|-)+)/gi);
 
-		if (array.length <= 0) {
+		if (!array || array.length <= 0) {
 			return Promise.resolve(null);
 		}
-		return Promise.resolve(array.pop());
-
+		const url = array.pop();
+		if (url === undefined) return Promise.resolve(null);
+		return Promise.resolve(url);
 	}).catch(reason => {
 		console.error(reason);
 		if (retry > 0) {
-			console.log('重试获取图片', avid)
+			console.log('重试获取图片 avid:', avid)
 			return getPreviewUrlFromJavStore(javstore, avid, retry--);
 		}
 	});
@@ -192,6 +212,11 @@ function requestGM_XHR(details: {
 
 function request(url: string, referrerStr: string = '', timeoutInt: number = -1) {
 
+	let cookie = ''
+	if (url.match(/(pixhost)/gi)) {
+		cookie = 'pixhostads=1'
+	}
+
 	return new Promise<any>((resolve, reject) => {
 		// console.log(`发起网址请求：${url}`)
 		GM_xmlhttpRequest({
@@ -199,7 +224,8 @@ function request(url: string, referrerStr: string = '', timeoutInt: number = -1)
 			method: 'GET',
 			headers: {
 				'Cache-Control': 'no-cache',
-				referrer: referrerStr
+				Referer: referrerStr,
+				Cookie: cookie
 			},
 			timeout: timeoutInt > 0 ? timeoutInt : 10000,
 			onload: response => {

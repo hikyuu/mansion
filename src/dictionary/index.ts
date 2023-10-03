@@ -1,13 +1,20 @@
-enum dictionary {
-  onejav_history_key = 'onejav_history',
-  javstore_key = 'javstore_',
+export enum KEY {
+	ONEJAV_HISTORY_KEY = 'onejav_history',
+	JAVSTORE_KEY = 'javstore_',
 }
 
-function picx(url: string) {
-  return 'https://cdn.jsdelivr.net/gh/hikyuu/gallery@main/picx/'+url.replace(/^\//, "")
+export function picx(url: string) {
+	return 'https://github.com/hikyuu/gallery/raw/main/picx/' + url.replace(/^\//, "")
 }
 
-export {
-  dictionary,
-  picx
+export const ICON = {
+	HAVE_READ: {
+		src: picx('/readed.svg'),
+		alt: '已读'
+	},
+}
+
+export enum FORMAT {
+	PATH_DATE = '/YYYY/MM/DD',
+	ORIGINAL_RELEASE_DATE = 'MMM. D, YYYY',
 }
