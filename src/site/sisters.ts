@@ -41,6 +41,7 @@ export class Sisters {
     const index = this.queue.findIndex(item => item.avid === avid);
 
     if (index >= 0) {
+      console.log('设置当前的index');
       this.current_index = index;
       this.current_key = avid;
     }

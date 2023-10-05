@@ -4,14 +4,13 @@ import {Sisters} from "./sisters";
 
 export abstract class SiteAbstract implements SiteInterface {
 
-	abstract selector: Selector
+	abstract selector: Selector;
 
 	abstract sisters: Sisters;
 
-	abstract currentPreviewId: string | undefined;
+	abstract waterfall: Waterfall;
 
 	// 声明抽象的方法，让子类去实现
-
 	abstract mount(): void;
 
 	abstract findImages(elems: JQuery): void;
@@ -52,6 +51,4 @@ export class LockPool {
 	locked(key: string) {
 		return this.keyPool.has(key);
 	}
-
-
 }

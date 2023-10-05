@@ -15,8 +15,10 @@ import MongoDBCollection = Realm.Services.MongoDB.MongoDBCollection;
 export class Onejav implements SiteAbstract {
 	constructor(sisters: Sisters) {
 		this.sisters = sisters;
-		this.waterfall = new Waterfall(this, this.selector, this.sisters);
+		this.waterfall = new Waterfall(this, this.selector, sisters);
 	}
+
+	public waterfall: Waterfall;
 
 	private onejav: MongoDBCollection<History> | undefined = undefined;
 
@@ -26,9 +28,7 @@ export class Onejav implements SiteAbstract {
 
 	private today: Array<History> = []
 
-	currentPreviewId: string | undefined = undefined;
-
-	sisters: Sisters;
+	public sisters: Sisters;
 
 	selector: Selector = {
 		next: 'a.pagination-next.button.is-primary',
@@ -41,15 +41,11 @@ export class Onejav implements SiteAbstract {
 
 	private lockPool = new LockPool();
 
-	private waterfall: Waterfall;
-
-
 	async mount(): Promise<void> {
 
 		this.addStyle();
 
 		const user = await this.loginApiKey(); // add previously generated API key
-
 		await this.syncHistory();
 
 		this.home();
@@ -133,7 +129,6 @@ export class Onejav implements SiteAbstract {
 		this.setHistory(histories);
 	}
 
-
 	work = async (history: History) => {
 		const date = moment(history.originalReleaseDate, FORMAT.ORIGINAL_RELEASE_DATE);
 		const pathDate = date.format(FORMAT.PATH_DATE).toString();
@@ -188,8 +183,6 @@ export class Onejav implements SiteAbstract {
 			return
 		}
 		//获取网页地址中的路径'
-		console.log('首页地址路径' + window.location.pathname);
-
 		const mutationObserver = new MutationObserver((mutationsList, observer) => {
 			const histories = this.getHistories();
 			for (let mutationRecord of mutationsList) {
@@ -451,9 +444,7 @@ export class Onejav implements SiteAbstract {
 				return
 			}
 			$onejav[0].parentElement.id = "waterfall";
-
-			console.log('当前页面地址路径' + window.location.pathname);
-
+			console.log('加载到底!')
 			this.waterfall.flowOneStep();
 		}
 	}
@@ -478,7 +469,7 @@ export class Onejav implements SiteAbstract {
 
 	scroll(windowHeight: number, scrollTop: number) {
 		//滚动高度
-		// console.log('===触发滚动===');
+		// console.log('===触发判断当前窗口元素===');
 		const details = $(document).find(this.selector.item);
 		for (let detail of details) {
 			this.determineTheCurrentElement($(detail), scrollTop, windowHeight);
@@ -542,7 +533,7 @@ export class Onejav implements SiteAbstract {
 	}
 
 	haveRead(): boolean {
-		return this.getHistories().findIndex(item => item.serialNumber === this.sisters.current_key) >= 0;
+		return this.today.findIndex(item => item.serialNumber === this.sisters.current_key) >= 0;
 	}
 
 	haveReadNumber(): number {
