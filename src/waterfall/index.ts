@@ -1,21 +1,12 @@
 import {GM_getValue} from "$";
 import {SiteAbstract} from "../site/site-abstract";
-import $, {error} from "jquery";
+import $ from "jquery";
 import {Sisters} from "../site/sisters";
-
-class Pagination {
-	constructor(detail: JQuery) {
-		this.detail = detail;
-	}
-
-	currentURL: string = location.toString()
-	isEnd: boolean = false
-	nextUrl: string | null = null
-	detail: JQuery;
-	nextDetail: JQuery | null = null
-}
+import {Pagination} from "./pagination";
 
 export default class {
+
+	public recordTop: number = 0
 
 	private lock: Lock = new Lock();
 
@@ -25,11 +16,9 @@ export default class {
 
 	private readonly anchor: HTMLElement | null = null;
 
-	private page: Pagination;
+	public page: Pagination;
 
 	private site: SiteAbstract;
-
-	private recordHeight = 0
 
 	private sisters: Sisters;
 
@@ -46,36 +35,25 @@ export default class {
 		this.sisters = sisters;
 	}
 
-	flow() {
-
+	flow(defaultValue: number = 1, oneStep: boolean = false) {
 		if ($(this.selector.item).length) {
-
 			const waterfallScrollStatus = GM_getValue('waterfallScrollStatus', 1);
-
 			// 开启关闭瀑布流判断
 			if (waterfallScrollStatus > 0) {
-
-				$(document).on('scroll', () => this.scroll(true));
-
-				this.loadNext()
+				$(document).on('scroll', () => {
+						const scrollTop = $(window).scrollTop();
+						if (scrollTop === undefined) return
+							this.recordTop = scrollTop;
+					}
+				);
+				this.setSisterNumber()
+				this.loadNext(oneStep)
 			}
 		}
 	}
 
 	flowOneStep() {
-		if ($(this.selector.item).length) {
-
-			const waterfallScrollStatus = GM_getValue('waterfallScrollStatus', 2);
-
-			// 开启关闭瀑布流判断
-			if (waterfallScrollStatus > 0) {
-
-				$(document).on('scroll', () => this.scroll(true));
-				this.setSisterNumber()
-
-				this.loadNext(true)
-			}
-		}
+		this.flow(2, true)
 	}
 
 	loadNext(oneStep = false) {
@@ -118,8 +96,7 @@ export default class {
 		});
 	}
 
-	private async fetchURL(retry = 3): Promise<void> {
-		if (this.page.nextUrl === null) {
+	private async fetchURL(retry = 3): Promise<void> {if (this.page.nextUrl === null) {
 			this.page.isEnd = true;
 			console.log(`加载完毕!!!`)
 			return Promise.resolve();
@@ -172,7 +149,7 @@ export default class {
 		$(this.anchor).replaceWith($end)
 	}
 
-	public scroll(frequencyLimit: boolean) {
+	public scroll(frequencyLimit: boolean = false) {
 		return new Promise((resolve, reject) => {
 			//窗口高度
 			const windowHeight = $(window).height()
@@ -186,15 +163,7 @@ export default class {
 				console.log('获取不到滚动高度')
 				return Promise.resolve(false)
 			}
-
-			if (!frequencyLimit || scrollTop - this.recordHeight > 100 || this.recordHeight - scrollTop > 100) {
-				this.recordHeight = scrollTop;
-				this.site.scroll(windowHeight, scrollTop);
-			}
-
-			// if (this.reachBottom(windowHeight, scrollTop, 3000)) {
-			//   this.appendNext();
-			// }
+			this.site.scroll(windowHeight, scrollTop);
 		});
 	}
 
