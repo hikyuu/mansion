@@ -1,24 +1,26 @@
 <script setup lang="ts">
 
-import HomeBar from "./home-bar.vue";
 import {getSite} from "../site";
-import {onBeforeMount, Ref, ref} from "vue";
-import ControlBar from "./control-bar.vue";
+import {onMounted, ref} from "vue";
 import {Sisters} from "../site/sisters";
 import {SiteAbstract} from "../site/site-abstract";
+import {Onejav} from "../site/onejav";
+import ControlPanel from "./control-panel.vue";
+import OnejavHome from "./onejav-home.vue";
 
-type siteInstance = InstanceType<typeof SiteAbstract>
-const site = ref<siteInstance>() as Ref<siteInstance>
+const site = ref<SiteAbstract>();
 
 const sisters = ref<Sisters>(new Sisters());
 
-onBeforeMount(() => {
+onMounted(() => {
   const exactSite = getSite(sisters.value);
   if (exactSite === undefined) {
     console.log(`不支持当前网站!`)
     return
   }
+
   site.value = exactSite;
+
   site.value.mount();
 });
 
@@ -27,11 +29,35 @@ onBeforeMount(() => {
 <template>
   <template v-if="site">
     <div class="mansion">
-      <home-bar/>
+      <onejav-home v-if="site instanceof Onejav" :onejav="site"/>
+      <control-panel v-if="site.showControlPanel()" :sisters="sisters" :site="site"/>
     </div>
-    <control-bar v-if="site.whetherToDisplay()" :sisters="sisters" :site="site"/>
   </template>
 </template>
+
+<style>
+.panel-img {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+.panel-img-size {
+  width: 1400px;
+  max-width: 1400px;
+}
+
+.panel-img-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 80px;
+  height: 80px;
+}
+</style>
 
 <style scoped>
 .mansion {
@@ -39,7 +65,7 @@ onBeforeMount(() => {
   z-index: 9999999;
   position: fixed;
   top: 50%;
-  right: 20px;
+  right: 0;
   transform: translateY(-50%);
 }
 </style>

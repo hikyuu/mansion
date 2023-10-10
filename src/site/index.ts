@@ -8,3 +8,7 @@ export function getSite(sisters: Sisters): SiteAbstract | undefined {
   }
   return undefined;
 }
+
+export declare interface Theme{
+  primary_color: string;
+}

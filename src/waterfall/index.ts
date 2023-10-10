@@ -6,13 +6,11 @@ import {Pagination} from "./pagination";
 
 export default class {
 
-	public recordTop: number = 0
-
 	private lock: Lock = new Lock();
 
 	private baseURI: string = this.getBaseURI();
 
-	private selector: Selector = new Selector();
+	private selector: Selector;
 
 	private readonly anchor: HTMLElement | null = null;
 
@@ -26,8 +24,6 @@ export default class {
 		this.site = site
 		this.selector = selector
 		this.page = new Pagination(this.getDetail(document))
-
-		this.site.findImages(this.page.detail);
 		const $pageNation = $(this.selector.pagination);
 		if ($pageNation.length > 0) {
 			this.anchor = $pageNation[0];
@@ -36,16 +32,11 @@ export default class {
 	}
 
 	flow(defaultValue: number = 1, oneStep: boolean = false) {
+		this.site.findImages(this.page.detail);
 		if ($(this.selector.item).length) {
 			const waterfallScrollStatus = GM_getValue('waterfallScrollStatus', 1);
 			// 开启关闭瀑布流判断
 			if (waterfallScrollStatus > 0) {
-				$(document).on('scroll', () => {
-						const scrollTop = $(window).scrollTop();
-						if (scrollTop === undefined) return
-							this.recordTop = scrollTop;
-					}
-				);
 				this.setSisterNumber()
 				this.loadNext(oneStep)
 			}
@@ -62,12 +53,17 @@ export default class {
 		let nextUrl = this.getNextUrl(document);
 		if (nextUrl === null) {
 			// TODO: 2022/12/28
-			this.page.isEnd = true;
+			this.isEnd();
 			console.log('===当前已经是最后一页===')
 			return
 		}
 		this.page.nextUrl = nextUrl;
 		this.fetchNextSync(oneStep);
+	}
+
+	private isEnd() {
+		this.page.isEnd = true;
+		this.site.loadCompleted()
 	}
 
 	private getBaseURI() {
@@ -81,7 +77,7 @@ export default class {
 				reject()
 			} else {
 				this.lock.lock()
-				console.log('加锁')
+				// console.log('加锁')
 				resolve(null)
 			}
 		}).then(() => {
@@ -96,8 +92,9 @@ export default class {
 		});
 	}
 
-	private async fetchURL(retry = 3): Promise<void> {if (this.page.nextUrl === null) {
-			this.page.isEnd = true;
+	private async fetchURL(retry = 3): Promise<void> {
+		if (this.page.nextUrl === null) {
+			this.isEnd()
 			console.log(`加载完毕!!!`)
 			return Promise.resolve();
 		}
@@ -116,7 +113,7 @@ export default class {
 			console.error(reason);
 			if (retry > 0) {
 				console.log('重试获取下一页', this.page.nextUrl);
-				return this.fetchURL(retry--);
+				return this.fetchURL(--retry);
 			} else {
 				return Promise.resolve();
 			}
@@ -149,7 +146,7 @@ export default class {
 		$(this.anchor).replaceWith($end)
 	}
 
-	public scroll(frequencyLimit: boolean = false) {
+	public scroll() {
 		return new Promise((resolve, reject) => {
 			//窗口高度
 			const windowHeight = $(window).height()
@@ -167,24 +164,13 @@ export default class {
 		});
 	}
 
-	private reachBottom(windowHeight: number, scrollTop: number, limit: number) {
-		//scrollHeight是滚动条的总高度
-		const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
-		//滚动条到底部的条件
-		if (scrollTop + windowHeight >= scrollHeight - limit) {
-			//到了这个就可以进行业务逻辑加载后台数据了
-			console.log("到了底部");
-			return true;
-		}
-	}
-
 	appendNext(oneStep: boolean = false) {
 		if (this.page.isEnd) {
 			console.log(`没有下一页`);
 			return this.end();
 		}
 		if (this.page.nextDetail === null) {
-			this.page.isEnd = true;
+			this.isEnd();
 			console.log(`没有获取到下一页内容`);
 			return;
 		}
@@ -192,7 +178,7 @@ export default class {
 		$(this.selector.container).append(this.page.nextDetail);
 		this.setSisterNumber();
 		this.page.nextDetail = null;
-		console.log(`解锁`);
+		// console.log(`解锁`);
 		this.lock.unlock()
 		return this.fetchNextSync(oneStep);
 	}
@@ -204,11 +190,11 @@ export default class {
 	}
 }
 
-class Selector {
-	public next: string = 'a.next'
-	public item: string = ''
-	public container: string = '#waterfall'
-	public pagination: string = '.pagination'
+export declare interface Selector {
+	next: string
+	item: string
+	container: string
+	pagination: string
 }
 
 class Lock {
@@ -227,7 +213,3 @@ class Lock {
 		this.locked = false
 	}
 }
-
-export {
-	Selector
-};

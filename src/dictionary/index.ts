@@ -1,5 +1,6 @@
 export enum KEY {
 	ONEJAV_HISTORY_KEY = 'onejav_history',
+	ONEJAV_DAILY_KEY = 'onejav_daily',
 	JAVSTORE_KEY = 'javstore_',
 }
 
