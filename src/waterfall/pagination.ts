@@ -4,6 +4,7 @@ export class Pagination {
 	}
 
 	currentURL: string = location.toString()
+	pathname: string = location.pathname
 	isEnd: boolean = false
 	nextUrl: string | null = null
 	detail: JQuery;

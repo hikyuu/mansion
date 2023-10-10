@@ -6,15 +6,15 @@ export interface SiteInterface {
 
   scroll(windowHeight: number, scrollTop: number): void;
 
-  previous(): void;
+	previous(x:any, y:any): void;
 
   download(): void;
 
-  nextStep(): void;
+  nextStep(x: any, y: any): void;
 
-  whetherToDisplay(): boolean;
+  showControlPanel(): boolean;
 
-  save(avid:string): void;
+  save(serialNumber:string): void;
 
   loadNext(): void;
 }

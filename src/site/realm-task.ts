@@ -1,6 +1,4 @@
-import {SiteAbstract} from "./site-abstract";
-import {History} from "./onejav";
-import moment from "moment";
+import {History} from "./onejav/onejav-history";
 
 export class RealmTask {
 

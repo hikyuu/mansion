@@ -2,15 +2,15 @@ import {GM_deleteValue, GM_getValue, GM_xmlhttpRequest} from "vite-plugin-monkey
 import {error} from "jquery";
 import {picx} from "../dictionary";
 
-export function getAvCode(avid: string): string {
+export function getAvCode(serialNumber: string): string {
 	// 带-的番号不处理，除了-0 如：DSVR-01167
-	if (avid.match(/-[^0]/g)) return avid
+	if (serialNumber.match(/-[^0]/g)) return serialNumber
 	// 999999_001,999999-001 不处理
-	if (avid.match(/^[0-9-_]+$/g)) return avid
+	if (serialNumber.match(/^[0-9-_]+$/g)) return serialNumber
 	// crazyasia99999,sm999,video_999,BrazzersExxtra.99.99.99 不处理
-	if (avid.match(/^(crazyasia|sm|video_|BrazzersExxtra)+/gi)) return avid
-	let letter = avid.match(/[a-z|A-Z]+/gi)
-	let nums = avid.match(/\d+$/gi)
+	if (serialNumber.match(/^(crazyasia|sm|video_|BrazzersExxtra)+/gi)) return serialNumber
+	let letter = serialNumber.match(/[a-z|A-Z]+/gi)
+	let nums = serialNumber.match(/\d+$/gi)
 	if (nums === null) throw new Error('没匹配到番号');
 	let num = nums[0];
 	if (num.length > 3) {
@@ -25,7 +25,7 @@ export function getAvCode(avid: string): string {
 	return letter.toString().replace(/,/g, '-') + '-' + num;
 }
 
-export function getPreviewElement(avid: string, targetImgUrl: string, isZoom: boolean) {
+export function getPreviewElement(serialNumber: string, targetImgUrl: string, isZoom: boolean) {
 	// console.log('显示的图片地址:' + targetImgUrl)
 	//创建img元素,加载目标图片地址
 	//创建新img元素
@@ -33,9 +33,9 @@ export function getPreviewElement(avid: string, targetImgUrl: string, isZoom: bo
 	if (isZoom != undefined && !isZoom) {
 		className = 'min'
 	}
-	let $img = $(`<div id='preview'><img id="IMG_${avid}" title="点击可放大缩小 (图片正常时)" class="${className}"/></div>`)
+	let $img = $(`<div id='preview'><img id="IMG_${serialNumber}" title="点击可放大缩小 (图片正常时)" class="${className}"/></div>`)
 	$img.css({'text-align': 'center'});
-	$img.children(`#IMG_${avid}`)
+	$img.children(`#IMG_${serialNumber}`)
 		.attr('src', targetImgUrl)
 		.attr('retry', 0)
 		.on('click', function () {
@@ -68,18 +68,18 @@ export function getPreviewElement(avid: string, targetImgUrl: string, isZoom: bo
 	return $img;
 }
 
-export function getJavstoreUrl(avid: string, retry = 1): Promise<string | null> {
+export function getJavstoreUrl(serialNumber: string, retry = 1): Promise<string | null> {
 	//异步请求搜索JavStore的番号
-	return request(`https://javstore.net/search/${avid}.html`).then((result) => {
+	return request(`https://javstore.net/search/${serialNumber}.html`).then((result) => {
 		let overview = parseText(result.responseText);
-		// 查找包含avid番号的a标签数组,忽略大小写
+		// 查找包含番号的a标签数组,忽略大小写
 		let a_array = $(overview).find(`.news_1n li h3 span a`);
 		// console.log(a_array)
 		let a = a_array[0]
 		//如果找到全高清大图优先获取全高清的
 		for (let i = 0; i < a_array.length; i++) {
 			// 筛选匹配的番号数据  FC2-PPV-9999999 => 正则/FC2.*PPV.*9999999/gi
-			let reg = RegExp(avid.replace(/-/g, '.*'), 'gi')
+			let reg = RegExp(serialNumber.replace(/-/g, '.*'), 'gi')
 			if (a_array[i].title.search(reg) > 0) {
 				if (!a) a = a_array[i]
 				let fhd_idx = a_array[i].title.search(/Uncensored|FHD/i)
@@ -97,8 +97,8 @@ export function getJavstoreUrl(avid: string, retry = 1): Promise<string | null> 
 	}).catch(reason => {
 		console.error(reason);
 		if (retry > 0) {
-			console.log('重试获取搜索结果', avid);
-			return getJavstoreUrl(avid, retry--);
+			console.log('重试获取搜索结果', serialNumber);
+			return getJavstoreUrl(serialNumber, --retry);
 		} else {
 			return Promise.resolve(null);
 		}
@@ -113,14 +113,14 @@ async function getImgUrlFromPixhost(javUrl: string, retry: number = 3): Promise<
 		console.error(reason);
 		if (retry > 0) {
 			console.log('重试Pixhost图片链接', javUrl);
-			return getImgUrlFromPixhost(javUrl, retry--);
+			return getImgUrlFromPixhost(javUrl, --retry);
 		} else {
 			return undefined;
 		}
 	}
 }
 
-export function getPreviewUrlFromJavStore(javstore: string, avid: string, retry = 1): Promise<any> {
+export function getPreviewUrlFromJavStore(javstore: string, serialNumber: string, retry = 1): Promise<any> {
 
 	//异步请求调用内页详情的访问地址
 	return request(javstore, 'https://javstore.net/').then(async (result) => {
@@ -138,11 +138,11 @@ export function getPreviewUrlFromJavStore(javstore: string, avid: string, retry 
 				const javUrl = img_array[0].getAttribute('href');
 				//如果 javUrl不是以http开头的,则返回null
 				if (javUrl === null) return Promise.resolve(null);
-				console.log(avid+' javstore获取的图片地址:' + javUrl)
+				// console.log(serialNumber+' javstore获取的图片地址:' + javUrl)
 				imgUrl = javUrl
 				if (javUrl.match(/(pixhost)/gi)) {
 					imgUrl = await getImgUrlFromPixhost(javUrl)
-					console.log(avid+' pixhost获取的图片地址:' + imgUrl)
+					console.log(serialNumber+' pixhost获取的图片地址:' + imgUrl)
 				}
 			}
 			//原方法
@@ -171,8 +171,8 @@ export function getPreviewUrlFromJavStore(javstore: string, avid: string, retry 
 	}).catch(reason => {
 		console.error(reason);
 		if (retry > 0) {
-			console.log('重试获取图片 avid:', avid)
-			return getPreviewUrlFromJavStore(javstore, avid, retry--);
+			console.log('重试获取图片 serialNumber:', serialNumber)
+			return getPreviewUrlFromJavStore(javstore, serialNumber, --retry);
 		}
 	});
 }

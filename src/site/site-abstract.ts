@@ -1,6 +1,7 @@
 import Waterfall, {Selector} from "../waterfall";
 import {SiteInterface} from "./site-interface";
 import {Sisters} from "./sisters";
+import {Theme} from "./index";
 
 export abstract class SiteAbstract implements SiteInterface {
 
@@ -9,6 +10,8 @@ export abstract class SiteAbstract implements SiteInterface {
 	abstract sisters: Sisters;
 
 	abstract waterfall: Waterfall;
+
+	abstract theme: Theme;
 
 	// 声明抽象的方法，让子类去实现
 	abstract mount(): void;
@@ -19,21 +22,19 @@ export abstract class SiteAbstract implements SiteInterface {
 
 	abstract scroll(windowHeight: number, scrollTop: number): void;
 
-	abstract previous(): void;
+	abstract previous(x:any, y:any): void;
 
 	abstract download(): void;
 
-	abstract nextStep(): void;
+	abstract nextStep(x:any, y:any): void;
 
-	abstract whetherToDisplay(): boolean;
+	abstract showControlPanel(): boolean;
 
-	abstract save(avid: string): void;
+	abstract save(serialNumber: string): void;
 
 	abstract loadNext(): void;
 
-	abstract haveRead(): boolean;
-
-	abstract haveReadNumber() : number;
+	abstract loadCompleted(): void;
 }
 
 export class LockPool {

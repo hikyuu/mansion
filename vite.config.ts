@@ -1,23 +1,35 @@
 import {defineConfig} from 'vite';
 import vue from '@vitejs/plugin-vue';
-import monkey, {cdn, util} from 'vite-plugin-monkey';
+import monkey, {cdn, jsdelivr, util} from 'vite-plugin-monkey';
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
-import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import {ElementPlusResolver} from 'unplugin-vue-components/resolvers'
+import Icons from 'unplugin-icons/vite'
+import IconsResolver from 'unplugin-icons/resolver'
 
 // https://vitejs.dev/config/
 export default defineConfig({
 	server: {
 		hmr: false,
-		port: 3000,
+		port: 3003,
 	},
 	plugins: [
 		vue(),
 		AutoImport({
-			resolvers: [ElementPlusResolver()],
+			imports: ['vue'],
+			resolvers: [
+				ElementPlusResolver(),
+				IconsResolver({prefix: 'Icon'}),
+			],
 		}),
 		Components({
-			resolvers: [ElementPlusResolver()],
+			resolvers: [
+				ElementPlusResolver(),
+				IconsResolver({enabledCollections: ['ep']}),
+			],
+		}),
+		Icons({
+			autoInstall: true,
 		}),
 		monkey({
 			entry: 'src/main.ts',
@@ -42,6 +54,18 @@ export default defineConfig({
 					"moment": cdn.jsdelivr('moment', 'moment.min.js'),
 					"realm-web": cdn.jsdelivr("Realm", 'dist/bundle.iife.js'),
 					'element-plus': cdn.jsdelivr('ElementPlus', 'dist/index.full.min.js'),
+					'@element-plus/icons-vue': cdn.jsdelivr('ElementPlusIconsVue', 'dist/index.iife.min.js'),
+					'@vueuse/core': [
+						'VueUse',
+						(version, name, importName) => {
+							//https://cdn.jsdelivr.net/npm/@vueuse/core@10.5.0/index.iife.min.js
+							return `https://cdn.jsdelivr.net/npm/${name}@${version}/index.iife.min.js`;
+						},
+						(version, name, importName) => {
+							//https://cdn.jsdelivr.net/npm/@vueuse/shared@10.5.0/index.iife.min.js
+							return `https://cdn.jsdelivr.net/npm/@vueuse/shared@${version}/index.iife.min.js`;
+						}
+					],
 				},
 				externalResource: {
 					'element-plus/dist/index.css': cdn.jsdelivr(),
