@@ -3,21 +3,20 @@ import {SiteAbstract} from "../site/site-abstract";
 import $ from "jquery";
 import {Sisters} from "../site/sisters";
 import {Pagination} from "./pagination";
+import {ElNotification} from "element-plus";
+import {isRef, ref, toRef, watch} from "vue";
+import {GM_setValue} from "vite-plugin-monkey/dist/client";
 
 export default class {
 
-	private lock: Lock = new Lock();
-
-	private baseURI: string = this.getBaseURI();
-
-	private selector: Selector;
-
-	private readonly anchor: HTMLElement | null = null;
-
 	public page: Pagination;
-
+	public waterfallScrollStatus = ref(GM_getValue('waterfallScrollStatus', 0))
+	public whetherToLoadPreview = ref(GM_getValue('whetherToLoadPreview', false))
+	private lock: Lock = new Lock();
+	private baseURI: string = this.getBaseURI();
+	private selector: Selector;
+	private readonly anchor: HTMLElement | null = null;
 	private site: SiteAbstract;
-
 	private sisters: Sisters;
 
 	constructor(site: SiteAbstract, selector: Selector, sisters: Sisters) {
@@ -29,22 +28,38 @@ export default class {
 			this.anchor = $pageNation[0];
 		}
 		this.sisters = sisters;
+		this.watchStatus();
 	}
 
-	flow(defaultValue: number = 1, oneStep: boolean = false) {
-		this.site.findImages(this.page.detail);
-		if ($(this.selector.item).length) {
-			const waterfallScrollStatus = GM_getValue('waterfallScrollStatus', 1);
-			// 开启关闭瀑布流判断
-			if (waterfallScrollStatus > 0) {
-				this.setSisterNumber()
-				this.loadNext(oneStep)
-			}
+	flow() {
+		if ($(this.selector.item).length <= 0) {
+			console.info(`没有妹妹`);
+			return;
+		}
+		this.loadPreview(this.page.detail);
+		this.setSisterNumber()
+		const ref = toRef(this.waterfallScrollStatus);
+		console.log(isRef(ref));
+		switch (ref.value) {
+			case 0:
+				ElNotification({title: '瀑布流', message: `瀑布流已关闭`, type: 'info'});
+				break;
+			case 1:
+				this.flowLazy();
+				break;
+			case 2:
+				this.flowOneStep();
 		}
 	}
 
+	flowLazy() {
+		ElNotification({title: '瀑布流', message: `启动懒加载`, type: 'info'});
+		this.loadNext(false)
+	}
+
 	flowOneStep() {
-		this.flow(2, true)
+		ElNotification({title: '瀑布流', message: `启动一步到位模式`, type: 'info'});
+		this.loadNext(true)
 	}
 
 	loadNext(oneStep = false) {
@@ -58,69 +73,100 @@ export default class {
 			return
 		}
 		this.page.nextUrl = nextUrl;
-		this.fetchNextSync(oneStep);
+		this.fetchNextSync(oneStep).then();
 	}
 
-	private isEnd() {
+	async scroll() {
+		//窗口高度
+		const windowHeight = $(window).height()
+		if (windowHeight === undefined) {
+			console.log('获取不到窗口高度')
+			return false
+		}
+		//滚动高度
+		const scrollTop = $(window).scrollTop();
+		if (scrollTop === undefined) {
+			console.log('获取不到滚动高度')
+			return false
+		}
+		this.site.scroll(windowHeight, scrollTop);
+		return true
+	}
+
+	async appendNext(oneStep: boolean = false) {
+		if (this.page.isEnd) {
+			console.log(`没有下一页`);
+			return this.end();
+		}
+		if (this.page.nextDetail === null) {
+			console.log(`没有获取到下一页内容`);
+			return this.isEnd();
+		}
+		$(this.selector.container).append(this.page.nextDetail);
+		this.setSisterNumber();
+		this.page.nextDetail = null;
+		// console.log(`解锁`);
+		this.lock.unlock()
+		return this.fetchNextSync(oneStep);
+	}
+
+	isEnd() {
 		this.page.isEnd = true;
 		this.site.loadCompleted()
+		ElNotification({title: '提示', message: `加载完毕!!!`, type: 'success',});
 	}
 
-	private getBaseURI() {
+	getBaseURI() {
 		let _ = location
 		return `${_.protocol}//${_.hostname}${(_.port && `:${_.port}`)}`
 	}
 
-	private fetchNextSync(oneStep: boolean = false) {
-		new Promise((resolve, reject) => {
-			if (this.lock.locked) {
-				reject()
-			} else {
-				this.lock.lock()
-				// console.log('加锁')
-				resolve(null)
+	async fetchNextSync(oneStep: boolean = false) {
+		if (this.lock.locked) {
+			return
+		} else {
+			this.lock.lock()
+		}
+		try {
+			await this.fetchURL();
+			if (!oneStep) {
+				return
 			}
-		}).then(() => {
-			return this.fetchURL();
-		}).then(() => {
-			if (oneStep) {
-				this.appendNext(oneStep);
-			}
-		}).catch((reason) => {
-			console.error(reason.message);
+			this.appendNext(oneStep).then();
+		} catch (e) {
 			// Locked!
-		});
+			console.error(e);
+		}
 	}
 
-	private async fetchURL(retry = 3): Promise<void> {
+	async fetchURL(retry = 3): Promise<void> {
 		if (this.page.nextUrl === null) {
-			this.isEnd()
-			console.log(`加载完毕!!!`)
-			return Promise.resolve();
+			return this.isEnd()
 		}
-		console.log(`fetchUrl = ${this.page.nextUrl}`)
 		try {
 			let response = await fetch(this.page.nextUrl, {credentials: 'same-origin'});
+			if (!response.ok) {
+				console.log('重试获取下一页:状态错误', this.page.nextUrl);
+				return this.fetchURL(--retry);
+			}
 			let html = await response.text();
 			const doc = new DOMParser().parseFromString(html, 'text/html');
 			this.page.nextUrl = this.getNextUrl(doc);
 			this.page.nextDetail = this.getDetail(doc);
-			console.log(`获取下一页图片`);
-			this.site.findImages(this.page.nextDetail);
-			console.log(`内容遍历完成`);
-			return Promise.resolve();
+			console.log(`加载下一页预览图`);
+			this.loadPreview(this.page.nextDetail);
 		} catch (reason) {
 			console.error(reason);
 			if (retry > 0) {
-				console.log('重试获取下一页', this.page.nextUrl);
+				console.log('重试获取下一页:报错', this.page.nextUrl);
 				return this.fetchURL(--retry);
 			} else {
-				return Promise.resolve();
+				console.log('重试次数用尽');
 			}
 		}
 	}
 
-	private getDetail(doc: Document): JQuery {
+	getDetail(doc: Document): JQuery {
 		const details = $(doc).find(this.selector.item);
 		for (const elem of details) {
 			const links = elem.getElementsByTagName('a')
@@ -131,7 +177,7 @@ export default class {
 		return details;
 	}
 
-	private getNextUrl(doc: Document) {
+	getNextUrl(doc: Document) {
 		const href = $(doc).find(this.selector.next).attr('href')
 		const a = document.createElement('a')
 		if (href === undefined || href === null) return null
@@ -139,54 +185,43 @@ export default class {
 		return `${this.baseURI}${a.pathname}${a.search}`
 	}
 
-	private end() {
+	end() {
 		// $(window).off('scroll');
 		if (this.anchor === null) return
 		let $end = $(`<h1>The End</h1>`)
 		$(this.anchor).replaceWith($end)
 	}
 
-	public scroll() {
-		return new Promise((resolve, reject) => {
-			//窗口高度
-			const windowHeight = $(window).height()
-			if (windowHeight === undefined) {
-				console.log('获取不到窗口高度')
-				return Promise.resolve(false)
-			}
-			//滚动高度
-			const scrollTop = $(window).scrollTop();
-			if (scrollTop === undefined) {
-				console.log('获取不到滚动高度')
-				return Promise.resolve(false)
-			}
-			this.site.scroll(windowHeight, scrollTop);
-		});
-	}
-
-	appendNext(oneStep: boolean = false) {
-		if (this.page.isEnd) {
-			console.log(`没有下一页`);
-			return this.end();
-		}
-		if (this.page.nextDetail === null) {
-			this.isEnd();
-			console.log(`没有获取到下一页内容`);
-			return;
-		}
-		console.log(`加载下一页内容`)
-		$(this.selector.container).append(this.page.nextDetail);
-		this.setSisterNumber();
-		this.page.nextDetail = null;
-		// console.log(`解锁`);
-		this.lock.unlock()
-		return this.fetchNextSync(oneStep);
-	}
-
-	private setSisterNumber() {
+	setSisterNumber() {
 		const sisterNumber = $(this.selector.item).length;
-		console.log('妹妹数量:' + sisterNumber)
+		// console.log('妹妹数量:' + sisterNumber)
 		this.sisters.sisterNumber = sisterNumber
+	}
+
+	private loadPreview(detail: JQuery) {
+		if (this.whetherToLoadPreview) {
+			this.site.findImages(detail);
+		}
+	}
+
+	private watchStatus() {
+		watch(this.waterfallScrollStatus, (value) => {
+			GM_setValue('waterfallScrollStatus', value)
+			console.log(`瀑布流状态:${value}`)
+			// switch (value) {
+			// 	case 0:
+			// 		ElNotification({title: '瀑布流', message: `关闭瀑布流`, type: 'info'});
+			// 		break;
+			// 	case 1:
+			// 		ElNotification({title: '瀑布流', message: `开启懒加载`, type: 'info'});
+			// 		break;
+			// 	case 2:
+			// 		ElNotification({title: '瀑布流', message: `开启一步到位模式`, type: 'info'});
+			// 		break;
+			// 	default:
+			// 		ElNotification({title: '瀑布流', message: `未知状态`, type: 'info'});
+			// }
+		});
 	}
 }
 

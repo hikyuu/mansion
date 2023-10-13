@@ -171,7 +171,6 @@ watch(
     () => props.sisters.current_index,
     (index, oldVal) => {
       const pageSisterNumber = props.sisters.sisterNumber;
-      console.log('当前番号', index, '页面妹妹数量', pageSisterNumber)
       if (index !== undefined && index >= pageSisterNumber - 3) {
         console.log('加载下一页')
         props.site.loadNext();
