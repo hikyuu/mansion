@@ -1,5 +1,4 @@
-import {WritableComputedRef} from "vue";
-import $, {error} from "jquery";
+import $ from "jquery";
 
 export class Sisters {
 
@@ -20,9 +19,9 @@ export class Sisters {
 		this.current_key = this.queue[this.current_index].serialNumber;
 
 		const current = this.queue[this.current_index];
-		if (current) $image.scrollTop(current.scrollTop);
+		if (current) $image.scrollTop(current.scrollTop ? current.scrollTop : 0);
 	}
-
+	
 	nextStep() {
 		if (!this.current_key || this.current_index === undefined) return
 		if (this.current_index >= this.queue.length - 1) return;
@@ -36,7 +35,7 @@ export class Sisters {
 		this.current_key = this.queue[this.current_index].serialNumber
 
 		const current = this.queue[this.current_index];
-		if (current) $image.scrollTop(current.scrollTop);
+		if (current) $image.scrollTop(current.scrollTop ? current.scrollTop : 0);
 	}
 
 	setCurrent(serialNumber: string) {
@@ -44,21 +43,21 @@ export class Sisters {
 		const index = this.queue.findIndex(item => item.serialNumber === serialNumber);
 
 		if (index >= 0) {
-			console.log('设置当前的index');
 			this.current_index = index;
 			this.current_key = serialNumber;
 		}
 	}
 
-	updateInfo(serialNumber: string, info: Object) {
+	updateInfo(info: Info) {
+		if (info.serialNumber === '') return;
 		if (this.queue.length <= 0) {
 			this.current_index = 0
-			this.current_key = serialNumber;
+			this.current_key = info.serialNumber;
 		}
-		let existInfo = this.queue.find(item => item.serialNumber === serialNumber);
+		let existInfo = this.queue.find(item => item.serialNumber === info.serialNumber);
 		if (!existInfo) {
 			existInfo = info as Info;
-			existInfo.serialNumber = serialNumber;
+			existInfo.serialNumber = info.serialNumber;
 			this.queue.push(existInfo);
 		} else {
 			Object.assign(existInfo, info);
@@ -80,11 +79,11 @@ export class Sisters {
 	}
 }
 
-
 export declare interface Info {
 	serialNumber: string;
-	scrollTop: number;
-	src: string;
-	date: string;
-	haveRead: boolean;
+	scrollTop?: number;
+	src?: string;
+	date?: string;
+	haveRead?: boolean;
+	pathDate?: string;
 }

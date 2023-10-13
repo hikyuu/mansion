@@ -1,12 +1,13 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 
 import {getSite} from "../site";
 import {onMounted, ref} from "vue";
 import {Sisters} from "../site/sisters";
 import {SiteAbstract} from "../site/site-abstract";
-import {Onejav} from "../site/onejav";
+import {Onejav} from "../site/onejav/onejav";
 import ControlPanel from "./control-panel.vue";
-import OnejavHome from "./onejav-home.vue";
+import HomeOnejav from "./home-onejav.vue";
+import MansionSetting from "./mansion-setting.vue";
 
 const site = ref<SiteAbstract>();
 
@@ -18,7 +19,6 @@ onMounted(() => {
     console.log(`不支持当前网站!`)
     return
   }
-
   site.value = exactSite;
 
   site.value.mount();
@@ -29,8 +29,9 @@ onMounted(() => {
 <template>
   <template v-if="site">
     <div class="mansion">
-      <onejav-home v-if="site instanceof Onejav" :onejav="site"/>
+      <home-onejav v-if="site instanceof Onejav" :onejav="site"/>
       <control-panel v-if="site.showControlPanel()" :sisters="sisters" :site="site"/>
+      <mansion-setting :site="site"/>
     </div>
   </template>
 </template>

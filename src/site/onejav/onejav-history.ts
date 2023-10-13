@@ -5,25 +5,31 @@ import {FORMAT, KEY} from "../../dictionary";
 import moment from "moment/moment";
 import {LockPool} from "../site-abstract";
 import * as realm from "realm-web";
-import {computed, ref} from "vue";
+import {computed} from "vue";
 import {GM_getValue} from "vite-plugin-monkey/dist/client";
+import {Info} from "../sisters";
 
 const realmTask: RealmTask = new RealmTask()
 
 let onejav: MongoDBCollection<History> | undefined = undefined;
 const lockPool = new LockPool();
-export const historiesRef = ref<History[]>([]);
-export const historiesMapRef = ref(new Map());
+//数据可能会很多不要滥用响应式
+export let histories: History[] = [];
+export const historySerialNumbers = new Map();
+
 export const todayHistories = computed<History[]>(() => {
-	return historiesRef.value.filter((history) => {
+	console.time('todayHistories-filter')
+	const filter = histories.filter((history) => {
 		return history.pathDate === location.pathname;
 	});
+	console.timeEnd('todayHistories-filter')
+	return filter;
 });
 
 export async function loadRemoteHistory() {
 	const onejav = getOnejavHistory();
 	const remoteHistories = await onejav.find();
-	historiesRef.value = remoteHistories;
+	histories = remoteHistories;
 
 	let count = 0;
 	for (const history of remoteHistories) {
@@ -33,10 +39,10 @@ export async function loadRemoteHistory() {
 			console.log('修复数据', history.serialNumber);
 			realmTask.addTask(history, work);
 		}
-		if (!historiesMapRef.value.has(history.serialNumber)) {
+		if (!historySerialNumbers.has(history.serialNumber)) {
 			console.log('添加远程数据')
-			historiesMapRef.value.set(history.serialNumber, history);
-			historiesRef.value.push(history);
+			historySerialNumbers.set(history.serialNumber, history);
+			histories.push(history);
 		}
 	}
 	setLocalHistory();
@@ -44,9 +50,9 @@ export async function loadRemoteHistory() {
 
 export function loadLocalHistory() {
 	const localHistories = getLocalHistory();
-	historiesRef.value = localHistories;
+	histories = localHistories;
 	for (let localHistory of localHistories) {
-		historiesMapRef.value.set(localHistory.serialNumber, localHistory);
+		historySerialNumbers.set(localHistory.serialNumber, localHistory);
 	}
 }
 
@@ -83,47 +89,47 @@ export function getOnejavHistory() {
 	return onejav;
 }
 
-export async function uploadHistory(id: string, originalReleaseDate: string, retry = 3): Promise<void> {
+export async function uploadHistory(serialNumber: string, info: Info, retry = 3): Promise<void> {
 
-	if (lockPool.locked(id)) return;
+	if (lockPool.locked(serialNumber)) return;
 
-	console.log(`记录`, id);
-	lockPool.lock(id);
+	console.log(`记录`, serialNumber);
+	lockPool.lock(serialNumber);
 
-	const momentDate = moment(originalReleaseDate, FORMAT.ORIGINAL_RELEASE_DATE);
+	const momentDate = moment(info.pathDate, FORMAT.PATH_DATE);
 	const date = momentDate.toDate();
-	const pathDate = momentDate.format(FORMAT.PATH_DATE).toString();
+
 	const history = {
-		serialNumber: id,
+		serialNumber: serialNumber,
 		releaseDate: date,
-		originalReleaseDate,
-		pathDate,
+		originalReleaseDate: info.date,
+		pathDate: info.pathDate,
 		watchTime: new Date()
 	} as History;
 	const onejav = getOnejavHistory();
 
-	return onejav.updateOne({serialNumber: id}, history, {upsert: true}).then(() => {
-		console.log(id, '上传成功');
-		historiesRef.value.push(history);
-		historiesMapRef.value.set(history.serialNumber, history);
+	return onejav.updateOne({serialNumber: serialNumber}, history, {upsert: true}).then(() => {
+		console.log(serialNumber, '上传成功');
+		histories.push(history);
+		historySerialNumbers.set(history.serialNumber, history);
 		setLocalHistory();
 		//解锁
-		lockPool.unlock(id);
+		lockPool.unlock(serialNumber);
 		return Promise.resolve();
 	}).catch((reason) => {
 		console.error(reason);
-		lockPool.unlock(id);
+		lockPool.unlock(serialNumber);
 		console.log('历史上传重复次数', retry);
 		if (retry <= 0) {
 			return Promise.reject('重试次数用尽');
 		}
-		return uploadHistory(id, originalReleaseDate, --retry);
+		return uploadHistory(serialNumber, info, --retry);
 	});
 }
 
 export function setLocalHistory() {
+	GM_setValue(KEY.ONEJAV_HISTORY_KEY, histories);
 	console.log('历史记录写入本地')
-	GM_setValue(KEY.ONEJAV_HISTORY_KEY, historiesRef.value);
 }
 
 function getLocalHistory(): History[] {
