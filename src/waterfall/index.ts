@@ -4,14 +4,14 @@ import $ from "jquery";
 import {Sisters} from "../site/sisters";
 import {Pagination} from "./pagination";
 import {ElNotification} from "element-plus";
-import {isRef, ref, toRef, watch} from "vue";
+import {watch} from "vue";
 import {GM_setValue} from "vite-plugin-monkey/dist/client";
 
 export default class {
 
 	public page: Pagination;
-	public waterfallScrollStatus = ref(GM_getValue('waterfallScrollStatus', 0))
-	public whetherToLoadPreview = ref(GM_getValue('whetherToLoadPreview', false))
+	public waterfallScrollStatus = GM_getValue('waterfallScrollStatus', 0)
+	public whetherToLoadPreview = GM_getValue('whetherToLoadPreview', false)
 	private lock: Lock = new Lock();
 	private baseURI: string = this.getBaseURI();
 	private selector: Selector;
@@ -28,7 +28,6 @@ export default class {
 			this.anchor = $pageNation[0];
 		}
 		this.sisters = sisters;
-		this.watchStatus();
 	}
 
 	flow() {
@@ -38,9 +37,7 @@ export default class {
 		}
 		this.loadPreview(this.page.detail);
 		this.setSisterNumber()
-		const ref = toRef(this.waterfallScrollStatus);
-		console.log(isRef(ref));
-		switch (ref.value) {
+		switch (this.waterfallScrollStatus) {
 			case 0:
 				ElNotification({title: '瀑布流', message: `瀑布流已关闭`, type: 'info'});
 				break;
@@ -198,14 +195,8 @@ export default class {
 		this.sisters.sisterNumber = sisterNumber
 	}
 
-	private loadPreview(detail: JQuery) {
-		if (this.whetherToLoadPreview) {
-			this.site.findImages(detail);
-		}
-	}
-
-	private watchStatus() {
-		watch(this.waterfallScrollStatus, (value) => {
+	watchStatus() {
+		watch(() => this.waterfallScrollStatus, (value) => {
 			GM_setValue('waterfallScrollStatus', value)
 			console.log(`瀑布流状态:${value}`)
 			// switch (value) {
@@ -222,6 +213,21 @@ export default class {
 			// 		ElNotification({title: '瀑布流', message: `未知状态`, type: 'info'});
 			// }
 		});
+		watch(() => this.whetherToLoadPreview, (value) => {
+			GM_setValue('whetherToLoadPreview', value)
+			console.log(`是否加载预览图:${value}`)
+			// if (value) {
+			// 	ElNotification({title: '瀑布流', message: `加载预览图`, type: 'info'});
+			// } else {
+			// 	ElNotification({title: '瀑布流', message: `不加载预览图`, type: 'info'});
+			// }
+		});
+	}
+
+	private loadPreview(detail: JQuery) {
+		if (this.whetherToLoadPreview) {
+			this.site.findImages(detail);
+		}
 	}
 }
 
