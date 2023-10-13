@@ -1,3 +1,15 @@
+<script lang="ts" setup>
+import {SiteAbstract} from "../site/site-abstract";
+import {Check, Close, Setting} from "@element-plus/icons-vue";
+
+const props = defineProps<{
+  site: SiteAbstract
+}>()
+
+props.site.waterfall.watchStatus();
+
+</script>
+
 <template>
   <div class="panel-img">
     <div class="panel-img-box">
@@ -19,7 +31,7 @@
           >
             <el-form-item label="加载预览图">
               <el-switch
-                  v-model="props.site.waterfall.whetherToLoadPreview as any"
+                  v-model="props.site.waterfall.whetherToLoadPreview"
                   :active-icon="Check"
                   :inactive-icon="Close"
                   inline-prompt
@@ -27,7 +39,7 @@
               />
             </el-form-item>
             <el-form-item label="瀑布流">
-              <el-radio-group v-model="props.site.waterfall.waterfallScrollStatus as any">
+              <el-radio-group v-model="props.site.waterfall.waterfallScrollStatus">
                 <el-radio :label="0" border>关闭</el-radio>
                 <el-radio :label="1" border>懒加载</el-radio>
                 <el-radio :label="2" border>一步到位</el-radio>
@@ -40,11 +52,3 @@
     </div>
   </div>
 </template>
-<script lang="ts" setup>
-import {SiteAbstract} from "../site/site-abstract";
-import {Check, Close, Setting} from "@element-plus/icons-vue";
-
-const props = defineProps<{
-  site: SiteAbstract
-}>()
-</script>
