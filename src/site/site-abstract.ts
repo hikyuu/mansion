@@ -1,55 +1,53 @@
-import Waterfall, {Selector} from "../waterfall";
-import {SiteInterface} from "./site-interface";
-import {Sisters} from "./sisters";
-import {Theme} from "./index";
+import Waterfall, { Selector } from '../waterfall'
+import { SiteInterface } from './site-interface'
+import { Sisters } from './sisters'
+import { Theme } from './index'
 
 export abstract class SiteAbstract implements SiteInterface {
+  abstract selector: Selector
 
-	abstract selector: Selector;
+  abstract sisters: Sisters
 
-	abstract sisters: Sisters;
+  abstract waterfall: Waterfall
 
-	abstract waterfall: Waterfall;
+  abstract theme: Theme
 
-	abstract theme: Theme;
+  // 声明抽象的方法，让子类去实现
+  abstract mount(): void
 
-	// 声明抽象的方法，让子类去实现
-	abstract mount(): void;
+  abstract findImages(elems: JQuery): void
 
-	abstract findImages(elems: JQuery): void;
+  abstract addPreview($elem: JQuery): void
 
-	abstract addPreview($elem: JQuery): void;
+  abstract scroll(windowHeight: number, scrollTop: number): void
 
-	abstract scroll(windowHeight: number, scrollTop: number): void;
+  abstract previous(x: any, y: any): void
 
-	abstract previous(x:any, y:any): void;
+  abstract download(): void
 
-	abstract download(): void;
+  abstract nextStep(x: any, y: any): void
 
-	abstract nextStep(x:any, y:any): void;
+  abstract showControlPanel(): boolean
 
-	abstract showControlPanel(): boolean;
+  abstract save(serialNumber: string): void
 
-	abstract save(serialNumber: string): void;
+  abstract loadNext(): void
 
-	abstract loadNext(): void;
-
-	abstract loadCompleted(): void;
+  abstract loadCompleted(): void
 }
 
 export class LockPool {
+  keyPool = new Set<string>()
 
-	keyPool = new Set<string>();
+  lock(key: string) {
+    this.keyPool.add(key)
+  }
 
-	lock(key: string) {
-		this.keyPool.add(key);
-	}
+  unlock(key: string) {
+    this.keyPool.delete(key)
+  }
 
-	unlock(key: string) {
-		this.keyPool.delete(key);
-	}
-
-	locked(key: string) {
-		return this.keyPool.has(key);
-	}
+  locked(key: string) {
+    return this.keyPool.has(key)
+  }
 }

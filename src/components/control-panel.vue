@@ -1,84 +1,88 @@
 <template>
   <div v-if="showImage" class="view-image">
     <div id="show-image" class="show-image-wrap vertical">
-      <img class="panel-img-size" :src="src" alt="">
+      <img :src="src" alt="" class="panel-img-size" />
     </div>
   </div>
 
   <div class="panel-img">
     <div class="panel-img-box" style="height: 60px">
       <div class="count-group">
-        <img class="menu-count-img" :src="picx('/all.svg')" alt="全部">
+        <img :src="picx('/all.svg')" alt="全部" class="menu-count-img" />
         <span :style="loadAll">{{ sisters.sisterNumber }}</span>
       </div>
-      <div v-if="sisters.current_index!==undefined" class="count-group">
-        <el-icon size="30" :color="site.theme.primary_color">
-          <Location/>
+      <div v-if="sisters.current_index !== undefined" class="count-group">
+        <el-icon :color="site.theme.primary_color" size="30">
+          <Location />
         </el-icon>
         <span style="color: green">{{ sisters.current_index + 1 }}</span>
       </div>
-
     </div>
-    <div class="panel-img-box " style="height: 60px">
+    <div class="panel-img-box" style="height: 60px">
       <div class="count-group">
-        <el-icon size="30" :color="site.theme.primary_color">
-          <Picture/>
+        <el-icon :color="site.theme.primary_color" size="30">
+          <Picture />
         </el-icon>
-        <span style="color:green">{{ sisters.queue.length }}</span>
+        <span style="color: green">{{ sisters.queue.length }}</span>
       </div>
       <div class="count-group" @click="gotoLastRead(haveReadNumber)">
-        <img class="menu-count-img" v-bind="ICON.HAVE_READ">
-        <span style="color:green">{{ haveReadNumber }}</span>
+        <img class="menu-count-img" v-bind="ICON.HAVE_READ" />
+        <span style="color: green">{{ haveReadNumber }}</span>
       </div>
     </div>
 
     <div class="panel-img-box">
-      <img @click="viewOrClose" class="icon-button fullscreen" :src="picx('/fullscreen_1.svg')" alt="图片浏览">
+      <img
+        :src="picx('/fullscreen_1.svg')"
+        alt="图片浏览"
+        class="icon-button fullscreen"
+        @click="viewOrClose"
+      />
     </div>
 
     <div class="panel-img-box">
-      <img @click="previous" class="icon-button" :src="picx('/last.svg')" alt="上一部">
+      <img :src="picx('/last.svg')" alt="上一部" class="icon-button" @click="previous" />
     </div>
 
     <div class="panel-img-box">
-      <div style="display:flex; justify-content:center;">
-        <img v-if="haveRead" class="download" v-bind="ICON.HAVE_READ">
+      <div style="display: flex; justify-content: center">
+        <img v-if="haveRead" class="download" v-bind="ICON.HAVE_READ" />
         <div class="panel-img-box">
-          <img @click="download" class="download" :src="picx('/download.svg')" alt="下载">
+          <img :src="picx('/download.svg')" alt="下载" class="download" @click="download" />
         </div>
       </div>
     </div>
 
     <div class="panel-img-box">
-      <img @click="nextStep" class="icon-button" :src="picx('/next.svg')" alt="下一部">
+      <img :src="picx('/next.svg')" alt="下一部" class="icon-button" @click="nextStep" />
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import {computed, ref, toRef, watch} from "vue";
-import $ from "jquery";
-import {Sisters} from "../site/sisters";
-import {SiteAbstract} from "../site/site-abstract";
-import {ICON, picx} from "../dictionary";
-import {ElNotification} from "element-plus";
-import {onKeyStroke, useScroll} from "@vueuse/core/index";
+<script lang="ts" setup>
+import { computed, ref, toRef, watch } from 'vue'
+import $ from 'jquery'
+import { Sisters } from '@/site/sisters'
+import { SiteAbstract } from '@/site/site-abstract'
+import { ICON, picx } from '@/dictionary'
+import { ElNotification } from 'element-plus'
+import { onKeyStroke, useScroll } from '@vueuse/core/index'
 
 const props = defineProps<{
-  sisters: Sisters,
+  sisters: Sisters
   site: SiteAbstract
 }>()
 
-const showImage = ref(false);
-const loadAll = ref({color: 'red'});
-const queueRef = toRef(props.sisters, 'queue');
+const showImage = ref(false)
+const loadAll = ref({ color: 'red' })
+const queueRef = toRef(props.sisters, 'queue')
 
-const {x, y} = useScroll(window, {
+const { x, y } = useScroll(window, {
   behavior: 'smooth',
   onStop: () => {
     console.log('滚动结束')
-    props.site.waterfall.scroll();
-  },
+    props.site.waterfall.scroll()
+  }
 })
 
 onKeyStroke('ArrowLeft', () => previous())
@@ -89,105 +93,108 @@ onKeyStroke('ArrowDown', (event) => scroll(event))
 
 const haveRead = computed(() => {
   if (props.sisters.current_index === undefined) return
-  return queueRef.value[props.sisters.current_index].haveRead;
+  return queueRef.value[props.sisters.current_index].haveRead
 })
 
 const haveReadNumber = computed(() => {
-  return queueRef.value.filter((sister) => sister.haveRead).length;
+  return queueRef.value.filter((sister) => sister.haveRead).length
 })
 
 const src = computed(() => {
   if (props.sisters.current_index === undefined) return
-  return queueRef.value[props.sisters.current_index].src;
+  return queueRef.value[props.sisters.current_index].src
 })
 
 function gotoLastRead(index: number) {
-  props.sisters.getScrollTop(index).then((scrollTop) => {
-    console.log('坐标', scrollTop);
-    y.value = scrollTop;
-  }).catch((reason) => {
-    ElNotification({
-      title: '提示',
-      message: reason,
-      type: 'info',
+  props.sisters
+    .getScrollTop(index)
+    .then((scrollTop) => {
+      console.log('坐标', scrollTop)
+      y.value = scrollTop
     })
-  })
+    .catch((reason) => {
+      ElNotification({
+        title: '提示',
+        message: reason,
+        type: 'info'
+      })
+    })
 }
 
 function viewOrClose() {
-  showImage ? close() : view();
+  showImage.value ? close() : view()
 }
 
 function view() {
-  showImage.value = true;
-  $('html').css('overflow', 'hidden');
+  showImage.value = true
+  $('html').css('overflow', 'hidden')
 }
 
 function close() {
-  showImage.value = false;
-  $(`html`).css('overflow', 'auto');
+  showImage.value = false
+  $(`html`).css('overflow', 'auto')
 }
 
 function previous() {
-  props.sisters.previous();
-  props.site.previous(x, y);
+  props.sisters.previous()
+  props.site.previous(x, y)
 }
 
 function download() {
-  props.site.download();
+  props.site.download()
 }
 
 function nextStep() {
-  props.sisters.nextStep();
-  props.site.nextStep(x, y);
+  props.sisters.nextStep()
+  props.site.nextStep(x, y)
 }
 
 function scroll(event: KeyboardEvent, reverse = false) {
-  event.preventDefault();
+  event.preventDefault()
   const windowHeight = $(window).height()
   if (windowHeight === undefined) {
     console.log('获取不到窗口高度')
     return false
   }
   if (reverse) {
-    y.value -= windowHeight / 2;
+    y.value -= windowHeight / 2
   } else {
-    y.value += windowHeight / 2;
+    y.value += windowHeight / 2
   }
 }
 
 watch(
-    () => props.sisters.current_key,
-    (key, oldVal) => {
-      // console.log('监听到key变化');
-      if (key === null) return
-      props.site.save(key);
-    }, {
-      immediate: true
-    }
+  () => props.sisters.current_key,
+  (key, oldVal) => {
+    // console.log('监听到key变化');
+    if (key === null) return
+    props.site.save(key)
+  },
+  {
+    immediate: true
+  }
 )
 
 watch(
-    () => props.sisters.current_index,
-    (index, oldVal) => {
-      const pageSisterNumber = props.sisters.sisterNumber;
-      if (index !== undefined && index >= pageSisterNumber - 3) {
-        console.log('加载下一页')
-        props.site.loadNext();
-      }
-    },
+  () => props.sisters.current_index,
+  (index, oldVal) => {
+    const pageSisterNumber = props.sisters.sisterNumber
+    if (index !== undefined && index >= pageSisterNumber - 3) {
+      console.log('加载下一页')
+      props.site.loadNext()
+    }
+  }
 )
 
 watch(
-    () => props.site.waterfall.page.isEnd,
-    (val, oldVal) => {
-      console.log('是否加载完毕', val)
-      if (val) {
-        loadAll.value.color = 'green'
-      }
+  () => props.site.waterfall.page.isEnd,
+  (val, oldVal) => {
+    console.log('是否加载完毕', val)
+    if (val) {
+      loadAll.value.color = 'green'
     }
+  }
 )
-
 </script>
 
 <style scoped>
@@ -237,7 +244,6 @@ watch(
   flex-direction: column;
   justify-content: start;
 }
-
 
 .menu-count-img {
   width: 30px;
