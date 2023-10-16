@@ -1,20 +1,20 @@
 export interface SiteInterface {
   // 声明抽象的方法，让子类去实现
-  mount(): void;
+  mount(): void
 
-  findImages(elems: JQuery): void;
+  findImages(elems: JQuery): void
 
-  scroll(windowHeight: number, scrollTop: number): void;
+  scroll(windowHeight: number, scrollTop: number): void
 
-	previous(x:any, y:any): void;
+  previous(x: any, y: any): void
 
-  download(): void;
+  download(): void
 
-  nextStep(x: any, y: any): void;
+  nextStep(x: any, y: any): void
 
-  showControlPanel(): boolean;
+  showControlPanel(): boolean
 
-  save(serialNumber:string): void;
+  save(serialNumber: string): void
 
-  loadNext(): void;
+  loadNext(): void
 }
