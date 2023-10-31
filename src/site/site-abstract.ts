@@ -1,8 +1,9 @@
-import Waterfall, { Selector } from '../waterfall'
-import { SiteInterface } from './site-interface'
+import Waterfall from '../waterfall'
+import type { Selector } from '../waterfall'
+import type { SiteInterface } from './site-interface'
 import { Sisters } from './sisters'
-import { Theme } from './index'
-
+import type { Theme } from '@/site/index'
+import type { Ref } from 'vue'
 export abstract class SiteAbstract implements SiteInterface {
   abstract selector: Selector
 
@@ -19,13 +20,13 @@ export abstract class SiteAbstract implements SiteInterface {
 
   abstract addPreview($elem: JQuery): void
 
-  abstract scroll(windowHeight: number, scrollTop: number): void
+  abstract onScrollEvent(windowHeight: number, scrollTop: number): void
 
-  abstract previous(x: any, y: any): void
+  abstract previous(x: Ref<number>, y: Ref<number>): void
 
   abstract download(): void
 
-  abstract nextStep(x: any, y: any): void
+  abstract nextStep(x: Ref<number>, y: Ref<number>): void
 
   abstract showControlPanel(): boolean
 

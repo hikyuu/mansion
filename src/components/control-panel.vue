@@ -1,64 +1,3 @@
-<template>
-  <div v-if="showImage" class="view-image">
-    <div id="show-image" class="show-image-wrap vertical">
-      <img :src="src" alt="" class="panel-img-size" />
-    </div>
-  </div>
-
-  <div class="panel-img">
-    <div class="panel-img-box" style="height: 60px">
-      <div class="count-group">
-        <img :src="picx('/all.svg')" alt="全部" class="menu-count-img" />
-        <span :style="loadAll">{{ sisters.sisterNumber }}</span>
-      </div>
-      <div v-if="sisters.current_index !== undefined" class="count-group">
-        <el-icon :color="site.theme.primary_color" size="30">
-          <Location />
-        </el-icon>
-        <span style="color: green">{{ sisters.current_index + 1 }}</span>
-      </div>
-    </div>
-    <div class="panel-img-box" style="height: 60px">
-      <div class="count-group">
-        <el-icon :color="site.theme.primary_color" size="30">
-          <Picture />
-        </el-icon>
-        <span style="color: green">{{ sisters.queue.length }}</span>
-      </div>
-      <div class="count-group" @click="gotoLastRead(haveReadNumber)">
-        <img class="menu-count-img" v-bind="ICON.HAVE_READ" />
-        <span style="color: green">{{ haveReadNumber }}</span>
-      </div>
-    </div>
-
-    <div class="panel-img-box">
-      <img
-        :src="picx('/fullscreen_1.svg')"
-        alt="图片浏览"
-        class="icon-button fullscreen"
-        @click="viewOrClose"
-      />
-    </div>
-
-    <div class="panel-img-box">
-      <img :src="picx('/last.svg')" alt="上一部" class="icon-button" @click="previous" />
-    </div>
-
-    <div class="panel-img-box">
-      <div style="display: flex; justify-content: center">
-        <img v-if="haveRead" class="download" v-bind="ICON.HAVE_READ" />
-        <div class="panel-img-box">
-          <img :src="picx('/download.svg')" alt="下载" class="download" @click="download" />
-        </div>
-      </div>
-    </div>
-
-    <div class="panel-img-box">
-      <img :src="picx('/next.svg')" alt="下一部" class="icon-button" @click="nextStep" />
-    </div>
-  </div>
-</template>
-
 <script lang="ts" setup>
 import { computed, ref, toRef, watch } from 'vue'
 import $ from 'jquery'
@@ -66,7 +5,8 @@ import { Sisters } from '@/site/sisters'
 import { SiteAbstract } from '@/site/site-abstract'
 import { ICON, picx } from '@/dictionary'
 import { ElNotification } from 'element-plus'
-import { onKeyStroke, useScroll } from '@vueuse/core/index'
+import { onKeyStroke, useScroll } from '@vueuse/core'
+import { Location } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   sisters: Sisters
@@ -78,18 +18,18 @@ const loadAll = ref({ color: 'red' })
 const queueRef = toRef(props.sisters, 'queue')
 
 const { x, y } = useScroll(window, {
-  behavior: 'smooth',
   onStop: () => {
     console.log('滚动结束')
-    props.site.waterfall.scroll()
-  }
+    props.site.waterfall.onScrollEvent()
+  },
+  behavior: 'smooth'
 })
 
-onKeyStroke('ArrowLeft', () => previous())
-onKeyStroke('ArrowRight', () => nextStep())
-onKeyStroke('Enter', () => download())
-onKeyStroke('ArrowUp', (event) => scroll(event, true))
-onKeyStroke('ArrowDown', (event) => scroll(event))
+onKeyStroke('ArrowLeft', (event: KeyboardEvent) => previous(event))
+onKeyStroke('ArrowRight', (event: KeyboardEvent) => nextStep(event))
+onKeyStroke('Enter', (event: KeyboardEvent) => download(event))
+onKeyStroke('ArrowUp', (event: KeyboardEvent) => scroll(event, true))
+onKeyStroke('ArrowDown', (event: KeyboardEvent) => scroll(event))
 
 const haveRead = computed(() => {
   if (props.sisters.current_index === undefined) return
@@ -135,16 +75,19 @@ function close() {
   $(`html`).css('overflow', 'auto')
 }
 
-function previous() {
+function previous(event: KeyboardEvent) {
+  event.preventDefault()
   props.sisters.previous()
   props.site.previous(x, y)
 }
 
-function download() {
+function download(event: KeyboardEvent) {
+  event.preventDefault()
   props.site.download()
 }
 
-function nextStep() {
+function nextStep(event: KeyboardEvent) {
+  event.preventDefault()
   props.sisters.nextStep()
   props.site.nextStep(x, y)
 }
@@ -165,7 +108,7 @@ function scroll(event: KeyboardEvent, reverse = false) {
 
 watch(
   () => props.sisters.current_key,
-  (key, oldVal) => {
+  (key) => {
     // console.log('监听到key变化');
     if (key === null) return
     props.site.save(key)
@@ -177,7 +120,7 @@ watch(
 
 watch(
   () => props.sisters.current_index,
-  (index, oldVal) => {
+  (index) => {
     const pageSisterNumber = props.sisters.sisterNumber
     if (index !== undefined && index >= pageSisterNumber - 3) {
       console.log('加载下一页')
@@ -188,7 +131,7 @@ watch(
 
 watch(
   () => props.site.waterfall.page.isEnd,
-  (val, oldVal) => {
+  (val) => {
     console.log('是否加载完毕', val)
     if (val) {
       loadAll.value.color = 'green'
@@ -196,6 +139,62 @@ watch(
   }
 )
 </script>
+
+<template>
+  <div v-if="showImage" class="view-image">
+    <div id="show-image" class="show-image-wrap vertical">
+      <img :src="src" alt="" class="panel-img-size" />
+    </div>
+  </div>
+
+  <div class="panel-img">
+    <div class="panel-img-box" style="height: 60px">
+      <div class="count-group">
+        <img :src="picx('/all.svg')" alt="全部" class="menu-count-img" />
+        <span :style="loadAll">{{ sisters.sisterNumber }}</span>
+      </div>
+      <div v-if="sisters.current_index !== undefined" class="count-group">
+        <el-icon :color="site.theme.primary_color" size="30">
+          <Location />
+        </el-icon>
+        <span style="color: green">{{ sisters.current_index + 1 }}</span>
+      </div>
+    </div>
+    <div class="panel-img-box" style="height: 60px">
+      <div class="count-group">
+        <el-icon :color="site.theme.primary_color" size="30">
+          <Picture />
+        </el-icon>
+        <span style="color: green">{{ sisters.queue.length }}</span>
+      </div>
+      <div class="count-group" @click="gotoLastRead(haveReadNumber)">
+        <img class="menu-count-img" v-bind="ICON.HAVE_READ" />
+        <span style="color: green">{{ haveReadNumber }}</span>
+      </div>
+    </div>
+
+    <div class="panel-img-box">
+      <img :src="picx('/fullscreen_1.svg')" alt="图片浏览" class="icon-button fullscreen" @click="viewOrClose" />
+    </div>
+
+    <div class="panel-img-box">
+      <img :src="picx('/last.svg')" alt="上一部" class="icon-button" @click="previous" />
+    </div>
+
+    <div class="panel-img-box">
+      <div style="display: flex; justify-content: center">
+        <img v-if="haveRead" class="download" v-bind="ICON.HAVE_READ" />
+        <div class="panel-img-box">
+          <img :src="picx('/download.svg')" alt="下载" class="download" @click="download" />
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-img-box">
+      <img :src="picx('/next.svg')" alt="下一部" class="icon-button" @click="nextStep" />
+    </div>
+  </div>
+</template>
 
 <style scoped>
 .view-image {

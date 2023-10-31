@@ -1,12 +1,11 @@
-import MongoDBCollection = Realm.Services.MongoDB.MongoDBCollection
+import * as realm from 'realm-web'
 import { LockPool } from '../site-abstract'
 import moment from 'moment'
 import { FORMAT, KEY } from '@/dictionary'
-import * as realm from 'realm-web'
 import { ref } from 'vue'
 import { GM_getValue, GM_setValue } from 'vite-plugin-monkey/dist/client'
 
-let daily: MongoDBCollection<OnejavDaily> | undefined = undefined
+let daily: Realm.Services.MongoDB.MongoDBCollection<OnejavDaily> | undefined = undefined
 
 const lockPool = new LockPool()
 
@@ -26,12 +25,7 @@ function getOnejavDaily() {
   return daily
 }
 
-export async function uploadDaily(
-  pathDate: string,
-  sisterNumber: number,
-  loadCompleted: boolean,
-  retry = 3
-) {
+export async function uploadDaily(pathDate: string, sisterNumber: number, loadCompleted: boolean, retry = 3) {
   if (isNaN(Date.parse(pathDate))) {
     console.log('路径不是日期')
     return

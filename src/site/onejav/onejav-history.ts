@@ -1,16 +1,15 @@
-import MongoDBCollection = Realm.Services.MongoDB.MongoDBCollection
 import { RealmTask } from '../realm-task'
 import { GM_setValue } from '$'
-import { FORMAT, KEY } from '../../dictionary'
-import moment from 'moment/moment'
+import { FORMAT, KEY } from '@/dictionary'
+import moment from 'moment'
 import { LockPool } from '../site-abstract'
 import * as realm from 'realm-web'
 import { GM_getValue } from 'vite-plugin-monkey/dist/client'
-import { Info } from '../sisters'
+import type { Info } from '@/site/sisters'
 
 const realmTask: RealmTask = new RealmTask()
 
-let onejav: MongoDBCollection<History> | undefined = undefined
+let onejav: Realm.Services.MongoDB.MongoDBCollection<History> | undefined = undefined
 const lockPool = new LockPool()
 //数据可能会很多不要滥用响应式
 let histories: History[] = []
@@ -80,11 +79,7 @@ export function getOnejavHistory() {
   return onejav
 }
 
-async function uploadRemoteHistory(
-  serialNumber: string,
-  history: History,
-  retry: number = 3
-): Promise<void> {
+async function uploadRemoteHistory(serialNumber: string, history: History, retry: number = 3): Promise<void> {
   try {
     onejav = getOnejavHistory()
     await onejav.updateOne({ serialNumber: serialNumber }, history, { upsert: true })

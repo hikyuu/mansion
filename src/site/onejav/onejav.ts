@@ -1,11 +1,12 @@
-import Waterfall, { Selector } from '../../waterfall'
-import { getId, getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore } from '../../common'
+import Waterfall from '@/waterfall/index'
+import type { Selector } from '@/waterfall/index'
+import { getId, getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore } from '@/common'
 import { SiteAbstract } from '../site-abstract'
 import $ from 'jquery'
-import { KEY, picx } from '../../dictionary'
+import { KEY, picx } from '@/dictionary'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
-import { Sisters } from '../sisters'
-import { Task } from '../task'
+import { Sisters } from '@/site/sisters'
+import { Task } from '@/site/task'
 import {
   getTodayHistories,
   historySerialNumbers,
@@ -16,6 +17,7 @@ import {
 import { loginApiKey } from '../realm'
 import { loadDailies, loadLocalDailies, uploadDaily } from './onejav-daily'
 import { ElNotification } from 'element-plus'
+import type { Ref } from 'vue'
 
 export class Onejav implements SiteAbstract {
   public waterfall: Waterfall
@@ -152,7 +154,7 @@ export class Onejav implements SiteAbstract {
     })
   }
 
-  scroll(windowHeight: number, scrollTop: number) {
+  onScrollEvent(windowHeight: number, scrollTop: number) {
     // console.log('===触发判断当前窗口元素===');
     const details = $(document).find(this.selector.item)
     for (const detail of details) {
@@ -167,7 +169,7 @@ export class Onejav implements SiteAbstract {
     $download[0].click()
   }
 
-  nextStep(x: any, y: any): void {
+  nextStep(x: Ref<number>, y: Ref<number>): void {
     const nextPreview = $('#' + this.sisters.current_key).find('#preview')
     if (nextPreview.length === 0) return
     const offset = nextPreview.offset()
@@ -175,7 +177,7 @@ export class Onejav implements SiteAbstract {
     y.value = offset.top
   }
 
-  previous(x: any, y: any): void {
+  previous(x: Ref<number>, y: Ref<number>): void {
     const prev = $('#' + this.sisters.current_key).find('#preview')
     if (prev.length === 0) return
     const offset = prev.offset()
@@ -215,7 +217,6 @@ export class Onejav implements SiteAbstract {
     $('div#card').append($onejav)
     return $onejav
   }
-
   private homeVisible() {
     console.log(`监听页面切换状态`, document.visibilityState)
     $(document).on('visibilitychange', () => {
@@ -253,7 +254,7 @@ export class Onejav implements SiteAbstract {
       return
     }
     //获取网页地址中的路径'
-    const mutationObserver = new MutationObserver((mutationsList, observer) => {
+    const mutationObserver = new MutationObserver((mutationsList) => {
       for (const mutationRecord of mutationsList) {
         mutationRecord.addedNodes.forEach((node, number, parentNode) => {
           if (node.nodeType !== 1) return
@@ -296,9 +297,7 @@ export class Onejav implements SiteAbstract {
       const thatDay_histories = getTodayHistories(pathDate)
       if (thatDay_histories.length > 0) {
         title.children(`#${id}`).remove()
-        title.append(
-          `<div id="${id}" style="white-space:pre">  ${thatDay_histories.length}部已阅</div>`
-        )
+        title.append(`<div id="${id}" style="white-space:pre">  ${thatDay_histories.length}部已阅</div>`)
         this.markAsRead(card)
       } else {
         title.children(`#${id}`).remove()
@@ -376,9 +375,7 @@ export class Onejav implements SiteAbstract {
       return
     }
     const $title = $(titleElement)
-    $title.append(
-      `<a id="${javstore_key}" style='color:red;' target='_blank' title='点击重试'>&nbsp;&nbsp;${text}</a>`
-    )
+    $title.append(`<a id="${javstore_key}" style="color:red;" target="_blank" title="点击重试">&nbsp;&nbsp;${text}</a>`)
     const $titleInfo = elem.find(javstore_id_key).first().last()
     $titleInfo.on('click', () => {
       $titleInfo.css('color', 'blue').text(`\u00A0\u00A0${text}重试中`)

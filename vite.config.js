@@ -6,29 +6,29 @@ import Components from 'unplugin-vue-components/vite';
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 import Icons from 'unplugin-icons/vite';
 import IconsResolver from 'unplugin-icons/resolver';
+import { fileURLToPath, URL } from 'node:url';
 // https://vitejs.dev/config/
 export default defineConfig({
     server: {
         hmr: false,
-        port: 3003,
+        port: 3003
+    },
+    resolve: {
+        alias: {
+            '@': fileURLToPath(new URL('./src', import.meta.url))
+        }
     },
     plugins: [
         vue(),
         AutoImport({
             imports: ['vue'],
-            resolvers: [
-                ElementPlusResolver(),
-                IconsResolver({ prefix: 'Icon' }),
-            ],
+            resolvers: [ElementPlusResolver(), IconsResolver({ prefix: 'Icon' })]
         }),
         Components({
-            resolvers: [
-                ElementPlusResolver(),
-                IconsResolver({ enabledCollections: ['ep'] }),
-            ],
+            resolvers: [ElementPlusResolver(), IconsResolver({ enabledCollections: ['ep'] })]
         }),
         Icons({
-            autoInstall: true,
+            autoInstall: true
         }),
         monkey({
             entry: 'src/main.ts',
@@ -43,31 +43,20 @@ export default defineConfig({
             build: {
                 externalGlobals: {
                     //key对应npm包名称,exportVarName对应暴露出的变量名
-                    "vue": cdn.jsdelivr('Vue', 'dist/vue.global.prod.js')
-                        .concat(await util.fn2dataUrl(function () {
+                    vue: cdn.jsdelivr('Vue', 'dist/vue.global.prod.js').concat(await util.fn2dataUrl(() => {
+                        // @ts-ignore
                         window.Vue = Vue; // work with element-plus
                     })),
-                    "jquery": cdn.jsdelivr('jQuery', 'dist/jquery.min.js'),
-                    "moment": cdn.jsdelivr('moment', 'moment.min.js'),
-                    "realm-web": cdn.jsdelivr("Realm", 'dist/bundle.iife.js'),
+                    jquery: cdn.jsdelivr('jQuery', 'dist/jquery.min.js'),
+                    moment: cdn.jsdelivr('moment', 'moment.min.js'),
+                    'realm-web': cdn.jsdelivr('Realm', 'dist/bundle.iife.js'),
                     'element-plus': cdn.jsdelivr('ElementPlus', 'dist/index.full.min.js'),
-                    '@element-plus/icons-vue': cdn.jsdelivr('ElementPlusIconsVue', 'dist/index.iife.min.js'),
-                    '@vueuse/core': [
-                        'VueUse',
-                        function (version, name, importName) {
-                            //https://cdn.jsdelivr.net/npm/@vueuse/core@10.5.0/index.iife.min.js
-                            return "https://cdn.jsdelivr.net/npm/".concat(name, "@").concat(version, "/index.iife.min.js");
-                        },
-                        function (version, name, importName) {
-                            //https://cdn.jsdelivr.net/npm/@vueuse/shared@10.5.0/index.iife.min.js
-                            return "https://cdn.jsdelivr.net/npm/@vueuse/shared@".concat(version, "/index.iife.min.js");
-                        }
-                    ],
+                    '@element-plus/icons-vue': cdn.jsdelivr('ElementPlusIconsVue', 'dist/index.iife.min.js')
                 },
                 externalResource: {
-                    'element-plus/dist/index.css': cdn.jsdelivr(),
+                    'element-plus/dist/index.css': cdn.jsdelivr()
                 }
-            },
-        }),
-    ],
+            }
+        })
+    ]
 });
