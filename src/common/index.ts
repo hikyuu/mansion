@@ -1,6 +1,6 @@
 import { GM_xmlhttpRequest } from 'vite-plugin-monkey/dist/client'
 import { error } from 'jquery'
-import { picx } from '../dictionary'
+import { picx } from '@/dictionary'
 
 export function getAvCode(serialNumber: string): string {
   // 带-的番号不处理，除了-0 如：DSVR-01167
@@ -34,7 +34,7 @@ export function getPreviewElement(serialNumber: string, targetImgUrl: string, is
     className = 'min'
   }
   const $img = $(
-    `<div id='preview'><img id="IMG_${serialNumber}" title="点击可放大缩小 (图片正常时)" class="${className}"/></div>`
+    `<div id='preview'><img id="IMG_${serialNumber}" title="点击可放大缩小 (图片正常时)" class="${className}" alt=''/></div>`
   )
   $img.css({ 'text-align': 'center' })
   $img

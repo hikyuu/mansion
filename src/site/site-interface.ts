@@ -4,7 +4,7 @@ export interface SiteInterface {
 
   findImages(elems: JQuery): void
 
-  scroll(windowHeight: number, scrollTop: number): void
+  onScrollEvent(windowHeight: number, scrollTop: number): void
 
   previous(x: any, y: any): void
 

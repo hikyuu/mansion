@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { Onejav } from '@/site/onejav/onejav'
-import { dailiesRef, OnejavDaily } from '@/site/onejav/onejav-daily'
+import { dailiesRef } from '@/site/onejav/onejav-daily'
+import type { OnejavDaily } from '@/site/onejav/onejav-daily'
 import { computed, defineProps, ref, toRefs } from 'vue'
 import moment from 'moment'
 import { FORMAT } from '@/dictionary'
@@ -68,12 +69,10 @@ declare interface LatestDaily {
         <template #default>
           <div style="display: flex; gap: 16px; flex-direction: column">
             <el-text>最新已读</el-text>
-            <template v-for="daily in latest_dailies">
+            <template v-for="daily in latest_dailies" v-bind:key="daily.onejavDaily.pathDate">
               <el-link
                 :href="daily.onejavDaily.pathDate"
-                :type="
-                  daily.haveReadNumber >= daily.onejavDaily.sisterNumber ? 'success' : 'warning'
-                "
+                :type="daily.haveReadNumber >= daily.onejavDaily.sisterNumber ? 'success' : 'warning'"
                 target="_blank"
               >
                 {{ daily.onejavDaily.pathDate }} 妹妹:{{ daily.onejavDaily.sisterNumber }} 已读:{{

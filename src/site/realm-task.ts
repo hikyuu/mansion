@@ -1,4 +1,4 @@
-import { History } from './onejav/onejav-history'
+import type { History } from './onejav/onejav-history'
 
 export class RealmTask {
   limit: number

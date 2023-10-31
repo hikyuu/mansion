@@ -1,7 +1,7 @@
 import { GM_getValue } from '$'
-import { SiteAbstract } from '../site/site-abstract'
+import { SiteAbstract } from '@/site/site-abstract'
 import $ from 'jquery'
-import { Sisters } from '../site/sisters'
+import { Sisters } from '@/site/sisters'
 import { Pagination } from './pagination'
 import { ElNotification } from 'element-plus'
 import { watch } from 'vue'
@@ -71,7 +71,7 @@ export default class {
     this.fetchNextSync(oneStep).then()
   }
 
-  async scroll() {
+  async onScrollEvent() {
     //窗口高度
     const windowHeight = $(window).height()
     if (windowHeight === undefined) {
@@ -84,7 +84,7 @@ export default class {
       console.log('获取不到滚动高度')
       return false
     }
-    this.site.scroll(windowHeight, scrollTop)
+    this.site.onScrollEvent(windowHeight, scrollTop)
     return true
   }
 
@@ -191,41 +191,6 @@ export default class {
     const sisterNumber = $(this.selector.item).length
     // console.log('妹妹数量:' + sisterNumber)
     this.sisters.sisterNumber = sisterNumber
-  }
-
-  watchStatus() {
-    watch(
-      () => this.waterfallScrollStatus,
-      (value) => {
-        GM_setValue('waterfallScrollStatus', value)
-        console.log(`瀑布流状态:${value}`)
-        // switch (value) {
-        // 	case 0:
-        // 		ElNotification({title: '瀑布流', message: `关闭瀑布流`, type: 'info'});
-        // 		break;
-        // 	case 1:
-        // 		ElNotification({title: '瀑布流', message: `开启懒加载`, type: 'info'});
-        // 		break;
-        // 	case 2:
-        // 		ElNotification({title: '瀑布流', message: `开启一步到位模式`, type: 'info'});
-        // 		break;
-        // 	default:
-        // 		ElNotification({title: '瀑布流', message: `未知状态`, type: 'info'});
-        // }
-      }
-    )
-    watch(
-      () => this.whetherToLoadPreview,
-      (value) => {
-        GM_setValue('whetherToLoadPreview', value)
-        console.log(`是否加载预览图:${value}`)
-        // if (value) {
-        // 	ElNotification({title: '瀑布流', message: `加载预览图`, type: 'info'});
-        // } else {
-        // 	ElNotification({title: '瀑布流', message: `不加载预览图`, type: 'info'});
-        // }
-      }
-    )
   }
 
   private loadPreview(detail: JQuery) {
