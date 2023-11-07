@@ -8,13 +8,6 @@ export function picx(url: string) {
   return 'https://github.com/hikyuu/gallery/raw/main/picx/' + url.replace(/^\//, '')
 }
 
-export const ICON = {
-  HAVE_READ: {
-    src: picx('/readed.svg'),
-    alt: '已读'
-  }
-}
-
 export enum FORMAT {
   PATH_DATE = '/YYYY/MM/DD',
   ORIGINAL_RELEASE_DATE = 'MMM. D, YYYY'

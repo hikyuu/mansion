@@ -4,8 +4,6 @@ import $ from 'jquery'
 import { Sisters } from '@/site/sisters'
 import { Pagination } from './pagination'
 import { ElNotification } from 'element-plus'
-import { watch } from 'vue'
-import { GM_setValue } from 'vite-plugin-monkey/dist/client'
 
 export default class {
   public page: Pagination
