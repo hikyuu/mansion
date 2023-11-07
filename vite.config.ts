@@ -7,6 +7,7 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import Icons from 'unplugin-icons/vite'
 import IconsResolver from 'unplugin-icons/resolver'
 import { fileURLToPath, URL } from 'node:url'
+import { FileSystemIconLoader } from 'unplugin-icons/loaders'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -26,20 +27,36 @@ export default defineConfig({
       resolvers: [ElementPlusResolver(), IconsResolver({ prefix: 'Icon' })]
     }),
     Components({
-      resolvers: [ElementPlusResolver(), IconsResolver({ enabledCollections: ['ep'] })]
+      resolvers: [
+        ElementPlusResolver(),
+        IconsResolver({ enabledCollections: ['ep'] }),
+        IconsResolver({
+          // 自动引入的Icon组件统一前缀，默认为 i，设置false为不需要前缀
+          prefix: false,
+          // 标识自定义图标集
+          customCollections: ['svg', 'so']
+        })
+      ]
     }),
     Icons({
-      autoInstall: true
+      compiler: 'vue3',
+      autoInstall: true,
+      customCollections: {
+        // home图标集
+        // 给svg文件设置fill="currentColor"属性，使图标的颜色具有适应性
+        svg: FileSystemIconLoader('src/assets/svg', (svg) => svg.replace(/fill="[^"]*"/g, 'fill = "currentColor"')),
+        so: FileSystemIconLoader('src/assets/svg')
+      }
     }),
     monkey({
       entry: 'src/main.ts',
       userscript: {
         name: { zh: '勾栏听曲', en: 'mansion' },
-        description: { zh: '豪宅' },
-        icon: 'https://vitejs.dev/logo.svg',
+        description: { zh: '别墅' },
+        icon: 'https://github.com/hikyuu/gallery/raw/main/picx/mansion.svg',
         namespace: 'npm/mansion',
         match: ['*://*onejav.com/*', '*://*javdb.com/*'],
-        author: 'hikyuu'
+        author: 'gaki'
       },
       build: {
         externalGlobals: {

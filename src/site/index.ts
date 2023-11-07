@@ -10,5 +10,5 @@ export function getSite(sisters: Sisters): SiteAbstract | undefined {
 }
 
 export declare interface Theme {
-  primary_color: string
+  PRIMARY_COLOR: string
 }

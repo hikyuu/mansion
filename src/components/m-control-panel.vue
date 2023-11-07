@@ -3,10 +3,11 @@ import { computed, ref, toRef, watch } from 'vue'
 import $ from 'jquery'
 import { Sisters } from '@/site/sisters'
 import { SiteAbstract } from '@/site/site-abstract'
-import { ICON, picx } from '@/dictionary'
 import { ElNotification } from 'element-plus'
 import { onKeyStroke, useScroll } from '@vueuse/core'
-import { Location } from '@element-plus/icons-vue'
+import { Location, Memo } from '@element-plus/icons-vue'
+import MImgBox from '@/components/m-img-box.vue'
+import MImgItem from '@/components/m-img-item.vue'
 
 const props = defineProps<{
   sisters: Sisters
@@ -146,54 +147,67 @@ watch(
       <img :src="src" alt="" class="panel-img-size" />
     </div>
   </div>
-
-  <div class="panel-img">
-    <div class="panel-img-box" style="height: 60px">
+  <m-img-box>
+    <m-img-item style="height: 60px">
       <div class="count-group">
-        <img :src="picx('/all.svg')" alt="全部" class="menu-count-img" />
+        <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
+          <Memo />
+        </el-icon>
         <span :style="loadAll">{{ sisters.sisterNumber }}</span>
       </div>
       <div v-if="sisters.current_index !== undefined" class="count-group">
-        <el-icon :color="site.theme.primary_color" size="30">
+        <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Location />
         </el-icon>
         <span style="color: green">{{ sisters.current_index + 1 }}</span>
       </div>
-    </div>
-    <div class="panel-img-box" style="height: 60px">
+    </m-img-item>
+
+    <m-img-item style="height: 60px">
       <div class="count-group">
-        <el-icon :color="site.theme.primary_color" size="30">
+        <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Picture />
         </el-icon>
         <span style="color: green">{{ sisters.queue.length }}</span>
       </div>
       <div class="count-group" @click="gotoLastRead(haveReadNumber)">
-        <img class="menu-count-img" v-bind="ICON.HAVE_READ" />
+        <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
+          <svg-readed />
+        </el-icon>
         <span style="color: green">{{ haveReadNumber }}</span>
       </div>
-    </div>
+    </m-img-item>
+    <m-img-item>
+      <el-icon size="60" class="icon-button" @click="viewOrClose" :color="site.theme.PRIMARY_COLOR">
+        <so-fullscreen />
+      </el-icon>
+    </m-img-item>
+    <m-img-item>
+      <el-icon size="80" class="icon-button" @click="previous">
+        <so-previous />
+      </el-icon>
+    </m-img-item>
 
-    <div class="panel-img-box">
-      <img :src="picx('/fullscreen_1.svg')" alt="图片浏览" class="icon-button fullscreen" @click="viewOrClose" />
-    </div>
-
-    <div class="panel-img-box">
-      <img :src="picx('/last.svg')" alt="上一部" class="icon-button" @click="previous" />
-    </div>
-
-    <div class="panel-img-box">
+    <m-img-item>
       <div style="display: flex; justify-content: center">
-        <img v-if="haveRead" class="download" v-bind="ICON.HAVE_READ" />
-        <div class="panel-img-box">
-          <img :src="picx('/download.svg')" alt="下载" class="download" @click="download" />
-        </div>
+        <m-img-item>
+          <el-icon v-if="haveRead" :color="site.theme.PRIMARY_COLOR" size="50">
+            <svg-readed />
+          </el-icon>
+        </m-img-item>
+        <m-img-item>
+          <el-icon size="60" :color="site.theme.PRIMARY_COLOR" class="download" @click="download">
+            <fa-solid-file-download />
+          </el-icon>
+        </m-img-item>
       </div>
-    </div>
-
-    <div class="panel-img-box">
-      <img :src="picx('/next.svg')" alt="下一部" class="icon-button" @click="nextStep" />
-    </div>
-  </div>
+    </m-img-item>
+    <m-img-item>
+      <el-icon size="80" class="icon-button" @click="previous">
+        <so-next />
+      </el-icon>
+    </m-img-item>
+  </m-img-box>
 </template>
 
 <style scoped>
@@ -214,17 +228,11 @@ watch(
 
 .download {
   cursor: pointer;
-  width: 50px;
 }
 
 .icon-button {
-  width: 80px;
   -webkit-user-drag: none;
   cursor: pointer;
-}
-
-.fullscreen {
-  width: 60px;
 }
 
 .show-image-wrap {
@@ -242,11 +250,6 @@ watch(
 .vertical {
   flex-direction: column;
   justify-content: start;
-}
-
-.menu-count-img {
-  width: 30px;
-  height: 30px;
 }
 
 .count-group {

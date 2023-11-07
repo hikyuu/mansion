@@ -1,5 +1,5 @@
-import Waterfall from '@/waterfall/index'
 import type { Selector } from '@/waterfall/index'
+import Waterfall from '@/waterfall/index'
 import { getId, getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore } from '@/common'
 import { SiteAbstract } from '../site-abstract'
 import $ from 'jquery'
@@ -29,7 +29,7 @@ export class Onejav implements SiteAbstract {
     pagination: '.pagination.is-centered'
   }
   theme = {
-    primary_color: '#00d1b2'
+    PRIMARY_COLOR: '#00d1b2'
   }
   private task: Task = new Task(this)
 
@@ -198,14 +198,7 @@ export class Onejav implements SiteAbstract {
   }
 
   private addStyle() {
-    GM_addStyle(`
-    //               .container {max-width: 99%;width: 99%;}
-    //               .columns {justify-content:center;}
-    //               .column.is-5 {max-width: 82%;flex-grow:0 flex-shrink:0;flex-basis:100%}
-    //               .column {flex-grow: 0;flex-shrink: 1;flex-basis: auto;}
-    .max{width:100%}
-    .min{width:100%}
-              `)
+    GM_addStyle(`.max{width:100%} .min{width:100%} `)
     console.log(`样式添加成功`)
   }
 
@@ -217,6 +210,7 @@ export class Onejav implements SiteAbstract {
     $('div#card').append($onejav)
     return $onejav
   }
+
   private homeVisible() {
     console.log(`监听页面切换状态`, document.visibilityState)
     $(document).on('visibilitychange', () => {
@@ -319,9 +313,8 @@ export class Onejav implements SiteAbstract {
 
   private getSorId(originalId: string, type: number): string | undefined {
     switch (type) {
-      case 0:
+      case 0: {
         const cuttingNumber = originalId.matchAll(/(heyzo|FC2PPV)(\d+)/gi)
-
         const numberArray = Array.from(cuttingNumber)
 
         // console.log('numberArray', numberArray);
@@ -331,23 +324,24 @@ export class Onejav implements SiteAbstract {
           }
           return numberArray[0][1] + '-' + numberArray[0][2]
         }
-
         return originalId
-      case 1:
-        const str_num_res = originalId.matchAll(/(^[a-z].*[a-z])(\d+)/gi)
-        const str_num = Array.from(str_num_res)
+      }
+      case 1: {
+        const cuttingNumber = originalId.matchAll(/(^[a-z].*[a-z])(\d+)/gi)
+        const numberArray = Array.from(cuttingNumber)
 
-        if (str_num.length === 0) return originalId
-        return str_num[0][1] + '-' + Number(str_num[0][2])
-      case 2:
+        if (numberArray.length === 0) return originalId
+        return numberArray[0][1] + '-' + Number(numberArray[0][2])
+      }
+      case 2: {
         // 123ssis123
-        const num_str_num = originalId.matchAll(/(^\d+)([a-z].*[a-z])(\d+)/gi)
-        const groups = Array.from(num_str_num)
+        const cuttingNumber = originalId.matchAll(/(^\d+)([a-z].*[a-z])(\d+)/gi)
+        const numberArray = Array.from(cuttingNumber)
 
-        if (groups.length === 0) return originalId
+        if (numberArray.length === 0) return originalId
 
-        return groups[0][2] + '-' + Number(groups[0][3])
-
+        return numberArray[0][2] + '-' + Number(numberArray[0][3])
+      }
       default:
         return undefined
     }
@@ -370,7 +364,7 @@ export class Onejav implements SiteAbstract {
     }
     if (javstoreUrl) {
       $(titleElement).append(
-        `<a id="${javstore_key}" style='color:red;' href="${javstoreUrl}" target='_blank' title='点击到JavStore看看'>&nbsp;&nbsp;JavStore</a>`
+        `<a id="${javstore_key}" style="color:red;" href="${javstoreUrl}" target="_blank" title="点击到JavStore看看">&nbsp;&nbsp;JavStore</a>`
       )
       return
     }

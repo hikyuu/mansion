@@ -4,9 +4,9 @@ import { onMounted, ref } from 'vue'
 import { Sisters } from '@/site/sisters'
 import { SiteAbstract } from '@/site/site-abstract'
 import { Onejav } from '@/site/onejav/onejav'
-import ControlPanel from './control-panel.vue'
-import HomeOnejav from './home-onejav.vue'
-import MansionSetting from './mansion-setting.vue'
+import ControlPanel from './m-control-panel.vue'
+import HomeOnejav from '@/components/m-home-onejav.vue'
+import MansionSetting from '@/components/m-setting.vue'
 
 const site = ref<SiteAbstract>()
 
@@ -35,26 +35,9 @@ onMounted(() => {
 </template>
 
 <style>
-.panel-img {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  -webkit-user-drag: none;
-  user-select: none;
-}
-
 .panel-img-size {
   width: 1400px;
   max-width: 1400px;
-}
-
-.panel-img-box {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-width: 80px;
-  height: 80px;
 }
 </style>
 

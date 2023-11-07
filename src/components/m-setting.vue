@@ -4,6 +4,8 @@ import { Setting } from '@element-plus/icons-vue'
 import { toRef, watch } from 'vue'
 import { GM_setValue } from 'vite-plugin-monkey/dist/client'
 import { ElNotification } from 'element-plus'
+import MImgBox from '@/components/m-img-box.vue'
+import MImgItem from '@/components/m-img-item.vue'
 
 const props = defineProps<{
   site: SiteAbstract
@@ -39,8 +41,8 @@ watch(whetherToLoadPreview, (value: boolean) => {
 </script>
 
 <template>
-  <div class="panel-img">
-    <div class="panel-img-box">
+  <m-img-box>
+    <m-img-item>
       <el-popover
         :width="500"
         placement="left"
@@ -48,7 +50,7 @@ watch(whetherToLoadPreview, (value: boolean) => {
         trigger="hover"
       >
         <template #reference>
-          <el-icon :color="props.site.theme.primary_color" :size="60">
+          <el-icon :color="props.site.theme.PRIMARY_COLOR" :size="60">
             <Setting />
           </el-icon>
         </template>
@@ -73,6 +75,6 @@ watch(whetherToLoadPreview, (value: boolean) => {
           </el-form>
         </template>
       </el-popover>
-    </div>
-  </div>
+    </m-img-item>
+  </m-img-box>
 </template>
