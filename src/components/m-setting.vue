@@ -38,6 +38,10 @@ watch(whetherToLoadPreview, (value: boolean) => {
     ElNotification({ title: '瀑布流', message: `不加载预览图`, type: 'info' })
   }
 })
+
+function reload() {
+  window.location.reload()
+}
 </script>
 
 <template>
@@ -72,6 +76,9 @@ watch(whetherToLoadPreview, (value: boolean) => {
                 <el-radio :label="2" border>一步到位</el-radio>
               </el-radio-group>
             </el-form-item>
+            <el-row justify="center">
+              <el-button type="primary" @click="reload">刷新页面</el-button>
+            </el-row>
           </el-form>
         </template>
       </el-popover>
