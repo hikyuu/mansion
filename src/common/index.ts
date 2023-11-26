@@ -34,7 +34,7 @@ export function getPreviewElement(serialNumber: string, targetImgUrl: string, is
     className = 'min'
   }
   const $img = $(
-    `<div id='preview'><img id="IMG_${serialNumber}" title="点击可放大缩小 (图片正常时)" class="${className}" alt=''/></div>`
+    `<div id="preview"><img id="IMG_${serialNumber}" title="点击可放大缩小 (图片正常时)" class="${className}" alt=""/></div>`
   )
   $img.css({ 'text-align': 'center' })
   $img
@@ -58,15 +58,13 @@ export function getPreviewElement(serialNumber: string, targetImgUrl: string, is
       const retryString = $(this).attr('retry')
       if (retryString === undefined) return
       let retry = Number(retryString)
-      setTimeout(() => {
-        if (retry > 3) {
-          $(this).attr('src', picx('/failed.svg')) //设置碎图
-          // $(this).css('width', 200).css('height', 200);
-        } else {
-          $(this).attr('retry', retry++) //重试次数+1
-          $(this).attr('src', targetImgUrl) //继续刷新图片
-        }
-      }, 5000)
+      if (retry > 3) {
+        $(this).attr('src', picx('/failed.svg')) //设置碎图
+        // $(this).css('width', 200).css('height', 200);
+      } else {
+        $(this).attr('retry', retry++) //重试次数+1
+        $(this).attr('src', targetImgUrl) //继续刷新图片
+      }
     })
   return $img
 }
@@ -110,10 +108,7 @@ export function getJavstoreUrl(serialNumber: string, retry = 1): Promise<string 
     })
 }
 
-async function getImgUrlFromPixhost(
-  javUrl: string,
-  retry: number = 3
-): Promise<string | undefined> {
+async function getImgUrlFromPixhost(javUrl: string, retry: number = 3): Promise<string | undefined> {
   try {
     const response = await request(javUrl, 'https://javstore.net/')
     return $(response.responseText).find('#image').attr('src')
@@ -199,7 +194,7 @@ function requestGM_XHR(details: {
       method: details.method ? details.method : 'GET',
       url: details.url,
       headers: details.headers,
-      timeout: details.timeout > 0 ? details.timeout : 20000,
+      timeout: details.timeout > 0 ? details.timeout : 30000,
       onprogress: (rsp) => {
         // @ts-ignore
         if (details.onprogress && details.onprogress(rsp)) {
@@ -236,7 +231,7 @@ function request(url: string, referrerStr: string = '', timeoutInt: number = -1)
         Referer: referrerStr,
         Cookie: cookie
       },
-      timeout: timeoutInt > 0 ? timeoutInt : 10000,
+      timeout: timeoutInt > 0 ? timeoutInt : 30000,
       onload: (response) => {
         //console.log(url + " reqTime:" + (new Date() - time1));
         resolve(response)
