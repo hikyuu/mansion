@@ -84,4 +84,5 @@ export declare interface Info {
   date?: string
   haveRead?: boolean
   pathDate?: string
+  status?: number //200：成功，404：不存在 405：图片地址获取失败 500:id格式错误 501：图片加载错误
 }

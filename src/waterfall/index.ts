@@ -15,6 +15,7 @@ export default class {
   private readonly anchor: HTMLElement | null = null
   private site: SiteAbstract
   private sisters: Sisters
+
   constructor(site: SiteAbstract, selector: Selector, sisters: Sisters) {
     this.site = site
     this.selector = selector
@@ -26,14 +27,17 @@ export default class {
     this.sisters = sisters
   }
 
-  flow() {
+  flow(waterfallScrollStatus: number | null = null) {
     if ($(this.selector.item).length <= 0) {
       console.info(`没有妹妹`)
       return
     }
-    this.loadPreview(this.page.detail)
     this.setSisterNumber()
-    switch (this.waterfallScrollStatus) {
+    this.loadPreview(this.page.detail)
+    if (waterfallScrollStatus == null) {
+      waterfallScrollStatus = GM_getValue('waterfallScrollStatus', 0)
+    }
+    switch (waterfallScrollStatus) {
       case 0:
         ElNotification({ title: '瀑布流', message: `瀑布流已关闭`, type: 'info' })
         break
@@ -45,22 +49,21 @@ export default class {
     }
   }
 
-  flowLazy() {
+  private flowLazy() {
     ElNotification({ title: '瀑布流', message: `启动懒加载`, type: 'info' })
     this.loadNext(false)
   }
 
-  flowOneStep() {
+  private flowOneStep() {
     ElNotification({ title: '瀑布流', message: `启动一步到位模式`, type: 'info' })
     this.loadNext(true)
   }
 
-  loadNext(oneStep = false) {
+  private loadNext(oneStep = false) {
     console.log(`===加载下一页===`)
 
     const nextUrl = this.getNextUrl(document)
     if (nextUrl === null) {
-      // TODO: 2022/12/28
       this.isEnd()
       console.log('===当前已经是最后一页===')
       return
