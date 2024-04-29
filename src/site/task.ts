@@ -15,13 +15,14 @@ export class Task {
   }
 
   addTask(elem: JQuery) {
+    console.debug('添加任务')
     this.waitQueue.push(elem)
     this.run()
   }
   run() {
     if (this.workNumber >= this.limit) return
     if (this.waitQueue.length <= 0) return
-    console.log('开始工作')
+    console.debug('开始工作')
     this.workNumber++
     const elem = this.waitQueue.shift()
     if (elem) {

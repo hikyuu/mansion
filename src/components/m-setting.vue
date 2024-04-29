@@ -1,43 +1,60 @@
 <script lang="ts" setup>
 import { SiteAbstract } from '@/site/site-abstract'
 import { Setting } from '@element-plus/icons-vue'
-import { toRef, watch } from 'vue'
-import { GM_setValue } from 'vite-plugin-monkey/dist/client'
 import { ElNotification } from 'element-plus'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
+import { useConfigStore } from '@/store/config-store'
+import { storeToRefs } from 'pinia'
+import { watch } from 'vue'
 
 const props = defineProps<{
   site: SiteAbstract
 }>()
+const configStore = useConfigStore()
+const { currentConfig } = storeToRefs(configStore)
 
-const whetherToLoadPreview = toRef(props.site.waterfall.whetherToLoadPreview)
-const waterfallScrollStatus = toRef(props.site.waterfall.waterfallScrollStatus)
-
-watch(waterfallScrollStatus, (value: number) => {
-  GM_setValue('waterfallScrollStatus', value)
-  switch (value) {
-    case 0:
-      ElNotification({ title: '瀑布流', message: `关闭瀑布流`, type: 'info' })
-      break
-    case 1:
-      ElNotification({ title: '瀑布流', message: `开启懒加载`, type: 'info' })
-      break
-    case 2:
-      ElNotification({ title: '瀑布流', message: `开启一步到位模式`, type: 'info' })
-      break
-    default:
-      ElNotification({ title: '瀑布流', message: `未知状态`, type: 'info' })
+function scrollStatusChange(value: number) {
+  const status = Object.values(WaterfallStatus).find((item) => {
+    return item.code === value
+  })
+  if (!status) {
+    ElNotification({ title: '瀑布流', message: `未知状态`, type: 'error' })
+  } else {
+    ElNotification({ title: '瀑布流', message: status.msg, type: 'info' })
   }
-})
-watch(whetherToLoadPreview, (value: boolean) => {
-  GM_setValue('whetherToLoadPreview', value)
+}
+
+const WaterfallStatus = {
+  close: {
+    msg: '关闭瀑布流',
+    code: 0
+  },
+  lazy: {
+    msg: '开启懒加载模式',
+    code: 1
+  },
+  oneStep: {
+    msg: '开始一步到位模式',
+    code: 2
+  }
+}
+
+function loadPreviewSwitchChange(value: boolean) {
   if (value) {
     ElNotification({ title: '瀑布流', message: `加载预览图`, type: 'info' })
   } else {
     ElNotification({ title: '瀑布流', message: `不加载预览图`, type: 'info' })
   }
-})
+}
+
+watch(
+  () => currentConfig,
+  (value) => {
+    configStore.waterfall.set(props.site.name, value.value)
+  },
+  { deep: true }
+)
 
 function reload() {
   window.location.reload()
@@ -62,7 +79,8 @@ function reload() {
           <el-form label-position="right" label-width="100px" style="max-width: 460px">
             <el-form-item label="预览图">
               <el-switch
-                v-model="whetherToLoadPreview"
+                v-model="currentConfig.loadPreviewSwitch"
+                @change="loadPreviewSwitchChange"
                 active-icon="Check"
                 inactive-icon="Close"
                 inline-prompt
@@ -70,10 +88,10 @@ function reload() {
               />
             </el-form-item>
             <el-form-item label="瀑布流">
-              <el-radio-group v-model="waterfallScrollStatus">
-                <el-radio :label="0" border>关闭</el-radio>
-                <el-radio :label="1" border>懒加载</el-radio>
-                <el-radio :label="2" border>一步到位</el-radio>
+              <el-radio-group v-model="currentConfig.scrollStatus" @change="scrollStatusChange">
+                <el-radio :value="0" border>关闭</el-radio>
+                <el-radio :value="1" border>懒加载</el-radio>
+                <el-radio :value="2" border>一步到位</el-radio>
               </el-radio-group>
             </el-form-item>
             <el-row justify="center">

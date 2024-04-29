@@ -1,21 +1,20 @@
-import { GM_getValue } from '$'
+import { GM_deleteValue } from '$'
 import { SiteAbstract } from '@/site/site-abstract'
 import $ from 'jquery'
 import { Sisters } from '@/site/sisters'
 import { Pagination } from './pagination'
 import { ElNotification } from 'element-plus'
+import { useConfigStore } from '@/store/config-store'
 
 export default class {
   public page: Pagination
-  public waterfallScrollStatus = GM_getValue('waterfallScrollStatus', 0)
-  public whetherToLoadPreview = GM_getValue('whetherToLoadPreview', false)
   private lock: Lock = new Lock()
   private baseURI: string = this.getBaseURI()
   private selector: Selector
   private readonly anchor: HTMLElement | null = null
   private site: SiteAbstract
   private sisters: Sisters
-
+  private configStore = useConfigStore()
   constructor(site: SiteAbstract, selector: Selector, sisters: Sisters) {
     this.site = site
     this.selector = selector
@@ -25,6 +24,8 @@ export default class {
       this.anchor = $pageNation[0]
     }
     this.sisters = sisters
+    GM_deleteValue('waterfallScrollStatus')
+    GM_deleteValue('whetherToLoadPreview')
   }
 
   flow(waterfallScrollStatus: number | null = null) {
@@ -34,9 +35,11 @@ export default class {
     }
     this.setSisterNumber()
     this.loadPreview(this.page.detail)
+
     if (waterfallScrollStatus == null) {
-      waterfallScrollStatus = GM_getValue('waterfallScrollStatus', 0)
+      waterfallScrollStatus = this.configStore.currentConfig.scrollStatus
     }
+
     switch (waterfallScrollStatus) {
       case 0:
         ElNotification({ title: '瀑布流', message: `瀑布流已关闭`, type: 'info' })
@@ -46,6 +49,7 @@ export default class {
         break
       case 2:
         this.flowOneStep()
+        break
     }
   }
 
@@ -61,7 +65,6 @@ export default class {
 
   private loadNext(oneStep = false) {
     console.log(`===加载下一页===`)
-
     const nextUrl = this.getNextUrl(document)
     if (nextUrl === null) {
       this.isEnd()
@@ -190,22 +193,48 @@ export default class {
 
   setSisterNumber() {
     const sisterNumber = $(this.selector.item).length
-    // console.log('妹妹数量:' + sisterNumber)
+    if (sisterNumber === 0) {
+      console.error('没有找到妹妹！')
+    }
     this.sisters.sisterNumber = sisterNumber
   }
 
   private loadPreview(detail: JQuery) {
-    if (this.whetherToLoadPreview) {
+    if (this.configStore.currentConfig.loadPreviewSwitch) {
       this.site.findImages(detail)
     }
   }
 }
 
 export declare interface Selector {
+  /**
+   * 下一页链接选择器
+   */
   next: string
+  /**
+   * 妹妹元素选择器
+   */
   item: string
+  /**
+   * 妹妹上层元素选择器
+   */
   container: string
+  /**
+   * 分页元素选择器
+   */
   pagination: string
+  /**
+   * 番号选择器
+   */
+  serialNumber: string
+  /**
+   * 日期选择器
+   */
+  date: string
+  /**
+   * 路径日期选择器
+   */
+  pathDate: string
 }
 
 class Lock {

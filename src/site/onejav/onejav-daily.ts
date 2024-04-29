@@ -1,9 +1,9 @@
 import * as realm from 'realm-web'
-import { LockPool } from '../site-abstract'
 import moment from 'moment'
 import { FORMAT, KEY } from '@/dictionary'
 import { ref } from 'vue'
 import { GM_getValue, GM_setValue } from 'vite-plugin-monkey/dist/client'
+import { LockPool } from '@/common/lock-pool'
 
 let daily: Realm.Services.MongoDB.MongoDBCollection<OnejavDaily> | undefined = undefined
 

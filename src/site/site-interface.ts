@@ -6,11 +6,7 @@ export interface SiteInterface {
 
   onScrollEvent(windowHeight: number, scrollTop: number): void
 
-  previous(x: any, y: any): void
-
   download(): void
-
-  nextStep(x: any, y: any): void
 
   showControlPanel(): boolean
 

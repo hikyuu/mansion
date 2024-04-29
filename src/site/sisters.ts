@@ -13,37 +13,32 @@ export class Sisters {
     const info = this.queue[this.current_index]
     const scrollTop = $image.scrollTop()
     if (info) info.scrollTop = scrollTop ? scrollTop : 0
-
-    this.current_index = this.current_index - 1
+    this.setCurrentIndex(this.current_index - 1)
     this.current_key = this.queue[this.current_index].serialNumber
-
-    const current = this.queue[this.current_index]
-    if (current) $image.scrollTop(current.scrollTop ? current.scrollTop : 0)
   }
 
   nextStep() {
     if (!this.current_key || this.current_index === undefined) return
     if (this.current_index >= this.queue.length - 1) return
-
     const $image = $('#show-image')
     const info = this.queue[this.current_index]
     const scrollTop = $image.scrollTop()
     if (info) info.scrollTop = scrollTop ? scrollTop : 0
-
-    this.current_index = this.current_index + 1
+    this.setCurrentIndex(this.current_index + 1)
     this.current_key = this.queue[this.current_index].serialNumber
-
-    const current = this.queue[this.current_index]
-    if (current) $image.scrollTop(current.scrollTop ? current.scrollTop : 0)
   }
 
   setCurrent(serialNumber: string) {
     const index = this.queue.findIndex((item) => item.serialNumber === serialNumber)
-
     if (index >= 0) {
-      this.current_index = index
+      console.debug('当前下标：', index)
+      this.setCurrentIndex(index)
       this.current_key = serialNumber
     }
+  }
+
+  setCurrentIndex(index: number) {
+    this.current_index = index
   }
 
   updateInfo(info: Info) {
