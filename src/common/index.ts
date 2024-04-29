@@ -261,6 +261,42 @@ function parseText(text: string): Document {
   }
 }
 
+export function getSorId(originalId: string, type: number): string | undefined {
+  switch (type) {
+    case 0: {
+      const cuttingNumber = originalId.matchAll(/(heyzo|FC2PPV)(\d+)/gi)
+      const numberArray = Array.from(cuttingNumber)
+      // console.log('numberArray', numberArray)
+      if (numberArray.length > 0) {
+        const reg = /(FC2PPV)(d+)/gi
+        if (reg.test(originalId)) {
+          return 'FC2-PPV-' + numberArray[0][2]
+        }
+        return numberArray[0][1] + '-' + numberArray[0][2]
+      }
+      return originalId
+    }
+    case 1: {
+      const cuttingNumber = originalId.matchAll(/(^[a-z].*[a-z])(\d+)/gi)
+      const numberArray = Array.from(cuttingNumber)
+
+      if (numberArray.length === 0) return originalId
+      return numberArray[0][1] + '-' + Number(numberArray[0][2])
+    }
+    case 2: {
+      // 123ssis123
+      const cuttingNumber = originalId.matchAll(/(^\d+)([a-z].*[a-z])(\d+)/gi)
+      const numberArray = Array.from(cuttingNumber)
+
+      if (numberArray.length === 0) return originalId
+
+      return numberArray[0][2] + '-' + Number(numberArray[0][3])
+    }
+    default:
+      return undefined
+  }
+}
+
 export function getId() {
   return Math.random().toString(36).substring(3)
 }

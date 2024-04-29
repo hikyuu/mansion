@@ -79,7 +79,7 @@ function close() {
 function previous(event: KeyboardEvent) {
   event.preventDefault()
   props.sisters.previous()
-  props.site.previous(x, y)
+  props.site.scrollToCurrent(x, y)
 }
 
 function download(event: KeyboardEvent) {
@@ -90,7 +90,7 @@ function download(event: KeyboardEvent) {
 function nextStep(event: KeyboardEvent) {
   event.preventDefault()
   props.sisters.nextStep()
-  props.site.nextStep(x, y)
+  props.site.scrollToCurrent(x, y)
 }
 
 function scroll(event: KeyboardEvent, reverse = false) {
@@ -203,7 +203,7 @@ watch(
       </div>
     </m-img-item>
     <m-img-item>
-      <el-icon size="80" class="icon-button" @click="previous">
+      <el-icon size="80" class="icon-button" @click="nextStep">
         <so-next />
       </el-icon>
     </m-img-item>

@@ -1,9 +1,9 @@
 import type { Selector } from '@/waterfall/index'
 import Waterfall from '@/waterfall/index'
-import { getId, getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore } from '@/common'
+import { getId, getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSorId } from '@/common'
 import { SiteAbstract } from '../site-abstract'
 import $ from 'jquery'
-import { KEY, picx } from '@/dictionary'
+import { picx } from '@/dictionary'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { Sisters } from '@/site/sisters'
 import { Task } from '@/site/task'
@@ -17,30 +17,31 @@ import {
 import { loginApiKey } from '../realm'
 import { loadDailies, loadLocalDailies, uploadDaily } from './onejav-daily'
 import { ElNotification } from 'element-plus'
-import type { Ref } from 'vue'
 
-export class Onejav implements SiteAbstract {
+export class Onejav extends SiteAbstract {
+  public name = 'onejav'
   public waterfall: Waterfall
   public sisters: Sisters
+
   selector: Selector = {
     next: 'a.pagination-next.button.is-primary',
-    item: 'div.container div.card.mb-3',
+    item: 'div.card.mb-3',
     container: '#waterfall',
     pagination: '.pagination.is-centered'
-  }
+  } as Selector
   theme = {
     PRIMARY_COLOR: '#00d1b2'
   }
   private task: Task = new Task(this)
 
   constructor(sisters: Sisters) {
+    super()
     this.sisters = sisters
     this.waterfall = new Waterfall(this, this.selector, sisters)
   }
 
   async mount(): Promise<void> {
     this.addStyle()
-
     loadLocalHistory()
     loadLocalDailies()
     loginApiKey().then(() => {
@@ -60,51 +61,50 @@ export class Onejav implements SiteAbstract {
   }
 
   findImages(elems: JQuery) {
-    if (document.title.search(/OneJAV/) > 0 && elems) {
+    if (this.checkSite() && elems) {
       for (let index = 0; index < elems.length; index++) {
         this.task.addTask($(elems[index]))
       }
     }
   }
 
-  async addPreview($elem: JQuery, type = 0) {
-    const detail = $elem.find('h5.title.is-4.is-spaced a')[0]
-    const date = $elem.find('p.subtitle a').text().trim()
-    const pathDate = $elem.find('p.subtitle a').attr('href')
+  async addPreview(item: JQuery, type = 0) {
+    const detail = item.find('h5.title.is-4.is-spaced a')[0]
+    const date = item.find('p.subtitle a').text().trim()
+    const pathDate = item.find('p.subtitle a').attr('href')
     const serialNumber = $(detail)
       .text()
       .replace(/ /g, '')
       .replace(/[\r\n]/g, '') //去掉空格//去掉回车换行
 
-    const sortId = this.getSorId(serialNumber, type)
+    const sortId = getSorId(serialNumber, type)
     // console.log('sortId', sortId);
     // let serialNumber: string = 'test123456'
-    const titleElement = detail.parentElement
+    const el_link = detail.parentElement
 
-    this.addLink('搜索中', titleElement, serialNumber, $elem)
+    super.addLink('搜索中', el_link, serialNumber, item)
 
     if (type > 0) {
-      this.addLink('智能搜索中', titleElement, serialNumber, $elem)
+      super.addLink('智能搜索中', el_link, serialNumber, item)
     }
 
     // console.log('添加', originalId, date);
 
-    $elem.attr('id', serialNumber)
+    item.attr('id', serialNumber)
     const loadUrl = picx('/load.svg')
     const failedUrl = picx('/failed.svg')
     const haveRead = historySerialNumbers.has(serialNumber)
-    this.sisters.updateInfo({ serialNumber, src: loadUrl, date, haveRead, pathDate })
+    this.sisters.updateInfo({ serialNumber, src: loadUrl, date, haveRead, pathDate, status: 200 })
 
     const preview = getPreviewElement(serialNumber, loadUrl, false)
-    const divEle = $elem.find('div.container')[0]
-    if (divEle) {
-      $(divEle).find('#preview').remove()
-      $(divEle).append(preview)
-    }
+    const divEle = item.find('div.container')[0]
+
+    item.find('#preview').remove()
+    $(divEle).append(preview)
 
     if (sortId === undefined) {
-      this.addLink('没找到', titleElement, serialNumber, $elem)
-      this.sisters.updateInfo({ serialNumber, src: failedUrl })
+      this.addLink('没找到', el_link, serialNumber, item)
+      this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 500 })
       preview.children('img').attr('src', failedUrl)
       return
     }
@@ -112,25 +112,43 @@ export class Onejav implements SiteAbstract {
     const javstoreUrl = await getJavstoreUrl(sortId, 3)
 
     if (javstoreUrl === null) {
-      this.sisters.updateInfo({ serialNumber, src: failedUrl })
+      this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 404 })
       preview.children('img').attr('src', failedUrl)
-      this.addPreview($elem, type + 1).then()
+      this.addPreview(item, type + 1).then()
       return
     } else {
-      this.addLink('JavStore', titleElement, serialNumber, $elem, javstoreUrl)
+      this.addLink('JavStore', el_link, serialNumber, item, javstoreUrl)
     }
 
     // 番号预览大图
     const imgUrl = await getPreviewUrlFromJavStore(javstoreUrl, serialNumber)
 
     if (!imgUrl) {
-      this.sisters.updateInfo({ serialNumber, src: failedUrl })
+      this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 405 })
       preview.children('img').attr('src', failedUrl)
-
-      this.addLink('图片获取失败', titleElement, serialNumber, $elem, javstoreUrl, false)
+      this.addLink('图片获取失败', el_link, serialNumber, item, javstoreUrl, false)
     } else {
-      this.sisters.updateInfo({ serialNumber, src: imgUrl })
-      preview.children('img').attr('src', imgUrl)
+      this.sisters.updateInfo({ serialNumber, src: imgUrl, status: 202 })
+      preview
+        .children('img')
+        .on('load', () => {
+          this.sisters.updateInfo({ serialNumber, status: 200 })
+        })
+        .on('error', () => {
+          const retryString = $(this).attr('retry')
+          if (retryString === undefined) return
+          let retry = Number(retryString)
+          if (retry > 3) {
+            $(this).attr('src', picx('/failed.svg')) //设置碎图
+            // $(this).css('width', 200).css('height', 200);
+            this.sisters.updateInfo({ serialNumber, status: 501 })
+          } else {
+            console.log('图片加载失败,重试中...')
+            $(this).attr('retry', retry++) //重试次数+1
+            $(this).attr('src', imgUrl) //继续刷新图片
+          }
+        })
+        .attr('src', imgUrl)
     }
   }
 
@@ -150,16 +168,12 @@ export class Onejav implements SiteAbstract {
       return
     }
     uploadHistory(serialNumber, info).then(() => {
-      this.sisters.updateInfo({ serialNumber, haveRead: true })
+      this.sisters.updateInfo({ serialNumber, haveRead: true, status: 200 })
     })
   }
 
-  onScrollEvent(windowHeight: number, scrollTop: number) {
-    // console.log('===触发判断当前窗口元素===');
-    const details = $(document).find(this.selector.item)
-    for (const detail of details) {
-      this.determineTheCurrentElement($(detail), scrollTop)
-    }
+  checkSite(): boolean {
+    return /(onejav)/g.test(document.URL)
   }
 
   download(): void {
@@ -169,28 +183,8 @@ export class Onejav implements SiteAbstract {
     $download[0].click()
   }
 
-  nextStep(x: Ref<number>, y: Ref<number>): void {
-    const nextPreview = $('#' + this.sisters.current_key).find('#preview')
-    if (nextPreview.length === 0) return
-    const offset = nextPreview.offset()
-    if (offset === undefined) return
-    y.value = offset.top
-  }
-
-  previous(x: Ref<number>, y: Ref<number>): void {
-    const prev = $('#' + this.sisters.current_key).find('#preview')
-    if (prev.length === 0) return
-    const offset = prev.offset()
-    if (offset === undefined) return
-    y.value = offset.top
-  }
-
   showControlPanel(): boolean {
     return !!$('body').has(this.selector.item).length
-  }
-
-  loadNext(): void {
-    this.waterfall.appendNext()
   }
 
   loadCompleted(): void {
@@ -199,7 +193,6 @@ export class Onejav implements SiteAbstract {
 
   private addStyle() {
     GM_addStyle(`.max{width:100%} .min{width:100%} `)
-    console.log(`样式添加成功`)
   }
 
   private homeContainer() {
@@ -311,73 +304,6 @@ export class Onejav implements SiteAbstract {
     }
   }
 
-  private getSorId(originalId: string, type: number): string | undefined {
-    switch (type) {
-      case 0: {
-        const cuttingNumber = originalId.matchAll(/(heyzo|FC2PPV)(\d+)/gi)
-        const numberArray = Array.from(cuttingNumber)
-
-        // console.log('numberArray', numberArray);
-        if (numberArray.length > 0) {
-          if (originalId.matchAll(/(FC2PPV)(\d+)/gi)) {
-            return 'FC2-PPV-' + numberArray[0][2]
-          }
-          return numberArray[0][1] + '-' + numberArray[0][2]
-        }
-        return originalId
-      }
-      case 1: {
-        const cuttingNumber = originalId.matchAll(/(^[a-z].*[a-z])(\d+)/gi)
-        const numberArray = Array.from(cuttingNumber)
-
-        if (numberArray.length === 0) return originalId
-        return numberArray[0][1] + '-' + Number(numberArray[0][2])
-      }
-      case 2: {
-        // 123ssis123
-        const cuttingNumber = originalId.matchAll(/(^\d+)([a-z].*[a-z])(\d+)/gi)
-        const numberArray = Array.from(cuttingNumber)
-
-        if (numberArray.length === 0) return originalId
-
-        return numberArray[0][2] + '-' + Number(numberArray[0][3])
-      }
-      default:
-        return undefined
-    }
-  }
-
-  private addLink(
-    text: string,
-    titleElement: HTMLElement | null,
-    serialNumber: string,
-    elem: JQuery,
-    javstoreUrl: null | string = null,
-    cover: boolean = true
-  ) {
-    const javstore_key = `${KEY.JAVSTORE_KEY}${serialNumber}`
-    const javstore_id_key = `#${javstore_key}`
-    elem.find(javstore_id_key).remove()
-
-    if (titleElement === null) {
-      return
-    }
-    if (javstoreUrl) {
-      $(titleElement).append(
-        `<a id="${javstore_key}" style="color:red;" href="${javstoreUrl}" target="_blank" title="点击到JavStore看看">&nbsp;&nbsp;JavStore</a>`
-      )
-      return
-    }
-    const $title = $(titleElement)
-    $title.append(`<a id="${javstore_key}" style="color:red;" target="_blank" title="点击重试">&nbsp;&nbsp;${text}</a>`)
-    const $titleInfo = elem.find(javstore_id_key).first().last()
-    $titleInfo.on('click', () => {
-      $titleInfo.css('color', 'blue').text(`\u00A0\u00A0${text}重试中`)
-      console.log(`重试`)
-      this.addPreview(elem).then()
-    })
-  }
-
   private enableWaterfall($onejav: JQuery) {
     if (!$onejav.length) {
       return
@@ -389,24 +315,9 @@ export class Onejav implements SiteAbstract {
     $onejav[0].parentElement.id = 'waterfall'
     if (isNaN(Date.parse(location.pathname))) {
       ElNotification({ title: '瀑布流', message: `页数可能较多强制启用懒加载模式`, type: 'info' })
-      this.waterfall.flowLazy()
+      this.waterfall.flow(1)
     } else {
       this.waterfall.flow()
-    }
-  }
-
-  private determineTheCurrentElement(detail: JQuery, scrollTop: number) {
-    const detailTop = detail.offset()?.top
-    if (detailTop === undefined) return
-    const detailHeight = detail.height()
-    if (detailHeight === undefined) return
-
-    if (detailTop <= scrollTop && detailTop + detailHeight > scrollTop) {
-      const serialNumber = detail.attr('id')
-      if (!serialNumber || this.sisters.current_key === serialNumber) {
-        return
-      }
-      this.sisters.setCurrent(serialNumber)
     }
   }
 }

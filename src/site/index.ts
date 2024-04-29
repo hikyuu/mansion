@@ -1,10 +1,14 @@
-import { Onejav } from './onejav/onejav'
-import { SiteAbstract } from './site-abstract'
-import { Sisters } from './sisters'
+import { Javdb } from '@/site/javdb/javdb'
+import type { SiteAbstract } from '@/site/site-abstract'
+import type { Sisters } from '@/site/sisters'
+import { Onejav } from '@/site/onejav/onejav'
 
 export function getSite(sisters: Sisters): SiteAbstract | undefined {
-  if (/(OneJAV)/g.test(document.title)) {
+  if (/(onejav)/g.test(location.href)) {
     return new Onejav(sisters)
+  }
+  if (/(javdb)/g.test(location.href)) {
+    return new Javdb(sisters)
   }
   return undefined
 }

@@ -2,14 +2,15 @@ import { RealmTask } from '../realm-task'
 import { GM_setValue } from '$'
 import { FORMAT, KEY } from '@/dictionary'
 import moment from 'moment'
-import { LockPool } from '../site-abstract'
 import * as realm from 'realm-web'
 import { GM_getValue } from 'vite-plugin-monkey/dist/client'
 import type { Info } from '@/site/sisters'
+import { LockPool } from '@/common/lock-pool'
 
 const realmTask: RealmTask = new RealmTask()
 
 let onejav: Realm.Services.MongoDB.MongoDBCollection<History> | undefined = undefined
+
 const lockPool = new LockPool()
 //数据可能会很多不要滥用响应式
 let histories: History[] = []

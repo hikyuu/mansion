@@ -41,9 +41,9 @@ const next_dailies = computed<string>(() => {
 })
 
 function haveReadNumber(pathDate: string) {
-  console.time('history-filter')
+  // console.time('history-filter')
   const length = getTodayHistories(pathDate).length
-  console.timeEnd('history-filter')
+  // console.timeEnd('history-filter')
   return length
 }
 
