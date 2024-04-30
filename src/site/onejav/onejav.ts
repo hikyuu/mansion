@@ -4,6 +4,7 @@ import { getId, getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, ge
 import { SiteAbstract } from '../site-abstract'
 import $ from 'jquery'
 import { picx } from '@/dictionary'
+
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { Sisters } from '@/site/sisters'
 import { Task } from '@/site/task'
@@ -93,7 +94,11 @@ export class Onejav extends SiteAbstract {
     item.attr('id', serialNumber)
     const loadUrl = picx('/load.svg')
     const failedUrl = picx('/failed.svg')
-    const haveRead = historySerialNumbers.has(serialNumber)
+    let haveRead = false
+    const history = historySerialNumbers.get(serialNumber)
+    if (history && history.pathDate == pathDate) {
+      haveRead = true
+    }
     this.sisters.updateInfo({ serialNumber, src: loadUrl, date, haveRead, pathDate, status: 200 })
 
     const preview = getPreviewElement(serialNumber, loadUrl, false)

@@ -2,43 +2,40 @@
 import { Onejav } from '@/site/onejav/onejav'
 import type { OnejavDaily } from '@/site/onejav/onejav-daily'
 import { dailiesRef } from '@/site/onejav/onejav-daily'
-import { computed, defineProps, ref, toRefs } from 'vue'
-import moment from 'moment'
+import { defineProps, ref, toRefs } from 'vue'
 import { FORMAT } from '@/dictionary'
 import { getTodayHistories } from '@/site/onejav/onejav-history'
 import { Calendar } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
+import { onKeyStroke } from '@vueuse/core'
+import dayjs from 'dayjs'
+import { ElNotification } from 'element-plus'
 
 const props = defineProps<{ onejav: Onejav }>()
 
+const selected = ref(new Date())
+
 const onejav = toRefs<Onejav>(props.onejav)
 
-const visible = ref<boolean>()
+const visible = ref<boolean>(false)
 
-const latest_dailies = computed<LatestDaily[]>(() => {
-  if (!visible.value) {
-    return []
+function gotoNextDay(event: KeyboardEvent) {
+  console.log('gotoNextDay')
+  event.preventDefault()
+  const date = dayjs(location.pathname, FORMAT.PATH_DATE, true)
+  if (!date.isValid()) {
+    ElNotification({ title: '提示', message: '当前页不是日期页', type: 'info' })
+    return
   }
-  const latestDailies = dailiesRef.value
-    .sort((a: OnejavDaily, b: OnejavDaily) => {
-      return b.releaseDateStamp - a.releaseDateStamp
-    })
-    .filter((daily: OnejavDaily) => daily.loadCompleted)
-    .slice(0, Math.min(3, dailiesRef.value.length))
-  return latestDailies.map((daily: OnejavDaily) => {
-    return {
-      onejavDaily: daily,
-      haveReadNumber: haveReadNumber(daily.pathDate)
-    } as LatestDaily
-  })
-})
+  if (date.isSame(dayjs(), 'day') || date.isAfter(dayjs(), 'day')) {
+    ElNotification({ title: '提示', message: '已经是最新日期', type: 'info' })
+    return
+  }
+  window.open(date.add(1, 'day').format(FORMAT.PATH_DATE), '_self')
+}
 
-const next_dailies = computed<string>(() => {
-  return moment(latest_dailies.value[0]?.onejavDaily.pathDate, FORMAT.PATH_DATE)
-    .add(1, 'days')
-    .format(FORMAT.PATH_DATE)
-})
+onKeyStroke('0', (event: KeyboardEvent) => gotoNextDay(event))
 
 function haveReadNumber(pathDate: string) {
   // console.time('history-filter')
@@ -47,9 +44,39 @@ function haveReadNumber(pathDate: string) {
   return length
 }
 
-declare interface LatestDaily {
-  onejavDaily: OnejavDaily
-  haveReadNumber: number
+function dateStyle(date: Date) {
+  if (!visible.value) return {}
+  const pathDate = dayjs(date).format(FORMAT.PATH_DATE)
+  const style = {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'column',
+    height: '100%',
+    backgroundColor: 'white'
+  }
+  const today = dailiesRef.value.find((daily: OnejavDaily) => daily.pathDate === pathDate)
+  if (!today) return style
+  const number = haveReadNumber(pathDate)
+  if (number / today.sisterNumber > 0.9) {
+    style.backgroundColor = onejav.theme.value.PRIMARY_COLOR
+    return style
+  } else {
+    style.backgroundColor = 'yellow'
+    return style
+  }
+}
+
+function readNumber(date: Date) {
+  if (!visible.value) return ''
+  const pathDate = dayjs(date).format(FORMAT.PATH_DATE)
+  const today = dailiesRef.value.find((daily: OnejavDaily) => daily.pathDate === pathDate)
+  if (!today) return ''
+  return `${haveReadNumber(pathDate)}/${today.sisterNumber}`
+}
+
+function gotoDate(date: Date) {
+  window.open(`${dayjs(date).format(FORMAT.PATH_DATE)}`, '_self')
 }
 </script>
 
@@ -58,7 +85,7 @@ declare interface LatestDaily {
     <m-img-item>
       <el-popover
         v-model:visible="visible"
-        :width="300"
+        :width="900"
         placement="left"
         popper-style="box-shadow: rgb(14 18 22 / 35%) 0px 10px 38px -10px, rgb(14 18 22 / 20%) 0px 10px 20px -15px; padding: 20px;"
         trigger="hover"
@@ -71,25 +98,14 @@ declare interface LatestDaily {
           </m-img-item>
         </template>
         <template #default>
-          <div style="display: flex; gap: 16px; flex-direction: column">
-            <el-text>最新已读</el-text>
-            <template v-for="daily in latest_dailies" v-bind:key="daily.onejavDaily.pathDate">
-              <el-link
-                :href="daily.onejavDaily.pathDate"
-                :type="daily.haveReadNumber >= daily.onejavDaily.sisterNumber ? 'success' : 'warning'"
-                target="_blank"
-              >
-                {{ daily.onejavDaily.pathDate }}
-                妹妹:{{ daily.onejavDaily.sisterNumber }} 已读:{{ daily.haveReadNumber }}
-              </el-link>
+          <el-calendar>
+            <template #date-cell="{ data }">
+              <p :style="dateStyle(data.date)" @click="gotoDate(data.date)">
+                <a>{{ data.day.split('-').slice(1).join('-') }}</a>
+                <a>{{ readNumber(data.date) }}</a>
+              </p>
             </template>
-            <template v-if="latest_dailies.length > 0">
-              <el-text>下一天</el-text>
-              <el-link :href="next_dailies" target="_blank" type="danger">
-                {{ next_dailies }}
-              </el-link>
-            </template>
-          </div>
+          </el-calendar>
         </template>
       </el-popover>
     </m-img-item>

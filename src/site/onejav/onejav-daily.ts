@@ -1,9 +1,9 @@
 import * as realm from 'realm-web'
-import moment from 'moment'
 import { FORMAT, KEY } from '@/dictionary'
 import { ref } from 'vue'
 import { GM_getValue, GM_setValue } from 'vite-plugin-monkey/dist/client'
 import { LockPool } from '@/common/lock-pool'
+import dayjs from 'dayjs'
 
 let daily: Realm.Services.MongoDB.MongoDBCollection<OnejavDaily> | undefined = undefined
 
@@ -34,9 +34,9 @@ export async function uploadDaily(pathDate: string, sisterNumber: number, loadCo
 
   console.log(`记录`, pathDate)
   lockPool.lock(pathDate)
-  const momentDate = moment(pathDate, FORMAT.PATH_DATE)
+  const momentDate = dayjs(pathDate, FORMAT.PATH_DATE)
   const date = momentDate.toDate()
-  const originalReleaseDate = momentDate.format(FORMAT.ORIGINAL_RELEASE_DATE).toString()
+  const originalReleaseDate = momentDate.format(FORMAT.ORIGINAL_RELEASE_DATE)
   const daily = {
     sisterNumber,
     loadCompleted,
@@ -46,11 +46,10 @@ export async function uploadDaily(pathDate: string, sisterNumber: number, loadCo
     originalReleaseDate,
     watchTime: new Date()
   } as OnejavDaily
-
   const onejav = getOnejavDaily()
-  console.log('上传每日数据')
+  console.log('上传每日数据', daily)
   onejav
-    .updateOne({ pathDate }, daily, { upsert: true })
+    .updateOne({ pathDate }, daily, { upsert: true } as any)
     .then(() => {
       console.log(pathDate, '上传成功')
       updateOrAddDaily(daily)

@@ -12,7 +12,7 @@ import { FileSystemIconLoader } from 'unplugin-icons/loaders'
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
-    hmr: false,
+    hmr: true,
     port: 3003
   },
   resolve: {
@@ -68,7 +68,7 @@ export default defineConfig({
             })
           ),
           jquery: cdn.jsdelivr('jQuery', 'dist/jquery.min.js'),
-          moment: cdn.jsdelivr('moment', 'moment.min.js'),
+          dayjs: cdn.jsdelivr('dayjs', 'dayjs.min.js'),
           pinia: cdn.jsdelivr('Pinia', 'dist/pinia.iife.prod.js'),
           'realm-web': cdn.jsdelivr('Realm', 'dist/bundle.iife.js'),
           'element-plus': cdn.jsdelivr('ElementPlus', 'dist/index.full.min.js'),

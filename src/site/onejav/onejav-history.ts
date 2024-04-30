@@ -1,11 +1,11 @@
 import { RealmTask } from '../realm-task'
 import { GM_setValue } from '$'
 import { FORMAT, KEY } from '@/dictionary'
-import moment from 'moment'
 import * as realm from 'realm-web'
 import { GM_getValue } from 'vite-plugin-monkey/dist/client'
 import type { Info } from '@/site/sisters'
 import { LockPool } from '@/common/lock-pool'
+import dayjs from 'dayjs'
 
 const realmTask: RealmTask = new RealmTask()
 
@@ -13,14 +13,11 @@ let onejav: Realm.Services.MongoDB.MongoDBCollection<History> | undefined = unde
 
 const lockPool = new LockPool()
 //数据可能会很多不要滥用响应式
-let histories: History[] = []
-export const historySerialNumbers = new Map()
+export let historySerialNumbers: Map<string, History> = new Map()
 
 export async function loadRemoteHistory() {
   const onejav = getOnejavHistory()
   const remoteHistories = await onejav.find()
-  histories = remoteHistories
-
   let count = 0
   for (const history of remoteHistories) {
     //Aug. 24, 2023
@@ -32,22 +29,19 @@ export async function loadRemoteHistory() {
     if (!historySerialNumbers.has(history.serialNumber)) {
       console.log('添加远程数据')
       historySerialNumbers.set(history.serialNumber, history)
-      histories.push(history)
     }
   }
   setLocalHistory()
 }
 
 export function loadLocalHistory() {
-  const localHistories = getLocalHistory()
-  histories = localHistories
-  for (const localHistory of localHistories) {
-    historySerialNumbers.set(localHistory.serialNumber, localHistory)
-  }
+  const json = GM_getValue(KEY.ONEJAV_HISTORY_KEY, {})
+  historySerialNumbers = new Map(Object.entries(json))
+  console.log('本地历史记录', historySerialNumbers)
 }
 
 const work = async (history: History) => {
-  const date = moment(history.originalReleaseDate, FORMAT.ORIGINAL_RELEASE_DATE)
+  const date = dayjs(history.originalReleaseDate, FORMAT.ORIGINAL_RELEASE_DATE)
   const pathDate = date.format(FORMAT.PATH_DATE).toString()
   const releaseDate = date.toDate()
   try {
@@ -83,9 +77,8 @@ export function getOnejavHistory() {
 async function uploadRemoteHistory(serialNumber: string, history: History, retry: number = 3): Promise<void> {
   try {
     onejav = getOnejavHistory()
-    await onejav.updateOne({ serialNumber: serialNumber }, history, { upsert: true })
+    await onejav.updateOne({ serialNumber: serialNumber }, history, { upsert: true } as any)
     console.log(serialNumber, '上传成功')
-    histories.push(history)
     historySerialNumbers.set(history.serialNumber, history)
     setLocalHistory()
     //解锁
@@ -108,8 +101,8 @@ export async function uploadHistory(serialNumber: string, info: Info) {
   console.log(`记录`, serialNumber)
   lockPool.lock(serialNumber)
 
-  const momentDate = moment(info.pathDate, FORMAT.PATH_DATE)
-  const date = momentDate.toDate()
+  const DateClass = dayjs(info.pathDate, FORMAT.PATH_DATE)
+  const date = DateClass.toDate()
 
   const history = {
     serialNumber: serialNumber,
@@ -123,16 +116,12 @@ export async function uploadHistory(serialNumber: string, info: Info) {
 }
 
 export function setLocalHistory() {
-  GM_setValue(KEY.ONEJAV_HISTORY_KEY, histories)
+  GM_setValue(KEY.ONEJAV_HISTORY_KEY, Object.fromEntries(historySerialNumbers))
   console.log('历史记录写入本地')
 }
 
-function getLocalHistory(): History[] {
-  return GM_getValue(KEY.ONEJAV_HISTORY_KEY, [])
-}
-
 export function getTodayHistories(pathDate: string) {
-  return histories.filter((item) => item.pathDate === pathDate)
+  return Array.from(historySerialNumbers).filter(([key, history]) => history.pathDate === pathDate)
 }
 
 export declare interface History {
@@ -142,6 +131,5 @@ export declare interface History {
   releaseDate: Date
   originalReleaseDate: string
   watchTime: Date
-
   [key: string]: any
 }
