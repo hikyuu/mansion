@@ -1,4 +1,4 @@
-import type { Selector } from '@/waterfall/index'
+import type { Selector } from '@/waterfall'
 import Waterfall from '@/waterfall/index'
 import { getId, getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSorId } from '@/common'
 import { SiteAbstract } from '../site-abstract'

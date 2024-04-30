@@ -46,25 +46,34 @@ export async function uploadDaily(pathDate: string, sisterNumber: number, loadCo
     originalReleaseDate,
     watchTime: new Date()
   } as OnejavDaily
-  const onejav = getOnejavDaily()
-  console.log('上传每日数据', daily)
-  onejav
-    .updateOne({ pathDate }, daily, { upsert: true } as any)
+  updateRemoteDaily(daily, retry)
     .then(() => {
-      console.log(pathDate, '上传成功')
       updateOrAddDaily(daily)
       //解锁
-      lockPool.unlock(pathDate)
+      lockPool.unlock(daily.pathDate)
     })
     .catch((reason) => {
       console.error(reason)
-      console.log(pathDate, '上传重试')
-      lockPool.unlock(pathDate)
-      console.log('日期上传重复次数', retry)
+      lockPool.unlock(daily.pathDate)
+    })
+}
+
+async function updateRemoteDaily(daily: OnejavDaily, retry: number = 3) {
+  const onejav = getOnejavDaily()
+  console.log('上传每日数据', daily)
+  onejav
+    .updateOne({ pathDate: daily.pathDate }, daily, { upsert: true })
+    .then(() => {
+      console.log(daily.pathDate, '上传成功')
+      return Promise.resolve()
+    })
+    .catch((reason) => {
+      console.error(reason)
+      console.log(daily.pathDate, '上传重试', '重复次数', retry)
       if (retry <= 0) {
         return Promise.reject('重试次数用尽')
       }
-      return uploadDaily(pathDate, sisterNumber, loadCompleted, --retry)
+      return updateRemoteDaily(daily, --retry)
     })
 }
 

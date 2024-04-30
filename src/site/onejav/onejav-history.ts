@@ -18,18 +18,26 @@ export let historySerialNumbers: Map<string, History> = new Map()
 export async function loadRemoteHistory() {
   const onejav = getOnejavHistory()
   const remoteHistories = await onejav.find()
-  let count = 0
+  let countFix = 0
+  let countRemote = 0
   for (const history of remoteHistories) {
     //Aug. 24, 2023
     if (!history.pathDate || history.pathDate.length <= 0) {
-      count++
+      countFix++
       console.log('修复数据', history.serialNumber)
       realmTask.addTask(history, work)
     }
     if (!historySerialNumbers.has(history.serialNumber)) {
       console.log('添加远程数据')
       historySerialNumbers.set(history.serialNumber, history)
+      countRemote++
     }
+  }
+  if (countFix > 0) {
+    console.log(`修复${countFix}条数据`)
+  }
+  if (countRemote > 0) {
+    console.log(`添加${countRemote}条数据`)
   }
   setLocalHistory()
 }
@@ -37,12 +45,23 @@ export async function loadRemoteHistory() {
 export function loadLocalHistory() {
   const json = GM_getValue(KEY.ONEJAV_HISTORY_KEY, {})
   historySerialNumbers = new Map(Object.entries(json))
+  let count = 0
+  historySerialNumbers.forEach((value, key) => {
+    if (key !== value.serialNumber) {
+      historySerialNumbers.delete(key)
+      count++
+    }
+  })
+  if (count > 0) {
+    console.log(`清理${count}条数据`)
+    setLocalHistory()
+  }
   console.log('本地历史记录', historySerialNumbers)
 }
 
 const work = async (history: History) => {
   const date = dayjs(history.originalReleaseDate, FORMAT.ORIGINAL_RELEASE_DATE)
-  const pathDate = date.format(FORMAT.PATH_DATE).toString()
+  const pathDate = date.format(FORMAT.PATH_DATE)
   const releaseDate = date.toDate()
   try {
     await getOnejavHistory().updateOne(
@@ -80,7 +99,7 @@ async function uploadRemoteHistory(serialNumber: string, history: History, retry
     await onejav.updateOne({ serialNumber: serialNumber }, history, { upsert: true } as any)
     console.log(serialNumber, '上传成功')
     historySerialNumbers.set(history.serialNumber, history)
-    setLocalHistory()
+    // setLocalHistory()
     //解锁
     lockPool.unlock(serialNumber)
     return Promise.resolve()
