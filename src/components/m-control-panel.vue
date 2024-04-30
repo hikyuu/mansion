@@ -8,6 +8,7 @@ import { onKeyStroke, useScroll } from '@vueuse/core'
 import { Location, Memo } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
+import { dailiesRef, uploadDaily } from '@/site/onejav/onejav-daily'
 
 const props = defineProps<{
   sisters: Sisters
