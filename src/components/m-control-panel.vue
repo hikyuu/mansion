@@ -8,7 +8,6 @@ import { onKeyStroke, useScroll } from '@vueuse/core'
 import { Location, Memo } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
-import { dailiesRef, uploadDaily } from '@/site/onejav/onejav-daily'
 
 const props = defineProps<{
   sisters: Sisters
@@ -27,11 +26,11 @@ const { x, y } = useScroll(window, {
   behavior: 'smooth'
 })
 
-onKeyStroke('ArrowLeft', (event: KeyboardEvent) => previous(event))
-onKeyStroke('ArrowRight', (event: KeyboardEvent) => nextStep(event))
-onKeyStroke('Enter', (event: KeyboardEvent) => download(event))
-onKeyStroke('ArrowUp', (event: KeyboardEvent) => scroll(event, true))
-onKeyStroke('ArrowDown', (event: KeyboardEvent) => scroll(event))
+onKeyStroke('ArrowLeft', (event: KeyboardEvent) => previous(event), { dedupe: true })
+onKeyStroke('ArrowRight', (event: KeyboardEvent) => nextStep(event), { dedupe: true })
+onKeyStroke('Enter', (event: KeyboardEvent) => download(event), { dedupe: true })
+onKeyStroke('ArrowUp', (event: KeyboardEvent) => scroll(event, true), { dedupe: true })
+onKeyStroke('ArrowDown', (event: KeyboardEvent) => scroll(event), { dedupe: true })
 
 const haveRead = computed(() => {
   if (props.sisters.current_index === undefined) return
