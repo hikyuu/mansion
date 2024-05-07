@@ -29,7 +29,9 @@ export class Javdb extends SiteAbstract {
   }
 
   theme = {
-    PRIMARY_COLOR: '#2f7feb'
+    PRIMARY_COLOR: '#2f7feb',
+    SECONDARY_COLOR: '#f5f5f5',
+    WARNING_COLOR: '#fadd65'
   }
 
   mount(): void {

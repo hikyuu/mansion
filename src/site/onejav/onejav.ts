@@ -31,7 +31,9 @@ export class Onejav extends SiteAbstract {
     pagination: '.pagination.is-centered'
   } as Selector
   theme = {
-    PRIMARY_COLOR: '#00d1b2'
+    PRIMARY_COLOR: '#00d1b2',
+    SECONDARY_COLOR: '#e3f5f3',
+    WARNING_COLOR: '#fadd65'
   }
   private task: Task = new Task(this)
 
@@ -42,6 +44,8 @@ export class Onejav extends SiteAbstract {
   }
 
   async mount(): Promise<void> {
+    this.adObserve()
+
     this.addStyle()
     loadLocalHistory()
     loadLocalDailies()
@@ -53,7 +57,6 @@ export class Onejav extends SiteAbstract {
     this.home()
 
     this.homeLoadObserve()
-
     this.homeVisible()
 
     const $onejav = this.homeContainer()
@@ -237,6 +240,46 @@ export class Onejav extends SiteAbstract {
           }
         }
       }
+    })
+  }
+
+  private adObserve() {
+    $('body')
+      .children('div')
+      .each((index, element) => {
+        if ($(element).css('position') === 'fixed' && $(element).css('inset') === '0px') {
+          console.log('发现广告!!!')
+          const a = $(element).css('inset', 'unset').find('a')
+          console.log(a)
+          a.remove()
+          console.log('屏蔽广告!!!')
+        }
+      })
+    const overview = document.querySelector('body')
+    if (overview === null) return
+    //获取网页地址中的路径'
+    const mutationObserver = new MutationObserver((mutationsList) => {
+      for (const mutationRecord of mutationsList) {
+        mutationRecord.addedNodes.forEach((element, number, parentNode) => {
+          if (element.nodeName !== 'DIV') return
+          if ($(element).css('position') === 'fixed' && $(element).css('inset') === '0px') {
+            console.log('监听到广告!!!')
+            const a = $(element).css('inset', 'unset').find('a')
+            console.log(a)
+            a.remove()
+            console.log('屏蔽广告!!!')
+          }
+        })
+      }
+    })
+    mutationObserver.observe(overview, {
+      attributes: false, // 属性的变动。
+      characterData: true, //节点内容或节点文本的变动。
+      childList: true, //子节点的变动（指新增，删除或者更改）。
+      subtree: false, //布尔值，表示是否将该观察器应用于该节点的所有后代节点。
+      attributeOldValue: false, //布尔值，表示观察attributes变动时，是否需要记录变动前的属性值。
+      characterDataOldValue: false //布尔值，表示观察characterData变动时，是否需要记录变动前的值。
+      //attributeFilter：数组，表示需要观察的特定属性（比如[‘class’,‘src’]）。
     })
   }
 

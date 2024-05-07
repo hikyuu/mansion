@@ -10,7 +10,7 @@ import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
 import { onKeyStroke } from '@vueuse/core'
 import dayjs from 'dayjs'
-import { ElNotification } from 'element-plus'
+import { ElLoading, ElNotification } from 'element-plus'
 
 const props = defineProps<{ onejav: Onejav }>()
 
@@ -32,10 +32,12 @@ function gotoNextDay(event: KeyboardEvent) {
     ElNotification({ title: '提示', message: '已经是最新日期', type: 'info' })
     return
   }
-  window.open(date.add(1, 'day').format(FORMAT.PATH_DATE), '_self')
+  let nextDay = date.add(1, 'day').format(FORMAT.PATH_DATE)
+  window.open(nextDay, '_self')
+  ElLoading.service({ lock: true, fullscreen: true, text: `跳转到${nextDay}` })
 }
 
-onKeyStroke('0', (event: KeyboardEvent) => gotoNextDay(event))
+onKeyStroke('0', (event: KeyboardEvent) => gotoNextDay(event), { dedupe: true })
 
 function haveReadNumber(pathDate: string) {
   // console.time('history-filter')
@@ -59,10 +61,10 @@ function dateStyle(date: Date) {
   if (!today) return style
   const number = haveReadNumber(pathDate)
   if (number / today.sisterNumber > 0.9) {
-    style.backgroundColor = onejav.theme.value.PRIMARY_COLOR
+    style.backgroundColor = onejav.theme.value.SECONDARY_COLOR
     return style
   } else {
-    style.backgroundColor = 'yellow'
+    style.backgroundColor = onejav.theme.value.WARNING_COLOR
     return style
   }
 }
@@ -76,7 +78,9 @@ function readNumber(date: Date) {
 }
 
 function gotoDate(date: Date) {
-  window.open(`${dayjs(date).format(FORMAT.PATH_DATE)}`, '_self')
+  let pathDate = dayjs(date).format(FORMAT.PATH_DATE)
+  window.open(`${pathDate}`, '_self')
+  ElLoading.service({ lock: true, fullscreen: true, text: `跳转到${pathDate}` })
 }
 </script>
 
