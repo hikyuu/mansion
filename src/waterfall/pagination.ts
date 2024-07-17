@@ -1,3 +1,5 @@
+import { ref } from 'vue'
+
 export class Pagination {
   constructor(detail: JQuery) {
     this.detail = detail
@@ -5,7 +7,7 @@ export class Pagination {
 
   currentURL: string = location.toString()
   pathname: string = location.pathname
-  isEnd: boolean = false
+  isEnd = ref(false)
   nextUrl: string | null = null
   detail: JQuery
   nextDetail: JQuery | null = null

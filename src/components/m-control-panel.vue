@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, ref, toRef, watch } from 'vue'
+import { computed, reactive, ref, toRef, watch } from 'vue'
 import $ from 'jquery'
 import { Sisters } from '@/site/sisters'
 import { SiteAbstract } from '@/site/site-abstract'
@@ -15,12 +15,16 @@ const props = defineProps<{
 }>()
 
 const showImage = ref(false)
-const loadAll = ref({ color: 'red' })
+
 const queueRef = toRef(props.sisters, 'queue')
+
+const loadAll = reactive({
+  color: props.site.theme.WARNING_COLOR
+})
 
 const { x, y } = useScroll(window, {
   onStop: () => {
-    console.log('滚动结束')
+    // console.log('滚动结束')
     props.site.waterfall.onScrollEvent()
   },
   behavior: 'smooth'
@@ -132,11 +136,8 @@ watch(
 
 watch(
   () => props.site.waterfall.page.isEnd,
-  (val) => {
-    console.log('是否加载完毕', val)
-    if (val) {
-      loadAll.value.color = 'green'
-    }
+  (isEnd) => {
+    loadAll.color = isEnd ? 'green' : props.site.theme.WARNING_COLOR
   }
 )
 </script>
