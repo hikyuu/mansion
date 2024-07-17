@@ -1,5 +1,5 @@
 import { SiteAbstract } from '@/site/site-abstract'
-import type { Selector } from '@/waterfall/index'
+import type { Selector } from '@/waterfall'
 import Waterfall from '@/waterfall/index'
 import type { Sisters } from '@/site/sisters'
 import { loginApiKey } from '@/site/realm'
@@ -74,7 +74,9 @@ export class Javdb extends SiteAbstract {
     }
   }
 
-  loadCompleted(): void {}
+  loadCompleted(): void {
+    this.hasLoadCompleted = true
+  }
 
   download(): void {}
 

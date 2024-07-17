@@ -12,7 +12,7 @@ import { FileSystemIconLoader } from 'unplugin-icons/loaders'
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
-    hmr: true,
+    hmr: false,
     port: 3003
   },
   resolve: {
@@ -61,15 +61,16 @@ export default defineConfig({
       build: {
         externalGlobals: {
           //key对应npm包名称,exportVarName对应暴露出的变量名
-          vue: cdn.jsdelivr('Vue', 'dist/vue.global.prod.js')
+          vue: cdn
+            .jsdelivr('Vue', 'dist/vue.global.prod.js')
             .concat('https://cdn.jsdelivr.net/npm/vue-demi@latest/lib/index.iife.min.js')
             .concat(
-            await util.fn2dataUrl(() => {
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-              window.Vue = Vue // work with element-plus
-            })
-          ),
+              await util.fn2dataUrl(() => {
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
+                window.Vue = Vue // work with element-plus
+              })
+            ),
           jquery: cdn.jsdelivr('jQuery', 'dist/jquery.min.js'),
           dayjs: cdn.jsdelivr('dayjs', 'dayjs.min.js'),
           pinia: cdn.jsdelivr('Pinia', 'dist/pinia.iife.prod.js'),

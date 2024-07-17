@@ -1,15 +1,18 @@
-import type { Selector } from '../waterfall'
+import type { Selector } from '@/waterfall'
 import Waterfall from '../waterfall'
 import type { SiteInterface } from './site-interface'
 import { Sisters } from './sisters'
 import type { Theme } from '@/site/index'
 import type { Ref } from 'vue'
-import { KEY, picx } from '@/dictionary/index'
+import { KEY, picx } from '@/dictionary'
 import $ from 'jquery'
-import { getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSorId } from '@/common/index'
+
+import { getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSortId } from '@/common'
 import { historySerialNumbers } from '@/site/onejav/onejav-history'
 
 export abstract class SiteAbstract implements SiteInterface {
+  hasLoadCompleted = false
+
   abstract name: string
 
   abstract selector: Selector
@@ -116,7 +119,7 @@ export abstract class SiteAbstract implements SiteInterface {
     //去掉空格//去掉回车换行
     const date = item.find(this.selector.date).text().trim()
     const pathDate = item.find(this.selector.pathDate).text().trim()
-    const sortId = getSorId(serialNumber, type)
+    const sortId = getSortId(serialNumber, type)
     const el_link = item.find('div.tag.is-info')[0]
     this.addLink('搜索中', el_link, serialNumber, item)
     if (type > 0) {

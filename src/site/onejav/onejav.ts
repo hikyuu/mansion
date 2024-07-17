@@ -1,6 +1,6 @@
 import type { Selector } from '@/waterfall'
 import Waterfall from '@/waterfall/index'
-import { getId, getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSorId } from '@/common'
+import { getId, getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSortId } from '@/common'
 import { SiteAbstract } from '../site-abstract'
 import $ from 'jquery'
 import { picx } from '@/dictionary'
@@ -81,7 +81,7 @@ export class Onejav extends SiteAbstract {
       .replace(/ /g, '')
       .replace(/[\r\n]/g, '') //去掉空格//去掉回车换行
 
-    const sortId = getSorId(serialNumber, type)
+    const sortId = getSortId(serialNumber, type)
     // console.log('sortId', sortId);
     // let serialNumber: string = 'test123456'
     const el_link = detail.parentElement
@@ -196,6 +196,7 @@ export class Onejav extends SiteAbstract {
   }
 
   loadCompleted(): void {
+    this.hasLoadCompleted = true
     uploadDaily(location.pathname, this.sisters.sisterNumber, true).then()
   }
 
@@ -248,10 +249,8 @@ export class Onejav extends SiteAbstract {
       .children('div')
       .each((index, element) => {
         if ($(element).css('position') === 'fixed' && $(element).css('inset') === '0px') {
-          console.log('发现广告!!!')
-          const a = $(element).css('inset', 'unset').find('a')
-          console.log(a)
-          a.remove()
+          console.log('发现广告!!!', element)
+          $(element).off('click')
           console.log('屏蔽广告!!!')
         }
       })
@@ -263,10 +262,8 @@ export class Onejav extends SiteAbstract {
         mutationRecord.addedNodes.forEach((element, number, parentNode) => {
           if (element.nodeName !== 'DIV') return
           if ($(element).css('position') === 'fixed' && $(element).css('inset') === '0px') {
-            console.log('监听到广告!!!')
-            const a = $(element).css('inset', 'unset').find('a')
-            console.log(a)
-            a.remove()
+            console.log('监听到广告!!!', element)
+            $(element).off('click')
             console.log('屏蔽广告!!!')
           }
         })

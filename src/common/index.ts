@@ -83,9 +83,7 @@ export function getJavstoreUrl(serialNumber: string, retry = 1): Promise<string 
         // 筛选匹配的番号数据  FC2-PPV-9999999 => 正则/FC2.*PPV.*9999999/gi
         const reg = RegExp(serialNumber.replace(/-/g, '.*'), 'gi')
         if (a_array[i].title.search(reg) > 0) {
-          if (!a) a = a_array[i]
-          const fhd_idx = a_array[i].title.search(/Uncensored|FHD/i)
-          if (fhd_idx >= 0) {
+          if (!a) {
             a = a_array[i]
             break
           }
@@ -261,7 +259,7 @@ function parseText(text: string): Document {
   }
 }
 
-export function getSorId(originalId: string, type: number): string | undefined {
+export function getSortId(originalId: string, type: number): string | undefined {
   switch (type) {
     case 0: {
       const cuttingNumber = originalId.matchAll(/(heyzo|FC2PPV)(\d+)/gi)

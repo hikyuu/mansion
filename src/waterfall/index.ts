@@ -93,7 +93,7 @@ export default class {
   }
 
   async appendNext(oneStep: boolean = false) {
-    if (this.page.isEnd) {
+    if (this.page.isEnd.value) {
       console.log(`没有下一页`)
       return this.end()
     }
@@ -110,7 +110,7 @@ export default class {
   }
 
   isEnd() {
-    this.page.isEnd = true
+    this.page.isEnd.value = true
     this.site.loadCompleted()
     ElNotification({ title: '提示', message: `加载完毕!!!`, type: 'success' })
   }
