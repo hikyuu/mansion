@@ -56,30 +56,29 @@ export default defineConfig({
         icon: 'https://github.com/hikyuu/gallery/raw/main/picx/mansion.svg',
         namespace: 'npm/mansion',
         match: ['*://*onejav.com/*', '*://*javdb.com/*'],
+        connect: ['javstore.net', 'pixhost.to'],
         author: 'gaki'
       },
       build: {
         externalGlobals: {
           //key对应npm包名称,exportVarName对应暴露出的变量名
-          vue: cdn
-            .jsdelivr('Vue', 'dist/vue.global.prod.js')
-            .concat('https://cdn.jsdelivr.net/npm/vue-demi@latest/lib/index.iife.min.js')
-            .concat(
-              await util.fn2dataUrl(() => {
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-ignore
-                window.Vue = Vue // work with element-plus
-              })
-            ),
-          jquery: cdn.jsdelivr('jQuery', 'dist/jquery.min.js'),
-          dayjs: cdn.jsdelivr('dayjs', 'dayjs.min.js'),
-          pinia: cdn.jsdelivr('Pinia', 'dist/pinia.iife.prod.js'),
-          'realm-web': cdn.jsdelivr('Realm', 'dist/bundle.iife.js'),
-          'element-plus': cdn.jsdelivr('ElementPlus', 'dist/index.full.min.js'),
-          '@element-plus/icons-vue': cdn.jsdelivr('ElementPlusIconsVue', 'dist/index.iife.min.js')
+          // vue: cdn
+          //   .jsdelivr('Vue', 'dist/vue.global.prod.js')
+          //   .concat(
+          //     await util.fn2dataUrl(() => {
+          //       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          //       // @ts-ignore
+          //       window.Vue = Vue // work with element-plus
+          //     })
+          //   ),
+          // jquery: cdn.jsdelivr('jQuery', 'dist/jquery.min.js')
+          // pinia: cdn.jsdelivr('Pinia', 'dist/pinia.iife.prod.js'),
+          // 'realm-web': cdn.jsdelivr('Realm', 'dist/bundle.iife.js'),
+          // 'element-plus': cdn.jsdelivr('ElementPlus', 'dist/index.full.min.js'),
+          // '@element-plus/icons-vue': cdn.jsdelivr('ElementPlusIconsVue', 'dist/index.iife.min.js')
         },
         externalResource: {
-          'element-plus/dist/index.css': cdn.jsdelivr()
+          // 'element-plus/dist/index.css': cdn.jsdelivr()
         }
       }
     })

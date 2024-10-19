@@ -1,10 +1,11 @@
-import { GM_deleteValue } from '$'
 import { SiteAbstract } from '@/site/site-abstract'
 import $ from 'jquery'
 import { Sisters } from '@/site/sisters'
 import { Pagination } from './pagination'
 import { ElNotification } from 'element-plus'
 import { useConfigStore } from '@/store/config-store'
+import { WaterfallStatus } from '@/dictionary'
+import { reactive } from 'vue'
 
 export default class {
   public page: Pagination
@@ -18,14 +19,12 @@ export default class {
   constructor(site: SiteAbstract, selector: Selector, sisters: Sisters) {
     this.site = site
     this.selector = selector
-    this.page = new Pagination(this.getDetail(document))
+    this.page = reactive(new Pagination(this.getDetail(document)))
     const $pageNation = $(this.selector.pagination)
     if ($pageNation.length > 0) {
       this.anchor = $pageNation[0]
     }
     this.sisters = sisters
-    GM_deleteValue('waterfallScrollStatus')
-    GM_deleteValue('whetherToLoadPreview')
   }
 
   flow(waterfallScrollStatus: number | null = null) {
@@ -41,13 +40,13 @@ export default class {
     }
 
     switch (waterfallScrollStatus) {
-      case 0:
+      case WaterfallStatus.close.code:
         ElNotification({ title: '瀑布流', message: `瀑布流已关闭`, type: 'info' })
         break
-      case 1:
+      case WaterfallStatus.lazy.code:
         this.flowLazy()
         break
-      case 2:
+      case WaterfallStatus.oneStep.code:
         this.flowOneStep()
         break
     }
@@ -93,7 +92,7 @@ export default class {
   }
 
   async appendNext(oneStep: boolean = false) {
-    if (this.page.isEnd.value) {
+    if (this.page.isEnd) {
       console.log(`没有下一页`)
       return this.end()
     }
@@ -110,9 +109,9 @@ export default class {
   }
 
   isEnd() {
-    this.page.isEnd.value = true
+    this.page.isEnd = true
     this.site.loadCompleted()
-    ElNotification({ title: '提示', message: `加载完毕!!!`, type: 'success' })
+    ElNotification({ title: '提示', message: `瀑布流落地了`, type: 'success' })
   }
 
   getBaseURI() {

@@ -16,19 +16,26 @@ export const useConfigStore = defineStore('config', {
       const state = GM_getValue('config', this.$state as LocalState)
       console.log('读取配置文件', name, state)
       state.waterfall = new Map()
+      const defaultWaterfall = getDefaultWaterfall()
       if (!state.waterfallJsonObject) {
-        state.waterfall.set(name, getDefaultWaterfall())
+        state.waterfall.set(name, defaultWaterfall)
       } else {
         state.waterfall = new Map(Object.entries(state.waterfallJsonObject))
       }
       if (!state.waterfall.has(name)) {
-        state.waterfall.set(name, getDefaultWaterfall())
+        state.waterfall.set(name, defaultWaterfall)
       }
       const config = state.waterfall.get(name)
-      state.currentConfig = config ? config : getDefaultWaterfall()
+      state.currentConfig = config ? config : defaultWaterfall
+      for (const key in defaultWaterfall) {
+        if (!(key in state.currentConfig)) {
+          state.currentConfig[key] = defaultWaterfall[key]
+        }
+      }
       this.$patch(state)
       console.log('当前配置', this.$state)
     },
+
     saveLocal() {
       const localSate = {
         ...this.$state,
@@ -43,7 +50,9 @@ export const useConfigStore = defineStore('config', {
 function getDefaultWaterfall() {
   return {
     loadPreviewSwitch: true,
-    scrollStatus: 1
+    scrollStatus: 1,
+    smooth: 1,
+    navigationPoint: 0
   } as Waterfall
 }
 
@@ -58,4 +67,7 @@ interface LocalState extends State {
 export interface Waterfall {
   loadPreviewSwitch: boolean
   scrollStatus: number
+  smooth: number
+  navigationPoint: number
+  [key: string]: any
 }

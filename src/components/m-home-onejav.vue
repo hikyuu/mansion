@@ -1,28 +1,58 @@
 <script lang="ts" setup>
 import { Onejav } from '@/site/onejav/onejav'
-import type { OnejavDaily } from '@/site/onejav/onejav-daily'
-import { dailiesRef } from '@/site/onejav/onejav-daily'
-import { defineProps, ref, toRefs } from 'vue'
+import { dailiesRef, type OnejavDaily } from '@/site/onejav/onejav-daily'
+import { computed, defineProps, ref, toRef, toRefs } from 'vue'
 import { FORMAT } from '@/dictionary'
 import { getTodayHistories } from '@/site/onejav/onejav-history'
-import { Calendar } from '@element-plus/icons-vue'
+import { Calendar, DocumentCopy, Right } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
 import { onKeyStroke } from '@vueuse/core'
 import dayjs from 'dayjs'
+import type { CalendarDateType, CalendarInstance } from 'element-plus'
 import { ElLoading, ElNotification } from 'element-plus'
+
+import 'dayjs/locale/zh-cn'
+
+const calendar = ref<CalendarInstance>()
 
 const props = defineProps<{ onejav: Onejav }>()
 
-const selected = ref(new Date())
+const getCurrentDate = () => {
+  const date = dayjs(location.pathname, FORMAT.PATH_DATE, true)
+  if (!date.isValid()) {
+    return new Date()
+  }
+  return date.toDate()
+}
+
+const calendarDate = ref(getCurrentDate())
 
 const onejav = toRefs<Onejav>(props.onejav)
 
 const visible = ref<boolean>(false)
 
+const selectDate = (val: CalendarDateType) => {
+  if (!calendar.value) return
+  calendar.value.selectDate(val)
+}
+
+function selectCurrent() {
+  const date = dayjs(location.pathname, FORMAT.PATH_DATE, true)
+  if (!date.isValid()) {
+    ElNotification({ title: '提示', message: '当前页不是日期页', type: 'info' })
+    return
+  }
+  calendarDate.value = date.toDate()
+}
+
 function gotoNextDay(event: KeyboardEvent) {
   console.log('gotoNextDay')
   event.preventDefault()
+  openNextDay(true)
+}
+
+function openNextDay(self: boolean) {
   const date = dayjs(location.pathname, FORMAT.PATH_DATE, true)
   if (!date.isValid()) {
     ElNotification({ title: '提示', message: '当前页不是日期页', type: 'info' })
@@ -33,16 +63,16 @@ function gotoNextDay(event: KeyboardEvent) {
     return
   }
   let nextDay = date.add(1, 'day').format(FORMAT.PATH_DATE)
-  window.open(nextDay, '_self')
-  ElLoading.service({ lock: true, fullscreen: true, text: `跳转到${nextDay}` })
+  window.open(nextDay, self ? '_self' : '_blank')
+  if (self) {
+    ElLoading.service({ lock: true, fullscreen: true, text: `跳转到${nextDay}` })
+  }
 }
 
 onKeyStroke('0', (event: KeyboardEvent) => gotoNextDay(event), { dedupe: true })
 
 function haveReadNumber(pathDate: string) {
-  // console.time('history-filter')
-  const length = getTodayHistories(pathDate).length
-  // console.timeEnd('history-filter')
+  const length = getTodayHistories(pathDate).size
   return length
 }
 
@@ -82,36 +112,99 @@ function gotoDate(date: Date) {
   window.open(`${pathDate}`, '_self')
   ElLoading.service({ lock: true, fullscreen: true, text: `跳转到${pathDate}` })
 }
+
+function solveLink(date: Date) {
+  return dayjs(date).format(FORMAT.PATH_DATE)
+}
+
+const isLoadAll = computed(() => {
+  return (
+    props.onejav.sisters.queue.length >= props.onejav.sisters.sisterNumber * 0.9 && props.onejav.waterfall.page.isEnd
+  )
+})
+const recentHistories = computed(() => {
+  return dailiesRef.value
+    .sort((a, b) => {
+      return b.watchTime.getTime() - a.watchTime.getTime()
+    })
+    .slice(0, 10)
+})
+
+const queueRef = toRef(props.onejav.sisters, 'queue')
+
+const repeat = computed(() => {
+  if (props.onejav.sisters.current_index === undefined) return
+  return queueRef.value[props.onejav.sisters.current_index].repeat
+})
 </script>
 
 <template>
   <m-img-box>
-    <m-img-item>
-      <el-popover
-        v-model:visible="visible"
-        :width="900"
-        placement="left"
-        popper-style="box-shadow: rgb(14 18 22 / 35%) 0px 10px 38px -10px, rgb(14 18 22 / 20%) 0px 10px 20px -15px; padding: 20px;"
-        trigger="hover"
-      >
-        <template #reference>
-          <m-img-item>
-            <el-icon :color="onejav.theme.value.PRIMARY_COLOR" :size="60">
-              <Calendar />
-            </el-icon>
-          </m-img-item>
-        </template>
-        <template #default>
-          <el-calendar>
-            <template #date-cell="{ data }">
-              <p :style="dateStyle(data.date)" @click="gotoDate(data.date)">
-                <a>{{ data.day.split('-').slice(1).join('-') }}</a>
-                <a>{{ readNumber(data.date) }}</a>
-              </p>
-            </template>
-          </el-calendar>
-        </template>
-      </el-popover>
+    <m-img-item v-if="repeat">
+      <el-icon style="" :color="onejav.theme.value.WARNING_COLOR" :size="60">
+        <DocumentCopy />
+      </el-icon>
     </m-img-item>
+    <div style="display: flex; justify-content: center">
+      <m-img-item>
+        <el-icon
+          v-if="isLoadAll"
+          style="cursor: pointer"
+          :color="onejav.theme.value.PRIMARY_COLOR"
+          :size="60"
+          @click="openNextDay(false)"
+        >
+          <Right />
+        </el-icon>
+      </m-img-item>
+      <m-img-item>
+        <el-icon
+          style="cursor: pointer"
+          :color="onejav.theme.value.PRIMARY_COLOR"
+          :size="60"
+          @click="visible = !visible"
+        >
+          <Calendar />
+        </el-icon>
+
+        <el-drawer
+          v-model="visible"
+          title="日历"
+          direction="rtl"
+          :append-to-body="true"
+          size="50%"
+          :close-on-press-escape="true"
+        >
+          <template #default>
+            <el-date-picker v-model="calendarDate" type="date" placeholder="选择日期" size="large" />
+            <el-calendar ref="calendar" v-model="calendarDate">
+              <template #header="{ date }">
+                <span> <el-button size="small" @click="selectCurrent"> 当前 </el-button> </span>
+                <span>{{ date }}</span>
+                <el-button-group>
+                  <el-button size="small" @click="selectDate('prev-year')">上一年</el-button>
+                  <el-button size="small" @click="selectDate('prev-month')">上个月</el-button>
+                  <el-button size="small" @click="selectDate('today')">今天</el-button>
+                  <el-button size="small" @click="selectDate('next-month')">下个月</el-button>
+                  <el-button size="small" @click="selectDate('next-year')">下一年</el-button>
+                </el-button-group>
+              </template>
+              <template #date-cell="{ data }">
+                <div :style="dateStyle(data.date)">
+                  <el-link style="text-align: center" type="primary" :href="solveLink(data.date)" target="_self">
+                    {{ data.day.split('-').slice(1).join('-') }}<br />{{ readNumber(data.date) }}</el-link
+                  >
+                </div>
+              </template>
+            </el-calendar>
+            <el-row>
+              <el-col v-for="history in recentHistories" :key="history.pathDate" :span="24">
+                <el-link type="primary" :href="history.pathDate" target="_self">{{ history.pathDate }}</el-link>
+              </el-col>
+            </el-row>
+          </template>
+        </el-drawer>
+      </m-img-item>
+    </div>
   </m-img-box>
 </template>

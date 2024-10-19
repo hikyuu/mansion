@@ -6,6 +6,7 @@ import { GM_getValue } from 'vite-plugin-monkey/dist/client'
 import type { Info } from '@/site/sisters'
 import { LockPool } from '@/common/lock-pool'
 import dayjs from 'dayjs'
+import { ElNotification } from 'element-plus'
 
 const realmTask: RealmTask = new RealmTask()
 
@@ -14,6 +15,8 @@ let onejav: Realm.Services.MongoDB.MongoDBCollection<History> | undefined = unde
 const lockPool = new LockPool()
 //数据可能会很多不要滥用响应式
 export let historySerialNumbers: Map<string, History> = new Map()
+
+const dailyHistories: Map<string, Map<string, History>> = new Map()
 
 export async function loadRemoteHistory() {
   const onejav = getOnejavHistory()
@@ -28,8 +31,9 @@ export async function loadRemoteHistory() {
       realmTask.addTask(history, work)
     }
     if (!historySerialNumbers.has(history.serialNumber)) {
-      console.log('添加远程数据')
+      // console.log('添加远程数据')
       historySerialNumbers.set(history.serialNumber, history)
+      setDailyHistoryMap(history)
       countRemote++
     }
   }
@@ -42,21 +46,32 @@ export async function loadRemoteHistory() {
   setLocalHistory()
 }
 
+function setDailyHistoryMap(history: History) {
+  const histories = dailyHistories.get(history.pathDate)
+  if (histories) {
+    histories.set(history.serialNumber, history)
+  } else {
+    dailyHistories.set(history.pathDate, new Map([[history.serialNumber, history]]))
+  }
+}
+
 export function loadLocalHistory() {
   const json = GM_getValue(KEY.ONEJAV_HISTORY_KEY, {})
   historySerialNumbers = new Map(Object.entries(json))
   let count = 0
-  historySerialNumbers.forEach((value, key) => {
-    if (key !== value.serialNumber) {
+  historySerialNumbers.forEach((history, key) => {
+    if (key !== history.serialNumber) {
       historySerialNumbers.delete(key)
       count++
+      return
     }
+    setDailyHistoryMap(history)
   })
   if (count > 0) {
     console.log(`清理${count}条数据`)
     setLocalHistory()
   }
-  console.log('本地历史记录', historySerialNumbers)
+  // console.log('本地历史记录', historySerialNumbers)
 }
 
 const work = async (history: History) => {
@@ -93,21 +108,34 @@ export function getOnejavHistory() {
   return onejav
 }
 
-async function uploadRemoteHistory(serialNumber: string, history: History, retry: number = 3): Promise<void> {
+async function uploadRemoteHistory(serialNumber: string, history: History, retry: number = 3): Promise<History> {
   try {
     onejav = getOnejavHistory()
-    await onejav.updateOne({ serialNumber: serialNumber }, history, { upsert: true } as any)
+    await onejav.updateOne({ serialNumber: serialNumber, pathDate: history.pathDate }, history, { upsert: true } as any)
     console.log(serialNumber, '上传成功')
+
     historySerialNumbers.set(history.serialNumber, history)
+    setDailyHistoryMap(history)
+    /*
+     * 数据太大导致卡顿
+     * */
     // setLocalHistory()
     //解锁
     lockPool.unlock(serialNumber)
-    return Promise.resolve()
+    return Promise.resolve(history)
   } catch (reason) {
     console.error(reason)
+    ElNotification.error({
+      title: '远程上传失败！',
+      message: `${serialNumber}上传失败，重试中`
+    })
     lockPool.unlock(serialNumber)
     console.log('历史上传重复次数', retry)
     if (retry <= 0) {
+      ElNotification.error({
+        title: '远程上传失败！',
+        message: `${serialNumber}上传失败，重试次数用尽`
+      })
       return Promise.reject('重试次数用尽')
     }
     return uploadRemoteHistory(serialNumber, history, --retry)
@@ -115,7 +143,7 @@ async function uploadRemoteHistory(serialNumber: string, history: History, retry
 }
 
 export async function uploadHistory(serialNumber: string, info: Info) {
-  if (lockPool.locked(serialNumber)) return Promise.resolve()
+  if (lockPool.locked(serialNumber)) return Promise.reject()
 
   console.log(`记录`, serialNumber)
   lockPool.lock(serialNumber)
@@ -140,7 +168,12 @@ export function setLocalHistory() {
 }
 
 export function getTodayHistories(pathDate: string) {
-  return Array.from(historySerialNumbers).filter(([key, history]) => history.pathDate === pathDate)
+  // return Array.from(historySerialNumbers).filter(([key, history]) => history.pathDate === pathDate)
+  const map = dailyHistories.get(pathDate)
+  if (map === undefined) {
+    return new Map<string, History>()
+  }
+  return map
 }
 
 export declare interface History {
