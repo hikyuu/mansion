@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { getSite } from '@/site'
-import { ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { Sisters } from '@/site/sisters'
 import { SiteAbstract } from '@/site/site-abstract'
 import { Onejav } from '@/site/onejav/onejav'
@@ -12,10 +12,10 @@ import { ElNotification } from 'element-plus'
 
 const site = ref<SiteAbstract>()
 
-const sisters = ref<Sisters>(new Sisters())
+const sisters = reactive<Sisters>(new Sisters())
 
 const configStore = useConfigStore()
-const exactSite = getSite(sisters.value)
+const exactSite = getSite(sisters)
 if (exactSite === undefined) {
   ElNotification({ title: 'mansion', message: `不支持当前网站!`, type: 'error' })
 } else {
@@ -46,7 +46,6 @@ if (exactSite === undefined) {
 }
 .mansion {
   box-sizing: border-box;
-  z-index: 9999999;
   position: fixed;
   top: 50%;
   right: 0;

@@ -87,7 +87,7 @@ export async function loadDailies() {
           console.log('删除', onejavDaily.pathDate, '不是日期')
           getOnejavDaily().deleteOne({ _id: onejavDaily._id })
         }
-        dailiesRef.value = result
+        dailiesRef.value.push(onejavDaily)
       }
     })
   setDailies(value)

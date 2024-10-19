@@ -3,7 +3,7 @@ import Waterfall from '@/waterfall/index'
 import { getId, getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSortId } from '@/common'
 import { SiteAbstract } from '../site-abstract'
 import $ from 'jquery'
-import { picx } from '@/dictionary'
+import { picx, WaterfallStatus } from '@/dictionary'
 
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { Sisters } from '@/site/sisters'
@@ -44,15 +44,19 @@ export class Onejav extends SiteAbstract {
   }
 
   async mount(): Promise<void> {
-    this.adObserve()
-
+    // this.adObserve()
     this.addStyle()
     loadLocalHistory()
-    loadLocalDailies()
-    loginApiKey().then(() => {
-      loadRemoteHistory().then()
-      loadDailies().then()
-    })
+    // loadLocalDailies()
+    loginApiKey()
+      .then(() => {
+        loadRemoteHistory().then()
+        loadDailies().then()
+      })
+      .catch((e) => {
+        loadLocalDailies()
+        console.error(e)
+      })
 
     this.home()
 
@@ -98,11 +102,24 @@ export class Onejav extends SiteAbstract {
     const loadUrl = picx('/load.svg')
     const failedUrl = picx('/failed.svg')
     let haveRead = false
-    const history = historySerialNumbers.get(serialNumber)
-    if (history && history.pathDate == pathDate) {
+    if (historySerialNumbers.has(serialNumber)) {
       haveRead = true
     }
-    this.sisters.updateInfo({ serialNumber, src: loadUrl, date, haveRead, pathDate, status: 200 })
+
+    const info = this.sisters.updateInfo({
+      serialNumber,
+      src: loadUrl,
+      date,
+      haveRead,
+      repeat: false,
+      pathDate,
+      status: 200
+    })
+
+    if (haveRead && historySerialNumbers.get(serialNumber)?.pathDate !== pathDate) {
+      this.sisters.updateInfo({ serialNumber, repeat: true })
+      uploadHistory(serialNumber, info).then()
+    }
 
     const preview = getPreviewElement(serialNumber, loadUrl, false)
     const divEle = item.find('div.container')[0]
@@ -171,7 +188,7 @@ export class Onejav extends SiteAbstract {
       ElNotification({ title: '提示', message: `${serialNumber}日期格式有变动`, type: 'error' })
       return
     }
-    if (info.haveRead) {
+    if (info.haveRead && getTodayHistories(pathDate).has(info.serialNumber)) {
       console.log('已经记录', serialNumber)
       return
     }
@@ -184,7 +201,7 @@ export class Onejav extends SiteAbstract {
     return /(onejav)/g.test(document.URL)
   }
 
-  download(): void {
+  download() {
     console.log('下载', this.sisters.current_key)
     const $id = $('#' + this.sisters.current_key)
     const $download = $id.find("a[title='Download .torrent']")
@@ -327,9 +344,9 @@ export class Onejav extends SiteAbstract {
 
     if (pathDate !== undefined) {
       const thatDay_histories = getTodayHistories(pathDate)
-      if (thatDay_histories.length > 0) {
+      if (thatDay_histories.size > 0) {
         title.children(`#${id}`).remove()
-        title.append(`<div id="${id}" style="white-space:pre">  ${thatDay_histories.length}部已阅</div>`)
+        title.append(`<div id="${id}" style="white-space:pre">  ${thatDay_histories.size}部已阅</div>`)
         this.markAsRead(card)
       } else {
         title.children(`#${id}`).remove()
@@ -360,7 +377,7 @@ export class Onejav extends SiteAbstract {
     $onejav[0].parentElement.id = 'waterfall'
     if (isNaN(Date.parse(location.pathname))) {
       ElNotification({ title: '瀑布流', message: `页数可能较多强制启用懒加载模式`, type: 'info' })
-      this.waterfall.flow(1)
+      this.waterfall.flow(WaterfallStatus.lazy.code)
     } else {
       this.waterfall.flow()
     }

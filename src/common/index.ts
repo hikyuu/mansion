@@ -242,7 +242,7 @@ function request(url: string, referrerStr: string = '', timeoutInt: number = -1)
         reject('请求出错')
       },
       ontimeout: () => {
-        reject(`${timeoutInt > 0 ? timeoutInt : 10000}ms timeout`)
+        reject(`${timeoutInt > 0 ? timeoutInt : 30000}ms timeout`)
       }
     })
   })

@@ -9,6 +9,7 @@ import $ from 'jquery'
 
 import { getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSortId } from '@/common'
 import { historySerialNumbers } from '@/site/onejav/onejav-history'
+import { useConfigStore } from '@/store/config-store'
 
 export abstract class SiteAbstract implements SiteInterface {
   hasLoadCompleted = false
@@ -70,15 +71,20 @@ export abstract class SiteAbstract implements SiteInterface {
   }
 
   scrollToCurrent(x: Ref<number>, y: Ref<number>): void {
-    const prev = $('#' + this.sisters.current_key).find('#preview')
+    let prev = $('#' + this.sisters.current_key)
+    switch (useConfigStore().currentConfig.navigationPoint) {
+      case 1:
+        prev = prev.find('#preview')
+        break
+    }
     if (prev.length === 0) return
     const offset = prev.offset()
     if (offset === undefined) return
-    y.value = offset.top
+    y.value = offset.top - 52
   }
 
   loadNext(): void {
-    this.waterfall.appendNext()
+    this.waterfall.appendNext().then()
   }
 
   protected getCurrentWindowElement(detail: JQuery, scrollTop: number) {
@@ -86,8 +92,10 @@ export abstract class SiteAbstract implements SiteInterface {
     if (detailTop === undefined) return
     const detailHeight = detail.height()
     if (detailHeight === undefined) return
-    if (detailTop <= scrollTop && detailTop + detailHeight > scrollTop) {
+    //当前页面顶部位置大于等于元素的顶部位置并且小于元素的底部位置
+    if (scrollTop >= detailTop - 60 && detailTop + detailHeight > scrollTop) {
       const serialNumber = detail.attr('id')
+      // console.log(detailTop, scrollTop)
       // console.log('当前窗口元素：', serialNumber)
       if (!serialNumber || this.sisters.current_key === serialNumber) {
         return
@@ -129,6 +137,7 @@ export abstract class SiteAbstract implements SiteInterface {
     const loadUrl = picx('/load.svg')
     const failedUrl = picx('/failed.svg')
     const haveRead = historySerialNumbers.has(serialNumber)
+
     this.sisters.updateInfo({ serialNumber, src: loadUrl, date, haveRead, pathDate, status: 200 })
     const preview = getPreviewElement(serialNumber, loadUrl, false)
     item.find('#preview').remove()
@@ -139,7 +148,7 @@ export abstract class SiteAbstract implements SiteInterface {
       preview.children('img').attr('src', failedUrl)
       return
     }
-    const javstoreUrl = await getJavstoreUrl(sortId, 3)
+    const javstoreUrl = await getJavstoreUrl(sortId, 1000)
     if (javstoreUrl === null) {
       this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 404 })
       preview.children('img').attr('src', failedUrl)
@@ -148,7 +157,7 @@ export abstract class SiteAbstract implements SiteInterface {
     } else {
       this.addLink('JavStore', el_link, serialNumber, item, javstoreUrl)
     }
-    const imgUrl = await getPreviewUrlFromJavStore(javstoreUrl, serialNumber)
+    const imgUrl = await getPreviewUrlFromJavStore(javstoreUrl, serialNumber, 1000)
     if (!imgUrl) {
       this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 405 })
       preview.children('img').attr('src', failedUrl)

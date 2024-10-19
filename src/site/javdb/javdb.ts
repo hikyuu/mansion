@@ -7,6 +7,7 @@ import $ from 'jquery'
 import { Task } from '@/site/task'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { useConfigStore } from '@/store/config-store'
+import { WaterfallStatus } from '@/dictionary'
 
 export class Javdb extends SiteAbstract {
   public name = 'javdb'
@@ -63,7 +64,7 @@ export class Javdb extends SiteAbstract {
       return
     }
     item[0].parentElement.id = 'waterfall'
-    this.waterfall.flow(1)
+    this.waterfall.flow(WaterfallStatus.lazy.code)
   }
 
   findImages(elems: JQuery): void {

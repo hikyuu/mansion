@@ -25,6 +25,14 @@ function scrollStatusChange(value: number) {
   }
 }
 
+function scrollAnimationChange(value: number) {
+  if (value) {
+    ElNotification({ title: '瀑布流', message: `开启滚动动画`, type: 'info' })
+  } else {
+    ElNotification({ title: '瀑布流', message: `关闭滚动动画`, type: 'info' })
+  }
+}
+
 const WaterfallStatus = {
   close: {
     msg: '关闭瀑布流',
@@ -76,7 +84,7 @@ function reload() {
           </el-icon>
         </template>
         <template #default>
-          <el-form label-position="right" label-width="100px" style="max-width: 460px">
+          <el-form label-position="right" label-width="auto">
             <el-form-item label="预览图">
               <el-switch
                 v-model="currentConfig.loadPreviewSwitch"
@@ -94,8 +102,20 @@ function reload() {
                 <el-radio :value="2" border>一步到位</el-radio>
               </el-radio-group>
             </el-form-item>
+            <el-form-item label="滚动动画">
+              <el-radio-group v-model="currentConfig.smooth" @change="scrollAnimationChange">
+                <el-radio :value="0" border>关</el-radio>
+                <el-radio :value="1" border>开</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="导航起点">
+              <el-radio-group v-model="currentConfig.navigationPoint">
+                <el-radio :value="0" border>标题</el-radio>
+                <el-radio :value="1" border>预览</el-radio>
+              </el-radio-group>
+            </el-form-item>
             <el-row justify="center">
-              <el-button type="primary" @click="reload">刷新页面</el-button>
+              <el-button type="primary" @click="reload">保存并刷新页面</el-button>
             </el-row>
           </el-form>
         </template>

@@ -1,4 +1,5 @@
 import $ from 'jquery'
+import { ElNotification } from 'element-plus'
 
 export class Sisters {
   current_index: number | undefined = undefined
@@ -42,19 +43,23 @@ export class Sisters {
   }
 
   updateInfo(info: Info) {
-    if (info.serialNumber === '') return
+    if (info.serialNumber === '') {
+      ElNotification.error({ title: '错误', message: 'serialNumber为空' })
+      throw new Error('serialNumber')
+    }
     if (this.queue.length <= 0) {
       this.current_index = 0
       this.current_key = info.serialNumber
     }
     let existInfo = this.queue.find((item) => item.serialNumber === info.serialNumber)
-    if (!existInfo) {
+    if (existInfo === undefined) {
       existInfo = info as Info
       existInfo.serialNumber = info.serialNumber
       this.queue.push(existInfo)
     } else {
       Object.assign(existInfo, info)
     }
+    return existInfo
   }
 
   async getScrollTop(index: number) {
@@ -75,6 +80,7 @@ export class Sisters {
 export declare interface Info {
   serialNumber: string
   scrollTop?: number
+  repeat?: boolean
   src?: string
   date?: string
   haveRead?: boolean

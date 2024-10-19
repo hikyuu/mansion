@@ -8,6 +8,7 @@ import { onKeyStroke, useScroll } from '@vueuse/core'
 import { Location, Memo } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
+import { useConfigStore } from '@/store/config-store'
 
 const props = defineProps<{
   sisters: Sisters
@@ -22,12 +23,14 @@ const loadAll = reactive({
   color: props.site.theme.WARNING_COLOR
 })
 
+const configStore = useConfigStore()
+
 const { x, y } = useScroll(window, {
   onStop: () => {
     // console.log('滚动结束')
     props.site.waterfall.onScrollEvent()
   },
-  behavior: 'smooth'
+  behavior: configStore.currentConfig.smooth ? 'smooth' : 'auto'
 })
 
 onKeyStroke('ArrowLeft', (event: KeyboardEvent) => previous(event), { dedupe: true })
@@ -138,7 +141,8 @@ watch(
   () => props.site.waterfall.page.isEnd,
   (isEnd) => {
     loadAll.color = isEnd ? 'green' : props.site.theme.WARNING_COLOR
-  }
+  },
+  { immediate: true }
 )
 </script>
 
@@ -172,7 +176,7 @@ watch(
         <span style="color: green">{{ sisters.queue.length }}</span>
       </div>
       <div class="count-group" @click="gotoLastRead(haveReadNumber)">
-        <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
+        <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" size="30">
           <svg-readed />
         </el-icon>
         <span style="color: green">{{ haveReadNumber }}</span>
@@ -215,7 +219,6 @@ watch(
 .view-image {
   box-sizing: border-box;
   position: fixed;
-  z-index: 999999;
   top: 0;
   right: 0;
   bottom: 0;
