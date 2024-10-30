@@ -56,7 +56,7 @@ export default defineConfig({
         icon: 'https://github.com/hikyuu/gallery/raw/main/picx/mansion.svg',
         namespace: 'npm/mansion',
         match: ['*://*onejav.com/*', '*://*javdb.com/*'],
-        connect: ['javstore.net', 'pixhost.to'],
+        connect: ['javstore.net', 'pixhost.to', 'javdb.com', 'onejav.com'],
         author: 'gaki'
       },
       build: {

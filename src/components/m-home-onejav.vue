@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { Onejav } from '@/site/onejav/onejav'
-import { dailiesRef, type OnejavDaily } from '@/site/onejav/onejav-daily'
+import { dailiesRef } from '@/site/onejav/onejav-daily'
 import { computed, defineProps, ref, toRef, toRefs } from 'vue'
 import { FORMAT } from '@/dictionary'
-import { getTodayHistories } from '@/site/onejav/onejav-history'
+import { dailyNumberRef } from '@/site/onejav/onejav-history'
 import { Calendar, DocumentCopy, Right } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
@@ -72,8 +72,7 @@ function openNextDay(self: boolean) {
 onKeyStroke('0', (event: KeyboardEvent) => gotoNextDay(event), { dedupe: true })
 
 function haveReadNumber(pathDate: string) {
-  const length = getTodayHistories(pathDate).size
-  return length
+  return dailyNumberRef.get(pathDate) || 0
 }
 
 function dateStyle(date: Date) {
@@ -87,7 +86,8 @@ function dateStyle(date: Date) {
     height: '100%',
     backgroundColor: 'white'
   }
-  const today = dailiesRef.value.find((daily: OnejavDaily) => daily.pathDate === pathDate)
+
+  const today = dailiesRef.value.get(pathDate)
   if (!today) return style
   const number = haveReadNumber(pathDate)
   if (number / today.sisterNumber > 0.9) {
@@ -102,7 +102,8 @@ function dateStyle(date: Date) {
 function readNumber(date: Date) {
   if (!visible.value) return ''
   const pathDate = dayjs(date).format(FORMAT.PATH_DATE)
-  const today = dailiesRef.value.find((daily: OnejavDaily) => daily.pathDate === pathDate)
+
+  const today = dailiesRef.value.get(pathDate)
   if (!today) return ''
   return `${haveReadNumber(pathDate)}/${today.sisterNumber}`
 }
@@ -123,7 +124,8 @@ const isLoadAll = computed(() => {
   )
 })
 const recentHistories = computed(() => {
-  return dailiesRef.value
+  // todo 改后台查询
+  return Array.from(dailiesRef.value.values())
     .sort((a, b) => {
       return b.watchTime.getTime() - a.watchTime.getTime()
     })
@@ -140,21 +142,15 @@ const repeat = computed(() => {
 
 <template>
   <m-img-box>
-    <m-img-item v-if="repeat">
-      <el-icon style="" :color="onejav.theme.value.WARNING_COLOR" :size="60">
-        <DocumentCopy />
+    <m-img-item v-if="isLoadAll">
+      <el-icon style="cursor: pointer" :color="onejav.theme.value.PRIMARY_COLOR" :size="60" @click="openNextDay(false)">
+        <Right />
       </el-icon>
     </m-img-item>
     <div style="display: flex; justify-content: center">
-      <m-img-item>
-        <el-icon
-          v-if="isLoadAll"
-          style="cursor: pointer"
-          :color="onejav.theme.value.PRIMARY_COLOR"
-          :size="60"
-          @click="openNextDay(false)"
-        >
-          <Right />
+      <m-img-item v-if="repeat">
+        <el-icon style="" :color="onejav.theme.value.WARNING_COLOR" :size="60">
+          <DocumentCopy />
         </el-icon>
       </m-img-item>
       <m-img-item>

@@ -9,6 +9,16 @@ import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { useConfigStore } from '@/store/config-store'
 import { WaterfallStatus } from '@/dictionary'
 
+export const javdb_selector: Selector = {
+  next: 'a.pagination-next',
+  container: 'div.movie-list.h.cols-4.vcols-8',
+  item: 'div.item',
+  pagination: 'nav.pagination',
+  serialNumber: 'div.video-title strong',
+  date: 'div.meta',
+  pathDate: 'div.meta'
+}
+
 export class Javdb extends SiteAbstract {
   public name = 'javdb'
   public waterfall: Waterfall
@@ -19,15 +29,7 @@ export class Javdb extends SiteAbstract {
     this.waterfall = new Waterfall(this, this.selector, sisters)
   }
   private task: Task = new Task(this)
-  selector: Selector = {
-    next: 'a.pagination-next',
-    container: 'div.movie-list.h.cols-4.vcols-8',
-    item: 'div.item',
-    pagination: 'nav.pagination',
-    serialNumber: 'div.video-title strong',
-    date: 'div.meta',
-    pathDate: 'div.meta'
-  }
+  selector: Selector = javdb_selector
 
   theme = {
     PRIMARY_COLOR: '#2f7feb',
@@ -80,6 +82,8 @@ export class Javdb extends SiteAbstract {
   }
 
   download(): void {}
+
+  allRead() {}
 
   save(serialNumber: string): void {}
 

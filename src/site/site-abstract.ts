@@ -8,7 +8,7 @@ import { KEY, picx } from '@/dictionary'
 import $ from 'jquery'
 
 import { getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSortId } from '@/common'
-import { historySerialNumbers } from '@/site/onejav/onejav-history'
+import { getHistories } from '@/site/onejav/onejav-history'
 import { useConfigStore } from '@/store/config-store'
 
 export abstract class SiteAbstract implements SiteInterface {
@@ -38,6 +38,8 @@ export abstract class SiteAbstract implements SiteInterface {
   abstract loadCompleted(): void
 
   abstract checkSite(): boolean
+
+  abstract allRead(): void
 
   addLink(
     text: string,
@@ -116,7 +118,7 @@ export abstract class SiteAbstract implements SiteInterface {
     }
   }
 
-  async addPreview(item: JQuery, type = 0) {
+  async addPreview(item: JQuery, type = 0, onlyInfo = false) {
     // console.log('添加预览图：通用')
     const serialNumber = item
       .find(this.selector.serialNumber)
@@ -136,7 +138,9 @@ export abstract class SiteAbstract implements SiteInterface {
     item.attr('id', serialNumber)
     const loadUrl = picx('/load.svg')
     const failedUrl = picx('/failed.svg')
-    const haveRead = historySerialNumbers.has(serialNumber)
+
+    const histories = await getHistories(serialNumber)
+    const haveRead = histories.length > 0
 
     this.sisters.updateInfo({ serialNumber, src: loadUrl, date, haveRead, pathDate, status: 200 })
     const preview = getPreviewElement(serialNumber, loadUrl, false)
@@ -148,6 +152,9 @@ export abstract class SiteAbstract implements SiteInterface {
       preview.children('img').attr('src', failedUrl)
       return
     }
+
+    if (onlyInfo) return
+
     const javstoreUrl = await getJavstoreUrl(sortId, 1000)
     if (javstoreUrl === null) {
       this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 404 })
