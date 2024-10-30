@@ -19,6 +19,7 @@ export class Task {
     this.waitQueue.push(elem)
     this.run()
   }
+
   run() {
     if (this.workNumber >= this.limit) return
     if (this.waitQueue.length <= 0) return
@@ -32,7 +33,17 @@ export class Task {
       })
     }
   }
+
   async work(elem: JQuery) {
     return this.site.addPreview(elem)
+  }
+
+  runAll() {
+    const elem = this.waitQueue.shift()
+    if (elem) {
+      this.site.addPreview(elem, 0, true).then(() => {
+        this.runAll()
+      })
+    }
   }
 }

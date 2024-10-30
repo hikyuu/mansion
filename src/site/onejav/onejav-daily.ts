@@ -1,7 +1,6 @@
 import * as realm from 'realm-web'
-import { FORMAT, KEY } from '@/dictionary'
+import { FORMAT } from '@/dictionary'
 import { ref } from 'vue'
-import { GM_getValue, GM_setValue } from 'vite-plugin-monkey/dist/client'
 import { LockPool } from '@/common/lock-pool'
 import dayjs from 'dayjs'
 
@@ -9,7 +8,9 @@ let daily: Realm.Services.MongoDB.MongoDBCollection<OnejavDaily> | undefined = u
 
 const lockPool = new LockPool()
 
-export const dailiesRef = ref<OnejavDaily[]>([])
+let loadingTime = new Date()
+
+export const dailiesRef = ref<Map<string, OnejavDaily>>(new Map())
 
 function getOnejavDaily() {
   if (daily === undefined) {
@@ -46,6 +47,7 @@ export async function uploadDaily(pathDate: string, sisterNumber: number, loadCo
     originalReleaseDate,
     watchTime: new Date()
   } as OnejavDaily
+
   updateRemoteDaily(daily, retry)
     .then(() => {
       updateOrAddDaily(daily)
@@ -78,7 +80,7 @@ async function updateRemoteDaily(daily: OnejavDaily, retry: number = 3) {
 }
 
 export async function loadDailies() {
-  const value = dailiesRef.value
+  loadingTime = new Date()
   getOnejavDaily()
     .find({})
     .then((result) => {
@@ -87,33 +89,16 @@ export async function loadDailies() {
           console.log('删除', onejavDaily.pathDate, '不是日期')
           getOnejavDaily().deleteOne({ _id: onejavDaily._id })
         }
-        dailiesRef.value.push(onejavDaily)
+        dailiesRef.value.set(onejavDaily.pathDate, onejavDaily)
       }
     })
-  setDailies(value)
 }
 
-export function loadLocalDailies() {
-  dailiesRef.value = GM_getValue<OnejavDaily[]>(KEY.ONEJAV_DAILY_KEY, [])
-}
-
-export function setDailies(dailies: OnejavDaily[]) {
-  console.log('日期记录写入本地')
-  GM_setValue(KEY.ONEJAV_DAILY_KEY, dailies)
-}
+export function loadLatestDailies() {}
 
 function updateOrAddDaily(daily: OnejavDaily) {
   // 查找数组中是否有匹配的对象
-  const dailies_value = dailiesRef.value
-  const index = dailies_value.findIndex((item: OnejavDaily) => item.pathDate === daily.pathDate)
-  if (index >= 0) {
-    // 如果有，就更新该对象
-    dailies_value[index] = daily
-  } else {
-    // 如果没有，就新增该对象
-    dailies_value.push(daily)
-  }
-  setDailies(dailies_value)
+  dailiesRef.value.set(daily.pathDate, daily)
 }
 
 export declare interface OnejavDaily {

@@ -179,46 +179,11 @@ export async function getPreviewUrlFromJavStore(javstore: string, serialNumber: 
     return null
   }
 }
-
-function requestGM_XHR(details: {
-  headers: { referrer: any }
-  method: 'GET' | 'HEAD' | 'POST'
-  url: any
-  timeout: number
-}) {
-  return new Promise((resolve, reject) => {
-    console.log(`发起网址请求：${details.url}`)
-    const req = GM_xmlhttpRequest({
-      method: details.method ? details.method : 'GET',
-      url: details.url,
-      headers: details.headers,
-      timeout: details.timeout > 0 ? details.timeout : 30000,
-      onprogress: (rsp) => {
-        // @ts-ignore
-        if (details.onprogress && details.onprogress(rsp)) {
-          resolve(rsp)
-          req.abort()
-        }
-      },
-      onload: (rsp) => resolve(rsp),
-      onerror: (rsp) => {
-        console.log(`${details.url} : error`)
-        reject(`error`)
-      },
-      ontimeout: () => {
-        console.log(`${details.url} ${details.timeout > 0 ? details.timeout : 20000}ms timeout`)
-        reject(`timeout`)
-      }
-    })
-  })
-}
-
-function request(url: string, referrerStr: string = '', timeoutInt: number = -1) {
+export function request(url: string, referer: string = '', timeoutInt: number = -1) {
   let cookie = ''
   if (url.match(/(pixhost)/gi)) {
     cookie = 'pixhostads=1'
   }
-
   return new Promise<any>((resolve, reject) => {
     // console.log(`发起网址请求：${url}`)
     GM_xmlhttpRequest({
@@ -226,7 +191,7 @@ function request(url: string, referrerStr: string = '', timeoutInt: number = -1)
       method: 'GET',
       headers: {
         'Cache-Control': 'no-cache',
-        Referer: referrerStr,
+        Referer: referer,
         Cookie: cookie
       },
       timeout: timeoutInt > 0 ? timeoutInt : 30000,
@@ -237,7 +202,7 @@ function request(url: string, referrerStr: string = '', timeoutInt: number = -1)
       onabort: () => {
         reject('请求中止')
       },
-      onerror: (response) => {
+      onerror: (reason) => {
         console.log(url + ' error')
         reject('请求出错')
       },
@@ -259,40 +224,67 @@ function parseText(text: string): Document {
   }
 }
 
+function alphaNumber(originalId: string) {
+  const cuttingNumber = originalId.matchAll(/(^[a-z].*[a-z])(\d+)/gi)
+  const numberArray = Array.from(cuttingNumber)
+
+  if (numberArray.length === 0) return originalId
+  return numberArray[0][1] + '-' + Number(numberArray[0][2])
+}
+
+function fc2_ppv(originalId: string) {
+  const cuttingNumber = originalId.matchAll(/(heyzo|FC2PPV)(\d+)/gi)
+  const numberArray = Array.from(cuttingNumber)
+  // console.log('numberArray', numberArray)
+  if (numberArray.length > 0) {
+    const reg = /(FC2PPV)(d+)/gi
+    if (reg.test(originalId)) {
+      return 'FC2-PPV-' + numberArray[0][2]
+    }
+    return numberArray[0][1] + '-' + numberArray[0][2]
+  }
+  return originalId
+}
+
+export function isFC2(serialNumber: string): boolean {
+  const cuttingNumber = serialNumber.matchAll(/(FC2)(\S*)(ppv)/gi)
+  const numberArray = Array.from(cuttingNumber)
+  console.log('isFC2', serialNumber, numberArray)
+  return numberArray.length > 0
+}
+
+function numberBegin(originalId: string) {
+  const cuttingNumber = originalId.matchAll(/(^\d+)([a-z].*[a-z])(\d+)/gi)
+  const numberArray = Array.from(cuttingNumber)
+
+  if (numberArray.length === 0) return originalId
+
+  return numberArray[0][2] + '-' + Number(numberArray[0][3])
+}
+
 export function getSortId(originalId: string, type: number): string | undefined {
   switch (type) {
     case 0: {
-      const cuttingNumber = originalId.matchAll(/(heyzo|FC2PPV)(\d+)/gi)
-      const numberArray = Array.from(cuttingNumber)
-      // console.log('numberArray', numberArray)
-      if (numberArray.length > 0) {
-        const reg = /(FC2PPV)(d+)/gi
-        if (reg.test(originalId)) {
-          return 'FC2-PPV-' + numberArray[0][2]
-        }
-        return numberArray[0][1] + '-' + numberArray[0][2]
-      }
-      return originalId
+      return fc2_ppv(originalId)
     }
     case 1: {
-      const cuttingNumber = originalId.matchAll(/(^[a-z].*[a-z])(\d+)/gi)
-      const numberArray = Array.from(cuttingNumber)
-
-      if (numberArray.length === 0) return originalId
-      return numberArray[0][1] + '-' + Number(numberArray[0][2])
+      return alphaNumber(originalId)
     }
     case 2: {
       // 123ssis123
-      const cuttingNumber = originalId.matchAll(/(^\d+)([a-z].*[a-z])(\d+)/gi)
-      const numberArray = Array.from(cuttingNumber)
-
-      if (numberArray.length === 0) return originalId
-
-      return numberArray[0][2] + '-' + Number(numberArray[0][3])
+      return numberBegin(originalId)
     }
     default:
       return undefined
   }
+}
+
+export function sortId(originalId: string): string {
+  let sortId = alphaNumber(originalId)
+  if (sortId !== originalId) return sortId
+  sortId = numberBegin(originalId)
+  if (sortId !== originalId) return sortId
+  return originalId
 }
 
 export function getId() {

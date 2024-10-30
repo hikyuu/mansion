@@ -67,6 +67,9 @@ watch(
 function reload() {
   window.location.reload()
 }
+function allRead() {
+  props.site.allRead()
+}
 </script>
 
 <template>
@@ -114,6 +117,9 @@ function reload() {
                 <el-radio :value="1" border>预览</el-radio>
               </el-radio-group>
             </el-form-item>
+            <el-row justify="center">
+              <el-button type="primary" @click="allRead">全部已读</el-button>
+            </el-row>
             <el-row justify="center">
               <el-button type="primary" @click="reload">保存并刷新页面</el-button>
             </el-row>
