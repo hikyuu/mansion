@@ -48,19 +48,17 @@ export async function getHistories(serialNumber: string) {
 export async function loadLatestHistory() {
   console.log('加载最新记录')
   const onejav = getOnejavHistory()
-  return onejav
-    .find({ watchTime: { $gte: loadingTime } }, { projection: { serialNumber: 1, _id: 0 } })
-    .then((histories) => {
-      loadingTime = new Date()
-      if (histories.length > 0) {
-        console.log(`添加${histories.length}条数据`)
-        ElNotification.success({
-          title: '加载最新记录',
-          message: `添加${histories.length}条浏览记录`
-        })
-      }
-      return histories
-    })
+  return onejav.find({ watchTime: { $gte: loadingTime } }).then((histories) => {
+    loadingTime = new Date()
+    if (histories.length > 0) {
+      console.log(`添加${histories.length}条数据`)
+      ElNotification.success({
+        title: '加载最新记录',
+        message: `添加${histories.length}条浏览记录`
+      })
+    }
+    return histories
+  })
 }
 
 const work = async (history: History) => {
