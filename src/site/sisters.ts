@@ -64,10 +64,10 @@ export class Sisters {
 
   async getScrollTop(index: number) {
     console.log(index, this.queue.length)
-    if (index > this.queue.length) {
+    if (index > this.queue.length - 1) {
       return Promise.reject('当前页面还没有这么多内容')
     }
-    const nextPreview = $('#' + this.queue[index - 1].serialNumber).find('#preview')
+    const nextPreview = $('#' + this.queue[index].serialNumber).find('#preview')
     if (nextPreview.length === 0) return Promise.reject('没有找到预览图')
 
     const offset = nextPreview.offset()
@@ -79,6 +79,7 @@ export class Sisters {
 
 export declare interface Info {
   serialNumber: string
+  javStoreUrl?: string
   scrollTop?: number
   repeat?: boolean
   src?: string

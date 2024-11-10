@@ -237,9 +237,9 @@ function fc2_ppv(originalId: string) {
   const numberArray = Array.from(cuttingNumber)
   // console.log('numberArray', numberArray)
   if (numberArray.length > 0) {
-    const reg = /(FC2PPV)(d+)/gi
+    const reg = /(FC2PPV)(\d+)/gi
     if (reg.test(originalId)) {
-      return 'FC2-PPV-' + numberArray[0][2]
+      return 'FC2PPV ' + numberArray[0][2]
     }
     return numberArray[0][1] + '-' + numberArray[0][2]
   }

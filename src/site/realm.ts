@@ -15,7 +15,7 @@ export async function loginApiKey() {
     // Authenticate the user
     const user = await app.logIn(credentials)
     // console.log(user)
-    ElNotification({ title: '数据库', message: `MongoDB登录成功`, type: 'success' })
+    // ElNotification({ title: '数据库', message: `MongoDB登录成功`, type: 'success' })
     return user
   } catch (e) {
     ElNotification({ title: '数据库', message: `MongoDB登录出错:${e}`, type: 'error' })

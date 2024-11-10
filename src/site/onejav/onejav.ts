@@ -5,7 +5,7 @@ import { SiteAbstract } from '../site-abstract'
 import $ from 'jquery'
 import { picx, WaterfallStatus } from '@/dictionary'
 
-import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
+import { GM_addStyle, GM_log } from 'vite-plugin-monkey/dist/client'
 import { Sisters } from '@/site/sisters'
 import { Task } from '@/site/task'
 import { getHistories, loadHistoryNumber, loadLatestHistory, uploadHistory } from './onejav-history'
@@ -71,11 +71,12 @@ export class Onejav extends SiteAbstract {
     const pathDate = item.find('p.subtitle a').attr('href')
     const serialNumber = $(detail)
       .text()
-      .replace(/ /g, '')
+      .replace(/[-_]/g, '')
       .replace(/[\r\n]/g, '') //去掉空格//去掉回车换行
+      .replace(/ /g, '')
 
     const sortId = getSortId(serialNumber, type)
-    // console.log('sortId', sortId);
+    console.log('sortId:', sortId)
     // let serialNumber: string = 'test123456'
     const el_link = detail.parentElement
 
@@ -85,24 +86,22 @@ export class Onejav extends SiteAbstract {
       super.addLink('智能搜索中', el_link, serialNumber, item)
     }
 
-    // console.log('添加', originalId, date);
-
     item.attr('id', serialNumber)
     const loadUrl = picx('/load.svg')
     const failedUrl = picx('/failed.svg')
 
-    const histories = await getHistories(serialNumber)
-    const haveRead = histories.length > 0
     const info = this.sisters.updateInfo({
       serialNumber,
       src: loadUrl,
       date,
-      haveRead,
       repeat: false,
       pathDate,
       status: 200
     })
 
+    const histories = await getHistories(serialNumber)
+    const haveRead = histories.length > 0
+    this.sisters.updateInfo({ serialNumber, haveRead })
     if (haveRead && histories.find((item) => item.pathDate !== info.pathDate) !== undefined) {
       this.sisters.updateInfo({ serialNumber, repeat: true })
       uploadHistory(serialNumber, info).then()
@@ -132,6 +131,7 @@ export class Onejav extends SiteAbstract {
       return
     } else {
       this.addLink('JavStore', el_link, serialNumber, item, javstoreUrl)
+      this.sisters.updateInfo({ serialNumber, javStoreUrl: javstoreUrl })
     }
 
     // 番号预览大图
@@ -250,19 +250,20 @@ export class Onejav extends SiteAbstract {
     $(document).on('visibilitychange', () => {
       if (document.visibilityState == 'visible') {
         loadLatestHistory().then((histories) => {
-          this.sisters.queue.forEach((info) => {
+          const pathDateSet = new Set<string>()
+          histories.forEach((history) => {
+            pathDateSet.add(history.pathDate)
+            const info = this.sisters.queue.find((item) => item.serialNumber === history.serialNumber)
+            if (info === undefined) return
             if (info.haveRead) return
-            const history = histories.find((item) => item.serialNumber === info.serialNumber)
-
-            if (history === undefined) return
-
-            this.sisters.updateInfo({ serialNumber: info.serialNumber, haveRead: true })
-
-            if (history.pathDate !== info.pathDate) {
-              this.sisters.updateInfo({ serialNumber: info.serialNumber, repeat: true })
+            this.sisters.updateInfo({ serialNumber: history.serialNumber, haveRead: true })
+            if (info.pathDate !== history.pathDate) {
+              this.sisters.updateInfo({ serialNumber: history.serialNumber, repeat: true })
               uploadHistory(info.serialNumber, info).then()
             }
           })
+          if (pathDateSet.size === 0) return
+          loadHistoryNumber(pathDateSet).then()
         })
       }
     })
