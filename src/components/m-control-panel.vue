@@ -53,7 +53,16 @@ const src = computed(() => {
   return queueRef.value[props.sisters.current_index].src
 })
 
-function gotoLastRead(index: number) {
+function lastUnread() {
+  const index = props.sisters.queue.findIndex((sister) => {
+    if (!sister.haveRead) {
+      return true
+    }
+  })
+  if (index === -1) {
+    ElNotification({ title: '提示', message: '没有未读的图片', type: 'info' })
+    return
+  }
   props.sisters
     .getScrollTop(index)
     .then((scrollTop) => {
@@ -175,7 +184,7 @@ watch(
         </el-icon>
         <span style="color: green">{{ sisters.queue.length }}</span>
       </div>
-      <div class="count-group" @click="gotoLastRead(haveReadNumber)">
+      <div class="count-group" @click="lastUnread">
         <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" size="30">
           <svg-readed />
         </el-icon>

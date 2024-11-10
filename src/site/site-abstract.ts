@@ -130,6 +130,7 @@ export abstract class SiteAbstract implements SiteInterface {
     const date = item.find(this.selector.date).text().trim()
     const pathDate = item.find(this.selector.pathDate).text().trim()
     const sortId = getSortId(serialNumber, type)
+    console.log('sortId:', sortId)
     const el_link = item.find('div.tag.is-info')[0]
     this.addLink('搜索中', el_link, serialNumber, item)
     if (type > 0) {

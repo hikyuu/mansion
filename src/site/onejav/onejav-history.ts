@@ -10,37 +10,44 @@ import { reactive } from 'vue'
 new RealmTask()
 let onejav: Realm.Services.MongoDB.MongoDBCollection<History> | undefined = undefined
 
-let loadingTime = new Date()
-
+export const refreshTime = new Date()
 const lockPool = new LockPool()
 
 export const dailyNumberRef: Map<string, number> = reactive(new Map())
 
-export async function loadHistoryNumber() {
+export async function loadHistoryNumber(pathDates: Set<string> = new Set()) {
   const onejav = getOnejavHistory()
-  return onejav
-    .aggregate([
-      {
-        $group: {
-          _id: '$pathDate',
-          history_number: {
-            $sum: 1
-          }
+  const pipeline = [
+    {
+      $group: {
+        _id: '$pathDate',
+        history_number: {
+          $sum: 1
         }
       }
-    ])
-    .then((histories) => {
-      console.log(histories.length)
-      for (const history of histories) {
-        dailyNumberRef.set(history._id, history.history_number)
+    }
+  ] as any[]
+  if (pathDates.size > 0) {
+    pipeline.unshift({
+      $match: {
+        pathDate: {
+          $in: Array.from(pathDates)
+        }
       }
-      console.log('', dailyNumberRef.size)
     })
+  }
+  return onejav.aggregate(pipeline).then((histories: any) => {
+    console.dir(histories)
+    for (const history of histories) {
+      dailyNumberRef.set(history._id, history.history_number)
+    }
+    return histories
+  })
 }
 
 export async function getHistories(serialNumber: string) {
   const onejav = getOnejavHistory()
-  return onejav.find({ serialNumber: serialNumber }).then((history) => {
+  return onejav.find({ serialNumber: serialNumber }).then((history: History[]) => {
     return history
   })
 }
@@ -48,8 +55,8 @@ export async function getHistories(serialNumber: string) {
 export async function loadLatestHistory() {
   console.log('加载最新记录')
   const onejav = getOnejavHistory()
-  return onejav.find({ watchTime: { $gte: loadingTime } }).then((histories) => {
-    loadingTime = new Date()
+  return onejav.find({ watchTime: { $gte: refreshTime } }).then((histories: History[]) => {
+    refreshTime.setTime(new Date().getTime())
     if (histories.length > 0) {
       console.log(`添加${histories.length}条数据`)
       ElNotification.success({

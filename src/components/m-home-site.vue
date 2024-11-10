@@ -9,6 +9,7 @@ import HomeOnejav from '@/components/m-home-onejav.vue'
 import MansionSetting from '@/components/m-setting.vue'
 import { useConfigStore } from '@/store/config-store'
 import { ElNotification } from 'element-plus'
+import MImgBox from '@/components/m-img-box.vue'
 
 const site = ref<SiteAbstract>()
 
@@ -31,7 +32,20 @@ if (exactSite === undefined) {
 
 <template>
   <template v-if="site">
-    <div class="mansion">
+    <div class="mansion-left" style="padding-left: 5px">
+      <el-card style="max-width: 160px" v-if="sisters.current_index != undefined">
+        <el-text style="font-size: 20px" tag="b">{{ sisters.current_key }}</el-text>
+        <el-link
+          type="danger"
+          v-if="sisters.queue[sisters.current_index].javStoreUrl"
+          :href="sisters.queue[sisters.current_index].javStoreUrl"
+          style="font-size: 20px"
+          target="_blank"
+          >JavStore
+        </el-link>
+      </el-card>
+    </div>
+    <div class="mansion-right">
       <home-onejav v-if="site instanceof Onejav" :onejav="site" />
       <control-panel v-if="site.showControlPanel()" :sisters="sisters" :site="site" />
       <mansion-setting :site="site" />
@@ -44,11 +58,17 @@ if (exactSite === undefined) {
   width: 1400px;
   max-width: 1400px;
 }
-.mansion {
+.mansion-right {
   box-sizing: border-box;
   position: fixed;
   top: 50%;
   right: 0;
+  transform: translateY(-50%);
+}
+.mansion-left {
+  box-sizing: border-box;
+  position: fixed;
+  top: 50%;
   transform: translateY(-50%);
 }
 </style>
