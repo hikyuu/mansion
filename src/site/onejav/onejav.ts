@@ -40,8 +40,6 @@ export class Onejav extends SiteAbstract {
   async mount(): Promise<void> {
     // this.adObserve()
     this.addStyle()
-    // loadLocalHistory()
-    // loadLocalDailies()
     loginApiKey()
       .then(() => {
         loadDailies().then()
@@ -204,11 +202,17 @@ export class Onejav extends SiteAbstract {
       $download[0].click()
       ElNotification({ title: 'onejav', message: '已经开始下载', type: 'success' })
     } else {
-      magnetDoc(serialNumber).then((r) => {
+      const sortId = getSortId(serialNumber, 1)
+      console.log('sortId:', sortId)
+      if (sortId === undefined) {
+        ElNotification({ title: 'javdb', message: '没有找到详情页', type: 'error' })
+        return
+      }
+      magnetDoc(sortId).then((r) => {
         if (r) {
           const magnet = r.attr('href')
           if (magnet === undefined) {
-            console.log(r)
+            // console.log(r)
             ElNotification({ title: 'javdb', message: '没有找到磁力链接', type: 'error' })
             return
           }

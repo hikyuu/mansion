@@ -3,7 +3,7 @@ import { ElNotification } from 'element-plus'
 
 export class Sisters {
   current_index: number | undefined = undefined
-  current_key: string | null = null
+  current_key: string | undefined = undefined
   queue: Array<Info> = []
   sisterNumber = 0
 

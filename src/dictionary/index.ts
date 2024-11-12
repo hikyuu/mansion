@@ -4,6 +4,10 @@ export enum KEY {
   JAVSTORE_KEY = 'javstore_'
 }
 
+export enum BASEURL {
+  JAVDB = 'https://javdb.com'
+}
+
 export function picx(url: string) {
   return 'https://github.com/hikyuu/gallery/raw/main/picx/' + url.replace(/^\//, '')
 }

@@ -227,9 +227,9 @@ function parseText(text: string): Document {
 function alphaNumber(originalId: string) {
   const cuttingNumber = originalId.matchAll(/(^[a-z].*[a-z])(\d+)/gi)
   const numberArray = Array.from(cuttingNumber)
-
+  // console.dir(numberArray)
   if (numberArray.length === 0) return originalId
-  return numberArray[0][1] + '-' + Number(numberArray[0][2])
+  return numberArray[0][1] + '-' + numberArray[0][2]
 }
 
 function fc2_ppv(originalId: string) {
@@ -256,10 +256,10 @@ export function isFC2(serialNumber: string): boolean {
 function numberBegin(originalId: string) {
   const cuttingNumber = originalId.matchAll(/(^\d+)([a-z].*[a-z])(\d+)/gi)
   const numberArray = Array.from(cuttingNumber)
-
+  console.log('numberArray', numberArray)
   if (numberArray.length === 0) return originalId
 
-  return numberArray[0][2] + '-' + Number(numberArray[0][3])
+  return numberArray[0][2] + '-' + numberArray[0][3]
 }
 
 export function getSortId(originalId: string, type: number): string | undefined {

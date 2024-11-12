@@ -10,6 +10,9 @@ import MansionSetting from '@/components/m-setting.vue'
 import { useConfigStore } from '@/store/config-store'
 import { ElNotification } from 'element-plus'
 import MImgBox from '@/components/m-img-box.vue'
+import { Javdb } from '@/site/javdb/javdb'
+import { detailUrl } from '@/site/javdb/javdb-api'
+import { BASEURL } from '@/dictionary'
 
 const site = ref<SiteAbstract>()
 
@@ -28,6 +31,14 @@ if (exactSite === undefined) {
   })
   exactSite.mount()
 }
+
+function openJavDB() {
+  if (sisters.current_key === undefined) return
+  detailUrl(sisters.current_key).then((url) => {
+    console.log(BASEURL.JAVDB + url)
+    window.open(BASEURL.JAVDB + url, '_blank')
+  })
+}
 </script>
 
 <template>
@@ -43,6 +54,7 @@ if (exactSite === undefined) {
           target="_blank"
           >JavStore
         </el-link>
+        <el-link type="primary" style="font-size: 20px" @click="openJavDB">Javdb </el-link>
       </el-card>
     </div>
     <div class="mansion-right">
