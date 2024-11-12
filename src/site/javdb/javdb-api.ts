@@ -15,6 +15,10 @@ async function searchHtml(serialNumber: string, retry: number = 3) {
       }
       const items = container.find(javdb_selector.item)
       if (items.length === 0) {
+        ElNotification.error({
+          title: 'javdb',
+          message: `${serialNumber}无搜索结果`
+        })
         throw new Error('没有找到项目')
       }
       return items.first()
@@ -85,6 +89,14 @@ export async function magnetDoc(serialNumber: string): Promise<JQuery<HTMLElemen
       console.error(`${serialNumber}搜索失败`, reason)
       return undefined
     })
+}
+
+export async function detailUrl(serialNumber: string) {
+  return searchHtml(serialNumber).then((item) => {
+    const url = item.find('a').attr('href')
+    if (!url) throw new Error('没有找到详情链接')
+    return url
+  })
 }
 
 export async function magnet(serialNumber: string): Promise<string | undefined> {

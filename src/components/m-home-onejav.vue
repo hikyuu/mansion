@@ -107,13 +107,6 @@ function readNumber(date: Date) {
   if (!today) return ''
   return `${haveReadNumber(pathDate)}/${today.sisterNumber}`
 }
-
-function gotoDate(date: Date) {
-  let pathDate = dayjs(date).format(FORMAT.PATH_DATE)
-  window.open(`${pathDate}`, '_self')
-  ElLoading.service({ lock: true, fullscreen: true, text: `跳转到${pathDate}` })
-}
-
 function solveLink(date: Date) {
   return dayjs(date).format(FORMAT.PATH_DATE)
 }
