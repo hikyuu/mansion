@@ -37,7 +37,7 @@ export async function loadHistoryNumber(pathDates: Set<string> = new Set()) {
     })
   }
   return onejav.aggregate(pipeline).then((histories: any) => {
-    console.dir(histories)
+    console.log('加载历史记录', histories.length)
     for (const history of histories) {
       dailyNumberRef.set(history._id, history.history_number)
     }

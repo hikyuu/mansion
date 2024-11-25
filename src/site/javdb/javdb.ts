@@ -8,6 +8,11 @@ import { Task } from '@/site/task'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { useConfigStore } from '@/store/config-store'
 import { WaterfallStatus } from '@/dictionary'
+import { ElNotification } from 'element-plus'
+import { haveArchived } from '@/site/archive-supabase'
+import { clickMagnet, downloadFromJavDB } from '@/site/onejav/onejav'
+import { getSortId, isFC2 } from '@/common'
+import { downloadFromLocal, getDetailHref, highScoreMagnet } from '@/site/javdb/javdb-api'
 
 export const javdb_selector: Selector = {
   next: 'a.pagination-next',
@@ -81,7 +86,37 @@ export class Javdb extends SiteAbstract {
     this.hasLoadCompleted = true
   }
 
-  download(): void {}
+  async download() {
+    console.log('下载', this.sisters.current_key)
+    if (this.sisters.current_key === undefined) {
+      ElNotification({ title: '提示', message: '没有选中', type: 'info' })
+      return
+    }
+    if (await haveArchived(this.sisters.current_key)) {
+      ElNotification({ title: '提示', message: '已经归档', type: 'info' })
+      return
+    }
+
+    const detailHref = getDetailHref($('#' + this.sisters.current_key))
+    if (detailHref === undefined) {
+      ElNotification({ title: '提示', message: '没有找到详情页', type: 'info' })
+      return
+    }
+    downloadFromLocal(detailHref)
+      .then((r) => {
+        if (r) {
+          const magnet = r.attr('href')
+          if (magnet === undefined) {
+            ElNotification({ title: 'javdb', message: '没有找到磁力链接', type: 'error' })
+            return
+          }
+          clickMagnet(magnet)
+        }
+      })
+      .catch((e) => {
+        ElNotification.error({ title: 'javdb', message: e })
+      })
+  }
 
   allRead() {}
 
