@@ -5,14 +5,53 @@ import { SiteAbstract } from '../site-abstract'
 import $ from 'jquery'
 import { picx, WaterfallStatus } from '@/dictionary'
 
-import { GM_addStyle, GM_log } from 'vite-plugin-monkey/dist/client'
+import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { Sisters } from '@/site/sisters'
 import { Task } from '@/site/task'
 import { getHistories, loadHistoryNumber, loadLatestHistory, uploadHistory } from './onejav-history'
 import { loginApiKey } from '../realm'
 import { loadDailies, uploadDaily } from './onejav-daily'
 import { ElNotification } from 'element-plus'
-import { magnetDoc } from '@/site/javdb/javdb-api'
+import { haveArchived } from '@/site/archive-supabase'
+import { highScoreMagnet } from '@/site/javdb/javdb-api'
+
+export function clickMagnet(magnet: string) {
+  const $a = $('<a>', {
+    href: magnet,
+    style: 'display:none;' // 隐藏 a 标签
+  }).appendTo('body')
+  $a[0].click()
+  ElNotification({ title: 'javdb', message: '已经开始下载', type: 'success' })
+}
+
+export async function downloadFromJavDB(serialNumber: string): Promise<boolean> {
+  if (isFC2(serialNumber)) {
+    return Promise.resolve(false)
+  }
+  const sortId = getSortId(serialNumber, 1)
+  console.log('sortId:', sortId)
+  if (sortId === undefined) {
+    ElNotification({ title: 'javdb', message: '番号解析失败', type: 'error' })
+    return Promise.resolve(false)
+  }
+  return highScoreMagnet(sortId)
+    .then((r) => {
+      if (r) {
+        const magnet = r.attr('href')
+        if (magnet === undefined) {
+          ElNotification({ title: 'javdb', message: '没有找到磁力链接', type: 'error' })
+          return false
+        }
+        clickMagnet(magnet)
+        return true
+      }
+      return false
+    })
+    .catch((e) => {
+      ElNotification.error({ title: 'javdb', message: e })
+      return false
+    })
+}
 
 export class Onejav extends SiteAbstract {
   public name = 'onejav'
@@ -188,43 +227,29 @@ export class Onejav extends SiteAbstract {
     return /(onejav)/g.test(document.URL)
   }
 
-  download() {
+  async download() {
     console.log('下载', this.sisters.current_key)
+    if (this.sisters.current_key === undefined) {
+      ElNotification({ title: '提示', message: '没有选中', type: 'info' })
+      return
+    }
+    if (await haveArchived(this.sisters.current_key)) {
+      ElNotification({ title: '提示', message: '已经归档', type: 'info' })
+      return
+    }
     const $id = $('#' + this.sisters.current_key)
     const $download = $id.find("a[title='Download .torrent']")
     if (this.sisters.current_index === undefined) return
     const serialNumber = this.sisters.queue[this.sisters.current_index].serialNumber
-    if (isFC2(serialNumber)) {
+    downloadFromJavDB(serialNumber).then((success) => {
+      if (success) return
       if ($download.length === 0) {
         ElNotification({ title: '下载地址', message: '没有找到下载地址', type: 'error' })
         return
       }
       $download[0].click()
       ElNotification({ title: 'onejav', message: '已经开始下载', type: 'success' })
-    } else {
-      const sortId = getSortId(serialNumber, 1)
-      console.log('sortId:', sortId)
-      if (sortId === undefined) {
-        ElNotification({ title: 'javdb', message: '没有找到详情页', type: 'error' })
-        return
-      }
-      magnetDoc(sortId).then((r) => {
-        if (r) {
-          const magnet = r.attr('href')
-          if (magnet === undefined) {
-            // console.log(r)
-            ElNotification({ title: 'javdb', message: '没有找到磁力链接', type: 'error' })
-            return
-          }
-          const $a = $('<a>', {
-            href: magnet,
-            style: 'display:none;' // 隐藏 a 标签
-          }).appendTo('body')
-          $a[0].click()
-          ElNotification({ title: 'javdb', message: '已经开始下载', type: 'success' })
-        }
-      })
-    }
+    })
   }
 
   showControlPanel(): boolean {

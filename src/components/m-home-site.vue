@@ -9,8 +9,6 @@ import HomeOnejav from '@/components/m-home-onejav.vue'
 import MansionSetting from '@/components/m-setting.vue'
 import { useConfigStore } from '@/store/config-store'
 import { ElNotification } from 'element-plus'
-import MImgBox from '@/components/m-img-box.vue'
-import { Javdb } from '@/site/javdb/javdb'
 import { detailUrl } from '@/site/javdb/javdb-api'
 import { BASEURL } from '@/dictionary'
 
@@ -34,10 +32,14 @@ if (exactSite === undefined) {
 
 function openJavDB() {
   if (sisters.current_key === undefined) return
-  detailUrl(sisters.current_key).then((url) => {
-    console.log(BASEURL.JAVDB + url)
-    window.open(BASEURL.JAVDB + url, '_blank')
-  })
+  detailUrl(sisters.current_key)
+    .then((url) => {
+      console.log(BASEURL.JAVDB + url)
+      window.open(BASEURL.JAVDB + url, '_blank')
+    })
+    .catch((reason) => {
+      ElNotification({ title: 'javdb', message: reason, type: 'error' })
+    })
 }
 </script>
 
