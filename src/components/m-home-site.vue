@@ -47,16 +47,25 @@ function openJavDB() {
   <template v-if="site">
     <div class="mansion-left" style="padding-left: 5px">
       <el-card style="max-width: 160px" v-if="sisters.current_index != undefined">
-        <el-text style="font-size: 20px" tag="b">{{ sisters.current_key }}</el-text>
-        <el-link
-          type="danger"
-          v-if="sisters.queue[sisters.current_index].javStoreUrl"
-          :href="sisters.queue[sisters.current_index].javStoreUrl"
-          style="font-size: 20px"
-          target="_blank"
-          >JavStore
-        </el-link>
-        <el-link type="primary" style="font-size: 20px" @click="openJavDB">Javdb </el-link>
+        <el-row>
+          <el-text style="font-size: 20px" tag="b">{{ sisters.current_key }}</el-text>
+          <el-link
+            type="danger"
+            v-if="sisters.queue[sisters.current_index].javStoreUrl"
+            :href="sisters.queue[sisters.current_index].javStoreUrl"
+            style="font-size: 20px"
+            target="_blank"
+            >JavStore
+          </el-link>
+          <el-link type="primary" style="font-size: 20px" @click="openJavDB">Javdb </el-link>
+          <el-text
+            style="font-size: 15px"
+            v-for="(entry, index) in Array.from(site.downloadList.entries())"
+            :key="index"
+          >
+            {{ entry[0] }}获取下载链接中
+          </el-text>
+        </el-row>
       </el-card>
     </div>
     <div class="mansion-right">
@@ -80,7 +89,6 @@ function openJavDB() {
   transform: translateY(-50%);
 }
 .mansion-left {
-  box-sizing: border-box;
   position: fixed;
   top: 50%;
   transform: translateY(-50%);

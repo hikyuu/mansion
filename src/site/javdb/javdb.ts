@@ -10,9 +10,10 @@ import { useConfigStore } from '@/store/config-store'
 import { WaterfallStatus } from '@/dictionary'
 import { ElNotification } from 'element-plus'
 import { haveArchived } from '@/site/archive-supabase'
-import { clickMagnet, downloadFromJavDB } from '@/site/onejav/onejav'
-import { getSortId, isFC2 } from '@/common'
-import { downloadFromLocal, getDetailHref, highScoreMagnet } from '@/site/javdb/javdb-api'
+import { clickMagnet } from '@/site/onejav/onejav'
+import { downloadFromLocal, getDetailHref } from '@/site/javdb/javdb-api'
+import { uploadHistory } from '@/site/onejav/onejav-history'
+import dayjs from 'dayjs'
 
 export const javdb_selector: Selector = {
   next: 'a.pagination-next',
@@ -87,21 +88,23 @@ export class Javdb extends SiteAbstract {
   }
 
   async download() {
-    console.log('下载', this.sisters.current_key)
-    if (this.sisters.current_key === undefined) {
+    const serialNumber = this.sisters.current_key
+    console.log('下载', serialNumber)
+    if (!serialNumber) {
       ElNotification({ title: '提示', message: '没有选中', type: 'info' })
       return
     }
-    if (await haveArchived(this.sisters.current_key)) {
+    if (await haveArchived(serialNumber)) {
       ElNotification({ title: '提示', message: '已经归档', type: 'info' })
       return
     }
 
-    const detailHref = getDetailHref($('#' + this.sisters.current_key))
+    const detailHref = getDetailHref($('#' + serialNumber))
     if (detailHref === undefined) {
       ElNotification({ title: '提示', message: '没有找到详情页', type: 'info' })
       return
     }
+    this.downloadList.set(serialNumber, 1)
     downloadFromLocal(detailHref)
       .then((r) => {
         if (r) {
@@ -116,11 +119,34 @@ export class Javdb extends SiteAbstract {
       .catch((e) => {
         ElNotification.error({ title: 'javdb', message: e })
       })
+      .finally(() => {
+        this.downloadList.delete(serialNumber)
+      })
   }
 
   allRead() {}
 
-  save(serialNumber: string): void {}
+  save(serialNumber: string): void {
+    const info = this.sisters.queue.find((item) => item.serialNumber === serialNumber)
+    if (!info) {
+      return
+    }
+    console.log(info.pathDate)
+    if (info.haveRead) {
+      console.log('已经记录', serialNumber)
+      return
+    }
+    const pathDate = info.pathDate
+    if (pathDate === undefined || pathDate === '') {
+      ElNotification({ title: '提示', message: `${serialNumber}日期格式有变动`, type: 'error' })
+      return
+    }
+
+    uploadHistory(serialNumber, info).then((history) => {
+      console.log('上传成功', history)
+      this.sisters.updateInfo({ serialNumber, haveRead: true, status: 200 })
+    })
+  }
 
   showControlPanel(): boolean {
     return $(this.selector.container).length > 0

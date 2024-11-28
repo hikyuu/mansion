@@ -130,14 +130,14 @@ async function uploadRemoteHistory(serialNumber: string, history: History, retry
   }
 }
 
-export async function uploadHistory(serialNumber: string, info: Info) {
+export async function uploadHistory(serialNumber: string, info: Info): Promise<History> {
   if (lockPool.locked(serialNumber)) return Promise.reject()
 
   console.log(`记录`, serialNumber)
   lockPool.lock(serialNumber)
 
-  const DateClass = dayjs(info.pathDate, FORMAT.PATH_DATE)
-  const date = DateClass.toDate()
+  const parsedDate = dayjs(info.pathDate, FORMAT.PATH_DATE)
+  const date = parsedDate.toDate()
 
   const history = {
     serialNumber: serialNumber,
@@ -146,7 +146,6 @@ export async function uploadHistory(serialNumber: string, info: Info) {
     pathDate: info.pathDate,
     watchTime: new Date()
   } as History
-  // console.log(history);
   return uploadRemoteHistory(serialNumber, history)
 }
 

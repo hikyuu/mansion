@@ -241,15 +241,20 @@ export class Onejav extends SiteAbstract {
     const $download = $id.find("a[title='Download .torrent']")
     if (this.sisters.current_index === undefined) return
     const serialNumber = this.sisters.queue[this.sisters.current_index].serialNumber
-    downloadFromJavDB(serialNumber).then((success) => {
-      if (success) return
-      if ($download.length === 0) {
-        ElNotification({ title: '下载地址', message: '没有找到下载地址', type: 'error' })
-        return
-      }
-      $download[0].click()
-      ElNotification({ title: 'onejav', message: '已经开始下载', type: 'success' })
-    })
+    this.downloadList.set(serialNumber, 10)
+    downloadFromJavDB(serialNumber)
+      .then((success) => {
+        if (success) return
+        if ($download.length === 0) {
+          ElNotification({ title: '下载地址', message: '没有找到下载地址', type: 'error' })
+          return
+        }
+        $download[0].click()
+        ElNotification({ title: 'onejav', message: '已经开始下载', type: 'success' })
+      })
+      .finally(() => {
+        this.downloadList.delete(serialNumber)
+      })
   }
 
   showControlPanel(): boolean {
