@@ -127,7 +127,7 @@ watch(
   () => props.sisters.current_key,
   (key) => {
     // console.log('监听到key变化');
-    if (key === null) return
+    if (!key) return
     props.site.save(key)
   },
   {

@@ -4,12 +4,13 @@ import type { SiteInterface } from './site-interface'
 import { Sisters } from './sisters'
 import type { Theme } from '@/site/index'
 import type { Ref } from 'vue'
-import { KEY, picx } from '@/dictionary'
+import { FORMAT, KEY, picx } from '@/dictionary'
 import $ from 'jquery'
 
 import { getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSortId } from '@/common'
 import { getHistories } from '@/site/onejav/onejav-history'
 import { useConfigStore } from '@/store/config-store'
+import dayjs from 'dayjs'
 
 export abstract class SiteAbstract implements SiteInterface {
   hasLoadCompleted = false
@@ -23,6 +24,8 @@ export abstract class SiteAbstract implements SiteInterface {
   abstract waterfall: Waterfall
 
   abstract theme: Theme
+
+  downloadList: Map<string, number> = new Map()
 
   // 声明抽象的方法，让子类去实现
   abstract mount(): void
@@ -124,13 +127,20 @@ export abstract class SiteAbstract implements SiteInterface {
       .find(this.selector.serialNumber)
       .first()
       .text()
-      .replace(/ /g, '')
+      .replace(/[-_]/g, '')
       .replace(/[\r\n]/g, '')
+      .replace(/ /g, '')
     //去掉空格//去掉回车换行
-    const date = item.find(this.selector.date).text().trim()
-    const pathDate = item.find(this.selector.pathDate).text().trim()
     const sortId = getSortId(serialNumber, type)
     console.log('sortId:', sortId)
+
+    const date = item.find(this.selector.date).text().trim()
+    const parsedDate = dayjs(date)
+    let pathDate
+    if (parsedDate.isValid()) {
+      pathDate = dayjs(date).format(FORMAT.PATH_DATE)
+    }
+
     const el_link = item.find('div.tag.is-info')[0]
     this.addLink('搜索中', el_link, serialNumber, item)
     if (type > 0) {
@@ -142,8 +152,8 @@ export abstract class SiteAbstract implements SiteInterface {
 
     const histories = await getHistories(serialNumber)
     const haveRead = histories.length > 0
-
     this.sisters.updateInfo({ serialNumber, src: loadUrl, date, haveRead, pathDate, status: 200 })
+
     const preview = getPreviewElement(serialNumber, loadUrl, false)
     item.find('#preview').remove()
     item.append(preview)
