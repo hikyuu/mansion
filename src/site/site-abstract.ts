@@ -131,6 +131,11 @@ export abstract class SiteAbstract implements SiteInterface {
       .replace(/[\r\n]/g, '')
       .replace(/ /g, '')
     //去掉空格//去掉回车换行
+    if (this.sisters.queue.findIndex((info) => info.serialNumber === serialNumber) >= 0) {
+      console.log('已经加载过了', serialNumber)
+      return
+    }
+    item.attr('id', serialNumber)
     const sortId = getSortId(serialNumber, type)
     console.log('sortId:', sortId)
 
@@ -146,14 +151,15 @@ export abstract class SiteAbstract implements SiteInterface {
     if (type > 0) {
       this.addLink('智能搜索中', el_link, serialNumber, item)
     }
-    item.attr('id', serialNumber)
     const loadUrl = picx('/load.svg')
     const failedUrl = picx('/failed.svg')
 
     const histories = await getHistories(serialNumber)
     const haveRead = histories.length > 0
     this.sisters.updateInfo({ serialNumber, src: loadUrl, date, haveRead, pathDate, status: 200 })
-
+    if (useConfigStore().currentConfig.skipRead && haveRead) {
+      return
+    }
     const preview = getPreviewElement(serialNumber, loadUrl, false)
     item.find('#preview').remove()
     item.append(preview)
