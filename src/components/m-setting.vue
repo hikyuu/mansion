@@ -98,6 +98,15 @@ function allRead() {
                 size="large"
               />
             </el-form-item>
+            <el-form-item label="跳过已读">
+              <el-switch
+                v-model="currentConfig.skipRead"
+                active-icon="Check"
+                inactive-icon="Close"
+                inline-prompt
+                size="large"
+              />
+            </el-form-item>
             <el-form-item label="瀑布流">
               <el-radio-group v-model="currentConfig.scrollStatus" @change="scrollStatusChange">
                 <el-radio :value="0" border>关闭</el-radio>

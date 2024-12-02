@@ -52,7 +52,8 @@ function getDefaultWaterfall() {
     loadPreviewSwitch: true,
     scrollStatus: 1,
     smooth: 1,
-    navigationPoint: 0
+    navigationPoint: 0,
+    skipRead: false
   } as Waterfall
 }
 
@@ -69,5 +70,6 @@ export interface Waterfall {
   scrollStatus: number
   smooth: number
   navigationPoint: number
+  skipRead: boolean
   [key: string]: any
 }
