@@ -104,6 +104,10 @@ export class Javdb extends SiteAbstract {
       ElNotification({ title: '提示', message: '没有找到详情页', type: 'info' })
       return
     }
+    if (this.downloadList.has(serialNumber)) {
+      ElNotification({ title: '提示', message: '正在下载中', type: 'info' })
+      return
+    }
     this.downloadList.set(serialNumber, 1)
     downloadFromLocal(detailHref)
       .then((r) => {

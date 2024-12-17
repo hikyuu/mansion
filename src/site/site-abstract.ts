@@ -8,7 +8,7 @@ import { FORMAT, KEY, picx } from '@/dictionary'
 import $ from 'jquery'
 
 import { getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSortId } from '@/common'
-import { getHistories } from '@/site/onejav/onejav-history'
+import { getHistories, uploadHistory } from '@/site/onejav/onejav-history'
 import { useConfigStore } from '@/store/config-store'
 import dayjs from 'dayjs'
 
@@ -156,7 +156,12 @@ export abstract class SiteAbstract implements SiteInterface {
 
     const histories = await getHistories(serialNumber)
     const haveRead = histories.length > 0
-    this.sisters.updateInfo({ serialNumber, src: loadUrl, date, haveRead, pathDate, status: 200 })
+    const info = this.sisters.updateInfo({ serialNumber, src: loadUrl, date, haveRead, pathDate, status: 200 })
+
+    if (haveRead && histories.find((item) => item.pathDate !== info.pathDate) !== undefined) {
+      this.sisters.updateInfo({ serialNumber, repeat: true })
+      uploadHistory(serialNumber, info).then()
+    }
     if (useConfigStore().currentConfig.skipRead && haveRead) {
       return
     }
@@ -180,7 +185,9 @@ export abstract class SiteAbstract implements SiteInterface {
       return
     } else {
       this.addLink('JavStore', el_link, serialNumber, item, javstoreUrl)
+      this.sisters.updateInfo({ serialNumber, javStoreUrl: javstoreUrl })
     }
+
     const imgUrl = await getPreviewUrlFromJavStore(javstoreUrl, serialNumber, 1000)
     if (!imgUrl) {
       this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 405 })

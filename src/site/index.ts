@@ -18,3 +18,4 @@ export declare interface Theme {
   SECONDARY_COLOR: string
   WARNING_COLOR: string
 }
+export { getDetailFromJavStore } from '@/site/javstore/javstore-api'
