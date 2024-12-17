@@ -1,6 +1,6 @@
 import type { Selector } from '@/waterfall'
 import Waterfall from '@/waterfall/index'
-import { getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSortId, isFC2 } from '@/common'
+import { getJavstoreUrl, getPreviewElement, getSortId, isFC2 } from '@/common'
 import { SiteAbstract } from '../site-abstract'
 import $ from 'jquery'
 import { picx, WaterfallStatus } from '@/dictionary'
@@ -14,6 +14,9 @@ import { loadDailies, uploadDaily } from './onejav-daily'
 import { ElNotification } from 'element-plus'
 import { haveArchived } from '@/site/archive-supabase'
 import { highScoreMagnet } from '@/site/javdb/javdb-api'
+import { useConfigStore } from '@/store/config-store'
+import { getDetailFromJavStore } from '@/site'
+import { getPreviewUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
 
 export function clickMagnet(magnet: string) {
   const $a = $('<a>', {
@@ -139,9 +142,15 @@ export class Onejav extends SiteAbstract {
     const histories = await getHistories(serialNumber)
     const haveRead = histories.length > 0
     this.sisters.updateInfo({ serialNumber, haveRead })
+
     if (haveRead && histories.find((item) => item.pathDate !== info.pathDate) !== undefined) {
       this.sisters.updateInfo({ serialNumber, repeat: true })
       uploadHistory(serialNumber, info).then()
+    }
+
+    if (useConfigStore().currentConfig.skipRead && haveRead) {
+      super.addLink('跳过已读', el_link, serialNumber, item)
+      return
     }
 
     const preview = getPreviewElement(serialNumber, loadUrl, false)
@@ -171,8 +180,48 @@ export class Onejav extends SiteAbstract {
       this.sisters.updateInfo({ serialNumber, javStoreUrl: javstoreUrl })
     }
 
+    const javstoreDetail = await getDetailFromJavStore(javstoreUrl)
+    if (javstoreDetail === undefined) {
+      this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 404 })
+      preview.children('img').attr('src', failedUrl)
+      this.addLink('详情获取失败', el_link, serialNumber, item, javstoreUrl, false)
+      return
+    }
+
+    const title = getTitleFromDetail(javstoreDetail)
+    console.log(serialNumber, '标题', title)
+    if (title) {
+      useConfigStore().currentConfig.keyword.like = [
+        '涼森れむ',
+        '宮下玲奈',
+        '素人',
+        '清楚系',
+        '小悪魔',
+        '美少女',
+        '同棲',
+        '美人'
+      ]
+      useConfigStore().currentConfig.keyword.unlike = [
+        '開発',
+        '覚醒',
+        'NTR',
+        '嫌',
+        '屈服',
+        '義父',
+        '解禁',
+        '拷問',
+        '性欲処理',
+        '捜査官',
+        '肉便器',
+        '妻',
+        '病院',
+        '叔母'
+      ]
+      this.resolveTitle(serialNumber, title)
+    }
+
     // 番号预览大图
-    const imgUrl = await getPreviewUrlFromJavStore(javstoreUrl, serialNumber)
+    const imgUrl = await getPreviewUrlFromDetail(javstoreDetail, serialNumber)
 
     if (!imgUrl) {
       this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 405 })
@@ -201,6 +250,17 @@ export class Onejav extends SiteAbstract {
         })
         .attr('src', imgUrl)
     }
+  }
+
+  private resolveTitle(serialNumber: string, title: string) {
+    if (title === '') return
+    const likeWords = useConfigStore().currentConfig.keyword.like.filter((item) => {
+      return title.includes(item)
+    })
+    const unlikeWords = useConfigStore().currentConfig.keyword.unlike.filter((item) => {
+      return title.includes(item)
+    })
+    this.sisters.updateInfo({ serialNumber, likeWords, unlikeWords })
   }
 
   save(serialNumber: string): void {
@@ -241,6 +301,10 @@ export class Onejav extends SiteAbstract {
     const $download = $id.find("a[title='Download .torrent']")
     if (this.sisters.current_index === undefined) return
     const serialNumber = this.sisters.queue[this.sisters.current_index].serialNumber
+    if (this.downloadList.has(serialNumber)) {
+      ElNotification({ title: '提示', message: '正在下载中', type: 'info' })
+      return
+    }
     this.downloadList.set(serialNumber, 10)
     downloadFromJavDB(serialNumber)
       .then((success) => {

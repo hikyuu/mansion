@@ -1,6 +1,7 @@
 import { GM_xmlhttpRequest } from 'vite-plugin-monkey/dist/client'
 import { error } from 'jquery'
 import { picx } from '@/dictionary'
+import { getDetailFromJavStore } from '@/site'
 
 export function getAvCode(serialNumber: string): string {
   // 带-的番号不处理，除了-0 如：DSVR-01167
@@ -106,7 +107,7 @@ export function getJavstoreUrl(serialNumber: string, retry = 1): Promise<string 
     })
 }
 
-async function getImgUrlFromPixhost(javUrl: string, retry: number = 3): Promise<string | undefined> {
+export async function getImgUrlFromPixhost(javUrl: string, retry: number = 3): Promise<string | undefined> {
   try {
     const response = await request(javUrl, 'https://javstore.net/')
     return $(response.responseText).find('#image').attr('src')
@@ -124,8 +125,8 @@ async function getImgUrlFromPixhost(javUrl: string, retry: number = 3): Promise<
 export async function getPreviewUrlFromJavStore(javstore: string, serialNumber: string, retry = 3) {
   //异步请求调用内页详情的访问地址
   try {
-    const result = await request(javstore, 'https://javstore.net/')
-    const detail = parseText(result.responseText)
+    const detail = await getDetailFromJavStore(javstore)
+    if (!detail) return null
     let img_array = $(detail).find('.news a img[alt*=".th"]')
     // console.log('原方法找到', img_array.length)
 
@@ -172,10 +173,6 @@ export async function getPreviewUrlFromJavStore(javstore: string, serialNumber: 
     return url
   } catch (reason) {
     console.error(reason)
-    if (retry > 0) {
-      console.log('重试获取图片 serialNumber:', serialNumber)
-      return getPreviewUrlFromJavStore(javstore, serialNumber, --retry)
-    }
     return null
   }
 }
@@ -213,7 +210,7 @@ export function request(url: string, referer: string = '', timeoutInt: number = 
   })
 }
 
-function parseText(text: string): Document {
+export function parseText(text: string): Document {
   try {
     const doc = document.implementation.createHTMLDocument('')
     doc.documentElement.innerHTML = text

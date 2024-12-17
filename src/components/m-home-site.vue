@@ -11,6 +11,7 @@ import { useConfigStore } from '@/store/config-store'
 import { ElNotification } from 'element-plus'
 import { detailUrl } from '@/site/javdb/javdb-api'
 import { BASEURL } from '@/dictionary'
+import { Hide, Star } from '@element-plus/icons-vue'
 
 const site = ref<SiteAbstract>()
 
@@ -41,6 +42,18 @@ function openJavDB() {
       ElNotification({ title: 'javdb', message: reason, type: 'error' })
     })
 }
+function haveLike() {
+  if (sisters.current_index === undefined) return false
+  const sister = sisters.queue[sisters.current_index]
+  if (sister.likeWords === undefined) return false
+  return sister.likeWords.length > 0
+}
+function haveUnlike() {
+  if (sisters.current_index === undefined) return false
+  const sister = sisters.queue[sisters.current_index]
+  if (sister.unlikeWords === undefined) return false
+  return sister.unlikeWords.length > 0
+}
 </script>
 
 <template>
@@ -57,13 +70,32 @@ function openJavDB() {
             target="_blank"
             >JavStore
           </el-link>
-          <el-link type="primary" style="font-size: 20px" @click="openJavDB">Javdb </el-link>
-          <el-text
-            style="font-size: 15px"
-            v-for="(entry, index) in Array.from(site.downloadList.entries())"
-            :key="index"
-          >
-            {{ entry[0] }}获取下载链接中
+          <el-link type="primary" style="font-size: 20px" @click="openJavDB">Javdb</el-link>
+        </el-row>
+        <el-row>
+          <el-text type="danger" v-if="haveLike()">
+            <el-icon><Star /></el-icon>
+            like
+            <li v-for="word in sisters.queue[sisters.current_index].likeWords" :key="word">
+              {{ word }}
+            </li>
+          </el-text>
+        </el-row>
+        <el-row>
+          <el-text type="info" v-if="haveUnlike()">
+            <el-icon><Hide /></el-icon>
+            unlike
+            <li v-for="word in sisters.queue[sisters.current_index].unlikeWords" :key="word">
+              {{ word }}
+            </li>
+          </el-text>
+        </el-row>
+        <el-row>
+          <el-text v-if="site.downloadList.size > 0" style="font-size: 15px">
+            [下载列表]
+            <li v-for="(entry, index) in Array.from(site.downloadList.entries())" :key="index">
+              {{ entry[0] }}
+            </li>
           </el-text>
         </el-row>
       </el-card>

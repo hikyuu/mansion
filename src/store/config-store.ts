@@ -53,7 +53,11 @@ function getDefaultWaterfall() {
     scrollStatus: 1,
     smooth: 1,
     navigationPoint: 0,
-    skipRead: false
+    skipRead: false,
+    keyword: {
+      like: [],
+      unlike: []
+    }
   } as Waterfall
 }
 
@@ -71,5 +75,9 @@ export interface Waterfall {
   smooth: number
   navigationPoint: number
   skipRead: boolean
+  keyword: {
+    like: string[]
+    unlike: string[]
+  }
   [key: string]: any
 }
