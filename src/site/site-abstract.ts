@@ -8,14 +8,16 @@ import { FORMAT, KEY, picx } from '@/dictionary'
 import $ from 'jquery'
 
 import { getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSortId } from '@/common'
-import { getHistories, uploadHistory } from '@/site/onejav/onejav-history'
 import { useConfigStore } from '@/store/config-store'
 import dayjs from 'dayjs'
+import { getHistories, type HistoryDto, uploadHistory } from '@/dao/browse-history'
 
 export abstract class SiteAbstract implements SiteInterface {
   hasLoadCompleted = false
 
   abstract name: string
+
+  abstract siteId: number
 
   abstract selector: Selector
 
@@ -156,15 +158,36 @@ export abstract class SiteAbstract implements SiteInterface {
 
     const histories = await getHistories(serialNumber)
     const haveRead = histories.length > 0
-    const info = this.sisters.updateInfo({ serialNumber, src: loadUrl, date, haveRead, pathDate, status: 200 })
+    const info = this.sisters.updateInfo({
+      serialNumber,
+      src: loadUrl,
+      date,
+      haveRead,
+      repeatSite: 0,
+      pathDate,
+      site: this.siteId,
+      status: 200
+    })
 
-    if (haveRead && histories.find((item) => item.pathDate !== info.pathDate) !== undefined) {
-      this.sisters.updateInfo({ serialNumber, repeat: true })
-      uploadHistory(serialNumber, info).then()
+    if (haveRead) {
+      const repeats = histories.filter((item) => {
+        return item.path_date !== info.pathDate || item.site !== info.site
+      })
+      if (repeats.length > 0) {
+        this.sisters.updateInfo({ serialNumber, repeatSite: this.siteId })
+        const otherSite = repeats.find((item: HistoryDto) => item.site !== info.site)
+        if (otherSite !== undefined) {
+          this.sisters.updateInfo({ serialNumber, repeatSite: otherSite.site })
+        }
+      }
+      if (histories.find((item) => item.path_date === info.pathDate && item.site === info.site) === undefined) {
+        uploadHistory(serialNumber, info).then()
+      }
     }
     if (useConfigStore().currentConfig.skipRead && haveRead) {
       return
     }
+
     const preview = getPreviewElement(serialNumber, loadUrl, false)
     item.find('#preview').remove()
     item.append(preview)

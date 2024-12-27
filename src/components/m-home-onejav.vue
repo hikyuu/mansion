@@ -1,9 +1,8 @@
 <script lang="ts" setup>
 import { Onejav } from '@/site/onejav/onejav'
-import { dailiesRef } from '@/site/onejav/onejav-daily'
-import { computed, defineProps, ref, toRef, toRefs } from 'vue'
+import { computed, defineProps, ref, toRef, toRefs, watch } from 'vue'
 import { FORMAT } from '@/dictionary'
-import { dailyNumberRef } from '@/site/onejav/onejav-history'
+import { dailyNumberRef } from '@/dao/browse-history'
 import { Calendar, DocumentCopy, Right } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
@@ -13,6 +12,7 @@ import type { CalendarDateType, CalendarInstance } from 'element-plus'
 import { ElLoading, ElNotification } from 'element-plus'
 
 import 'dayjs/locale/zh-cn'
+import { fetchRecentDaily, getDailyByPathDate, recentHistories } from '@/dao/onejav-daily-dao'
 
 const calendar = ref<CalendarInstance>()
 
@@ -36,6 +36,15 @@ const selectDate = (val: CalendarDateType) => {
   if (!calendar.value) return
   calendar.value.selectDate(val)
 }
+
+//监听visible变化
+watch(visible, (value) => {
+  if (value) {
+    fetchRecentDaily(10).then((histories) => {
+      console.log('最近历史日期加载完成', histories.length)
+    })
+  }
+})
 
 function selectCurrent() {
   const date = dayjs(location.pathname, FORMAT.PATH_DATE, true)
@@ -87,7 +96,8 @@ function dateStyle(date: Date) {
     backgroundColor: 'white'
   }
 
-  const today = dailiesRef.value.get(pathDate)
+  const today = getDailyByPathDate(pathDate)
+
   if (!today) return style
   const number = haveReadNumber(pathDate)
   if (number / today.sisterNumber > 0.9) {
@@ -100,10 +110,12 @@ function dateStyle(date: Date) {
 }
 
 function readNumber(date: Date) {
+  // console.log('readNumber')
   if (!visible.value) return ''
   const pathDate = dayjs(date).format(FORMAT.PATH_DATE)
 
-  const today = dailiesRef.value.get(pathDate)
+  const today = getDailyByPathDate(pathDate)
+
   if (!today) return ''
   return `${haveReadNumber(pathDate)}/${today.sisterNumber}`
 }
@@ -116,20 +128,14 @@ const isLoadAll = computed(() => {
     props.onejav.sisters.queue.length >= props.onejav.sisters.sisterNumber * 0.9 && props.onejav.waterfall.page.isEnd
   )
 })
-const recentHistories = computed(() => {
-  // todo 改后台查询
-  return Array.from(dailiesRef.value.values())
-    .sort((a, b) => {
-      return b.watchTime.getTime() - a.watchTime.getTime()
-    })
-    .slice(0, 10)
-})
 
 const queueRef = toRef(props.onejav.sisters, 'queue')
 
 const repeat = computed(() => {
-  if (props.onejav.sisters.current_index === undefined) return
-  return queueRef.value[props.onejav.sisters.current_index].repeat
+  if (props.onejav.sisters.current_index === undefined) return 0
+  const info = queueRef.value[props.onejav.sisters.current_index]
+  if (!info || !info.repeatSite) return 0
+  return info.repeatSite
 })
 </script>
 
@@ -141,9 +147,10 @@ const repeat = computed(() => {
       </el-icon>
     </m-img-item>
     <div style="display: flex; justify-content: center">
-      <m-img-item v-if="repeat">
+      <m-img-item v-if="repeat > 0">
         <el-icon style="" :color="onejav.theme.value.WARNING_COLOR" :size="60">
-          <DocumentCopy />
+          <DocumentCopy v-if="repeat === 1" />
+          <so-db v-if="repeat === 2" />
         </el-icon>
       </m-img-item>
       <m-img-item>
