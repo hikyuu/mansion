@@ -32,6 +32,35 @@ export const useConfigStore = defineStore('config', {
           state.currentConfig[key] = defaultWaterfall[key]
         }
       }
+      state.currentConfig.keyword.like = [
+        '初体験',
+        '涼森れむ',
+        '宮下玲奈',
+        '素人',
+        '清楚系',
+        '小悪魔',
+        '美少女',
+        '同棲',
+        '美人'
+      ]
+      state.currentConfig.keyword.unlike = [
+        '開発',
+        '覚醒',
+        'NTR',
+        '嫌',
+        '屈服',
+        '義父',
+        '解禁',
+        '拷問',
+        '性欲処理',
+        '捜査官',
+        '肉便器',
+        '妻',
+        '病院',
+        '叔母',
+        '息子',
+        '妊娠'
+      ]
       this.$patch(state)
       console.log('当前配置', this.$state)
     },

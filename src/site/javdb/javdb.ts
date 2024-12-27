@@ -9,11 +9,10 @@ import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { useConfigStore } from '@/store/config-store'
 import { WaterfallStatus } from '@/dictionary'
 import { ElNotification } from 'element-plus'
-import { haveArchived } from '@/site/archive-supabase'
+import { haveArchived } from '@/dao/archive'
 import { clickMagnet } from '@/site/onejav/onejav'
 import { downloadFromLocal, getDetailHref } from '@/site/javdb/javdb-api'
-import { uploadHistory } from '@/site/onejav/onejav-history'
-import dayjs from 'dayjs'
+import { uploadHistory } from '@/dao/browse-history'
 
 export const javdb_selector: Selector = {
   next: 'a.pagination-next',
@@ -27,6 +26,7 @@ export const javdb_selector: Selector = {
 
 export class Javdb extends SiteAbstract {
   public name = 'javdb'
+  public siteId = 2
   public waterfall: Waterfall
   public sisters: Sisters
   constructor(sisters: Sisters) {

@@ -81,7 +81,7 @@ export declare interface Info {
   serialNumber: string
   javStoreUrl?: string
   scrollTop?: number
-  repeat?: boolean
+  repeatSite?: number
   src?: string
   date?: string
   haveRead?: boolean
@@ -89,4 +89,5 @@ export declare interface Info {
   likeWords?: string[]
   unlikeWords?: string[]
   status?: number //200：成功，404：不存在 405：图片地址获取失败 500:id格式错误 501：图片加载错误
+  site?: number // 0 unknown 1 onejav 2 javdb
 }

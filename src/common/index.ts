@@ -236,7 +236,7 @@ function fc2_ppv(originalId: string) {
   if (numberArray.length > 0) {
     const reg = /(FC2PPV)(\d+)/gi
     if (reg.test(originalId)) {
-      return 'FC2PPV ' + numberArray[0][2]
+      return 'FC2-PPV-' + numberArray[0][2]
     }
     return numberArray[0][1] + '-' + numberArray[0][2]
   }

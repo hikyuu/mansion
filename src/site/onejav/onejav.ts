@@ -8,15 +8,14 @@ import { picx, WaterfallStatus } from '@/dictionary'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { Sisters } from '@/site/sisters'
 import { Task } from '@/site/task'
-import { getHistories, loadHistoryNumber, loadLatestHistory, uploadHistory } from './onejav-history'
-import { loginApiKey } from '../realm'
-import { loadDailies, uploadDaily } from './onejav-daily'
 import { ElNotification } from 'element-plus'
-import { haveArchived } from '@/site/archive-supabase'
+import { haveArchived } from '@/dao/archive'
 import { highScoreMagnet } from '@/site/javdb/javdb-api'
 import { useConfigStore } from '@/store/config-store'
 import { getDetailFromJavStore } from '@/site'
 import { getPreviewUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
+import { uploadDaily } from '@/dao/onejav-daily-dao'
+import { getHistories, type HistoryDto, loadDailyHistory, loadLatestHistory, uploadHistory } from '@/dao/browse-history'
 
 export function clickMagnet(magnet: string) {
   const $a = $('<a>', {
@@ -58,6 +57,7 @@ export async function downloadFromJavDB(serialNumber: string): Promise<boolean> 
 
 export class Onejav extends SiteAbstract {
   public name = 'onejav'
+  public siteId = 1
   public waterfall: Waterfall
   public sisters: Sisters
 
@@ -82,14 +82,7 @@ export class Onejav extends SiteAbstract {
   async mount(): Promise<void> {
     // this.adObserve()
     this.addStyle()
-    loginApiKey()
-      .then(() => {
-        loadDailies().then()
-        loadHistoryNumber().then()
-      })
-      .catch((e) => {
-        console.error(e)
-      })
+
     this.homeVisible()
 
     const $onejav = this.homeContainer()
@@ -134,18 +127,30 @@ export class Onejav extends SiteAbstract {
       serialNumber,
       src: loadUrl,
       date,
-      repeat: false,
+      repeatSite: 0,
       pathDate,
+      site: this.siteId,
       status: 200
     })
 
     const histories = await getHistories(serialNumber)
     const haveRead = histories.length > 0
     this.sisters.updateInfo({ serialNumber, haveRead })
-
-    if (haveRead && histories.find((item) => item.pathDate !== info.pathDate) !== undefined) {
-      this.sisters.updateInfo({ serialNumber, repeat: true })
-      uploadHistory(serialNumber, info).then()
+    if (haveRead) {
+      const repeats = histories.filter((item) => {
+        return item.path_date !== info.pathDate || item.site !== info.site
+      })
+      if (repeats.length > 0) {
+        console.log('发现重复', repeats)
+        this.sisters.updateInfo({ serialNumber, repeatSite: this.siteId })
+        const otherSite = repeats.find((item: HistoryDto) => item.site !== info.site)
+        if (otherSite !== undefined) {
+          this.sisters.updateInfo({ serialNumber, repeatSite: otherSite.site })
+        }
+      }
+      if (histories.find((item) => item.path_date === info.pathDate && item.site === info.site) === undefined) {
+        uploadHistory(serialNumber, info).then()
+      }
     }
 
     if (useConfigStore().currentConfig.skipRead && haveRead) {
@@ -191,32 +196,6 @@ export class Onejav extends SiteAbstract {
     const title = getTitleFromDetail(javstoreDetail)
     console.log(serialNumber, '标题', title)
     if (title) {
-      useConfigStore().currentConfig.keyword.like = [
-        '涼森れむ',
-        '宮下玲奈',
-        '素人',
-        '清楚系',
-        '小悪魔',
-        '美少女',
-        '同棲',
-        '美人'
-      ]
-      useConfigStore().currentConfig.keyword.unlike = [
-        '開発',
-        '覚醒',
-        'NTR',
-        '嫌',
-        '屈服',
-        '義父',
-        '解禁',
-        '拷問',
-        '性欲処理',
-        '捜査官',
-        '肉便器',
-        '妻',
-        '病院',
-        '叔母'
-      ]
       this.resolveTitle(serialNumber, title)
     }
 
@@ -318,7 +297,14 @@ export class Onejav extends SiteAbstract {
       })
       .finally(() => {
         this.downloadList.delete(serialNumber)
+        this.closeDetailPage()
       })
+  }
+
+  closeDetailPage() {
+    if (location.pathname.includes('torrent')) {
+      window.close()
+    }
   }
 
   showControlPanel(): boolean {
@@ -350,18 +336,17 @@ export class Onejav extends SiteAbstract {
         loadLatestHistory().then((histories) => {
           const pathDateSet = new Set<string>()
           histories.forEach((history) => {
-            pathDateSet.add(history.pathDate)
-            const info = this.sisters.queue.find((item) => item.serialNumber === history.serialNumber)
+            pathDateSet.add(history.path_date)
+            const info = this.sisters.queue.find((item) => item.serialNumber === history.serial_number)
             if (info === undefined) return
             if (info.haveRead) return
-            this.sisters.updateInfo({ serialNumber: history.serialNumber, haveRead: true })
-            if (info.pathDate !== history.pathDate) {
-              this.sisters.updateInfo({ serialNumber: history.serialNumber, repeat: true })
+            this.sisters.updateInfo({ serialNumber: history.serial_number, haveRead: true })
+            if (info.pathDate !== history.path_date || info.site !== history.site) {
+              this.sisters.updateInfo({ serialNumber: history.serial_number, repeatSite: history.site })
               uploadHistory(info.serialNumber, info).then()
             }
           })
-          if (pathDateSet.size === 0) return
-          loadHistoryNumber(pathDateSet).then()
+          loadDailyHistory(pathDateSet).then()
         })
       }
     })

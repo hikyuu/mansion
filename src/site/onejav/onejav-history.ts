@@ -15,7 +15,24 @@ const lockPool = new LockPool()
 
 export const dailyNumberRef: Map<string, number> = reactive(new Map())
 
-export async function loadHistoryNumber(pathDates: Set<string> = new Set()) {
+export async function fetchAllHistory(pageSize: number, lastId: any) {
+  const query = lastId ? { _id: { $gt: lastId } } : {}
+  return getOnejavHistory()
+    .find(query, { limit: pageSize })
+    .then((histories: History[]) => {
+      return histories
+    })
+}
+
+export async function countHistory() {
+  return getOnejavHistory()
+    .count()
+    .then((count: number) => {
+      return count
+    })
+}
+
+async function loadHistoryNumber(pathDates: Set<string> = new Set()) {
   const onejav = getOnejavHistory()
   const pipeline = [
     {
@@ -45,14 +62,14 @@ export async function loadHistoryNumber(pathDates: Set<string> = new Set()) {
   })
 }
 
-export async function getHistories(serialNumber: string) {
+async function getHistories(serialNumber: string) {
   const onejav = getOnejavHistory()
   return onejav.find({ serialNumber: serialNumber }).then((history: History[]) => {
     return history
   })
 }
 
-export async function loadLatestHistory() {
+async function loadLatestHistory() {
   console.log('加载最新记录')
   const onejav = getOnejavHistory()
   return onejav.find({ watchTime: { $gte: refreshTime } }).then((histories: History[]) => {
@@ -130,7 +147,7 @@ async function uploadRemoteHistory(serialNumber: string, history: History, retry
   }
 }
 
-export async function uploadHistory(serialNumber: string, info: Info): Promise<History> {
+async function uploadHistory(serialNumber: string, info: Info): Promise<History> {
   if (lockPool.locked(serialNumber)) return Promise.reject()
 
   console.log(`记录`, serialNumber)
