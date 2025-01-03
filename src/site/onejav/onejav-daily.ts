@@ -1,6 +1,6 @@
 import * as realm from 'realm-web'
 import { ref } from 'vue'
-import type { OnejavDailyDto } from '@/dao/onejav-daily-dao'
+import type { onejav_daily_dto } from '@/dao/onejav-daily-dao'
 import dayjs from 'dayjs'
 
 let daily: Realm.Services.MongoDB.MongoDBCollection<OnejavDaily> | undefined = undefined
@@ -16,14 +16,12 @@ export async function getDailies(limit: number = 0) {
 
   const dtos = onejavDailies.map((daily) => {
     return {
-      sisterNumber: daily.sisterNumber,
-      loadCompleted: daily.loadCompleted,
-      pathDate: daily.pathDate,
-      releaseDate: dayjs(daily.releaseDateStamp).format('YYYY-MM-DD'),
-      releaseDateStamp: daily.releaseDateStamp,
-      originalReleaseDate: daily.originalReleaseDate,
-      watchTime: daily.watchTime
-    } as OnejavDailyDto
+      sister_number: daily.sisterNumber,
+      load_completed: daily.loadCompleted,
+      path_date: daily.pathDate,
+      original_release_date: daily.originalReleaseDate,
+      watch_time: daily.watchTime
+    } as onejav_daily_dto
   })
   return dtos
 }

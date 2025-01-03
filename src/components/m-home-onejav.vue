@@ -6,10 +6,11 @@ import { dailyNumberRef } from '@/dao/browse-history'
 import { Calendar, DocumentCopy, Right } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
-import { onKeyStroke } from '@vueuse/core'
+import { useActiveElement, useMagicKeys, whenever } from '@vueuse/core'
 import dayjs from 'dayjs'
 import type { CalendarDateType, CalendarInstance } from 'element-plus'
 import { ElLoading, ElNotification } from 'element-plus'
+import { logicAnd } from '@vueuse/math'
 
 import 'dayjs/locale/zh-cn'
 import { fetchRecentDaily, getDailyByPathDate, recentHistories } from '@/dao/onejav-daily-dao'
@@ -54,13 +55,6 @@ function selectCurrent() {
   }
   calendarDate.value = date.toDate()
 }
-
-function gotoNextDay(event: KeyboardEvent) {
-  console.log('gotoNextDay')
-  event.preventDefault()
-  openNextDay(true)
-}
-
 function openNextDay(self: boolean) {
   const date = dayjs(location.pathname, FORMAT.PATH_DATE, true)
   if (!date.isValid()) {
@@ -77,8 +71,17 @@ function openNextDay(self: boolean) {
     ElLoading.service({ lock: true, fullscreen: true, text: `跳转到${nextDay}` })
   }
 }
+const keys = useMagicKeys()
 
-onKeyStroke('0', (event: KeyboardEvent) => gotoNextDay(event), { dedupe: true })
+const activeElement = useActiveElement()
+const notUsingInput = computed(
+  () => activeElement.value?.tagName !== 'INPUT' && activeElement.value?.tagName !== 'TEXTAREA'
+)
+
+whenever(logicAnd(keys.Ctrl_right, notUsingInput), () => {
+  console.log('Ctrl_right have been pressed')
+  openNextDay(false)
+})
 
 function haveReadNumber(pathDate: string) {
   return dailyNumberRef.get(pathDate) || 0
@@ -100,7 +103,7 @@ function dateStyle(date: Date) {
 
   if (!today) return style
   const number = haveReadNumber(pathDate)
-  if (number / today.sisterNumber > 0.9) {
+  if (number / today.sister_number > 0.9) {
     style.backgroundColor = onejav.theme.value.SECONDARY_COLOR
     return style
   } else {
@@ -117,7 +120,7 @@ function readNumber(date: Date) {
   const today = getDailyByPathDate(pathDate)
 
   if (!today) return ''
-  return `${haveReadNumber(pathDate)}/${today.sisterNumber}`
+  return `${haveReadNumber(pathDate)}/${today.sister_number}`
 }
 function solveLink(date: Date) {
   return dayjs(date).format(FORMAT.PATH_DATE)
@@ -127,6 +130,10 @@ const isLoadAll = computed(() => {
   return (
     props.onejav.sisters.queue.length >= props.onejav.sisters.sisterNumber * 0.9 && props.onejav.waterfall.page.isEnd
   )
+})
+
+const isDatePage = computed(() => {
+  return dayjs(location.pathname, FORMAT.PATH_DATE, true).isValid()
 })
 
 const queueRef = toRef(props.onejav.sisters, 'queue')
@@ -141,7 +148,7 @@ const repeat = computed(() => {
 
 <template>
   <m-img-box>
-    <m-img-item v-if="isLoadAll">
+    <m-img-item v-if="isLoadAll && isDatePage">
       <el-icon style="cursor: pointer" :color="onejav.theme.value.PRIMARY_COLOR" :size="60" @click="openNextDay(false)">
         <Right />
       </el-icon>
@@ -170,6 +177,7 @@ const repeat = computed(() => {
           :append-to-body="true"
           size="50%"
           :close-on-press-escape="true"
+          :z-index="99999"
         >
           <template #default>
             <el-date-picker v-model="calendarDate" type="date" placeholder="选择日期" size="large" />
@@ -194,8 +202,8 @@ const repeat = computed(() => {
               </template>
             </el-calendar>
             <el-row>
-              <el-col v-for="history in recentHistories" :key="history.pathDate" :span="24">
-                <el-link type="primary" :href="history.pathDate" target="_self">{{ history.pathDate }}</el-link>
+              <el-col v-for="history in recentHistories" :key="history.path_date" :span="24">
+                <el-link type="primary" :href="history.path_date" target="_self">{{ history.path_date }}</el-link>
               </el-col>
             </el-row>
           </template>

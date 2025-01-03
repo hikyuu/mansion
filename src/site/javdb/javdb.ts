@@ -1,7 +1,7 @@
 import { SiteAbstract } from '@/site/site-abstract'
 import type { Selector } from '@/waterfall'
 import Waterfall from '@/waterfall/index'
-import type { Sisters } from '@/site/sisters'
+import type { Sister } from '@/site/sister'
 import { loginApiKey } from '@/site/realm'
 import $ from 'jquery'
 import { Task } from '@/site/task'
@@ -28,8 +28,8 @@ export class Javdb extends SiteAbstract {
   public name = 'javdb'
   public siteId = 2
   public waterfall: Waterfall
-  public sisters: Sisters
-  constructor(sisters: Sisters) {
+  public sisters: Sister
+  constructor(sisters: Sister) {
     super()
     this.sisters = sisters
     this.waterfall = new Waterfall(this, this.selector, sisters)

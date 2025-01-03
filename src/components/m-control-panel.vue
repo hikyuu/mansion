@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { computed, reactive, ref, toRef, watch } from 'vue'
 import $ from 'jquery'
-import { Sisters } from '@/site/sisters'
+import { Sister } from '@/site/sister'
 import { SiteAbstract } from '@/site/site-abstract'
 import { ElNotification } from 'element-plus'
 import { onKeyStroke, useScroll } from '@vueuse/core'
@@ -11,13 +11,13 @@ import MImgItem from '@/components/m-img-item.vue'
 import { useConfigStore } from '@/store/config-store'
 
 const props = defineProps<{
-  sisters: Sisters
+  sister: Sister
   site: SiteAbstract
 }>()
 
 const showImage = ref(false)
 
-const queueRef = toRef(props.sisters, 'queue')
+const queueRef = toRef(props.sister, 'queue')
 
 const loadAll = reactive({
   color: props.site.theme.WARNING_COLOR
@@ -40,8 +40,8 @@ onKeyStroke('ArrowUp', (event: KeyboardEvent) => scroll(event, true), { dedupe: 
 onKeyStroke('ArrowDown', (event: KeyboardEvent) => scroll(event), { dedupe: true })
 
 const haveRead = computed(() => {
-  if (props.sisters.current_index === undefined) return
-  return queueRef.value[props.sisters.current_index].haveRead
+  if (props.sister.current_index === undefined) return
+  return queueRef.value[props.sister.current_index].haveRead
 })
 
 const haveReadNumber = computed(() => {
@@ -49,12 +49,12 @@ const haveReadNumber = computed(() => {
 })
 
 const src = computed(() => {
-  if (props.sisters.current_index === undefined) return
-  return queueRef.value[props.sisters.current_index].src
+  if (props.sister.current_index === undefined) return
+  return queueRef.value[props.sister.current_index].src
 })
 
 function lastUnread() {
-  const index = props.sisters.queue.findIndex((sister) => {
+  const index = props.sister.queue.findIndex((sister) => {
     if (!sister.haveRead) {
       return true
     }
@@ -63,7 +63,7 @@ function lastUnread() {
     ElNotification({ title: '提示', message: '没有未读的图片', type: 'info' })
     return
   }
-  props.sisters
+  props.sister
     .getScrollTop(index)
     .then((scrollTop) => {
       console.log('坐标', scrollTop)
@@ -94,7 +94,7 @@ function close() {
 
 function previous(event: KeyboardEvent) {
   event.preventDefault()
-  props.sisters.previous()
+  props.sister.previous()
   props.site.scrollToCurrent(x, y)
 }
 
@@ -105,7 +105,7 @@ function download(event: KeyboardEvent) {
 
 function nextStep(event: KeyboardEvent) {
   event.preventDefault()
-  props.sisters.nextStep()
+  props.sister.nextStep()
   props.site.scrollToCurrent(x, y)
 }
 
@@ -124,7 +124,7 @@ function scroll(event: KeyboardEvent, reverse = false) {
 }
 
 watch(
-  () => props.sisters.current_key,
+  () => props.sister.current_key,
   (key) => {
     // console.log('监听到key变化');
     if (!key) return
@@ -136,9 +136,9 @@ watch(
 )
 
 watch(
-  () => props.sisters.current_index,
+  () => props.sister.current_index,
   (index) => {
-    const pageSisterNumber = props.sisters.sisterNumber
+    const pageSisterNumber = props.sister.sisterNumber
     if (index !== undefined && index >= pageSisterNumber - 3) {
       console.log('加载下一页')
       props.site.loadNext()
@@ -167,13 +167,13 @@ watch(
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Memo />
         </el-icon>
-        <span :style="loadAll">{{ sisters.sisterNumber }}</span>
+        <span :style="loadAll">{{ sister.sisterNumber }}</span>
       </div>
-      <div v-if="sisters.current_index !== undefined" class="count-group">
+      <div v-if="sister.current_index !== undefined" class="count-group">
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Location />
         </el-icon>
-        <span style="color: green">{{ sisters.current_index + 1 }}</span>
+        <span style="color: green">{{ sister.current_index + 1 }}</span>
       </div>
     </m-img-item>
 
@@ -182,7 +182,7 @@ watch(
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Picture />
         </el-icon>
-        <span style="color: green">{{ sisters.queue.length }}</span>
+        <span style="color: green">{{ sister.queue.length }}</span>
       </div>
       <div class="count-group" @click="lastUnread">
         <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" size="30">

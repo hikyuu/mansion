@@ -1,6 +1,6 @@
 import { SiteAbstract } from '@/site/site-abstract'
 import $ from 'jquery'
-import { Sisters } from '@/site/sisters'
+import { Sister } from '@/site/sister'
 import { Pagination } from './pagination'
 import { ElNotification } from 'element-plus'
 import { useConfigStore } from '@/store/config-store'
@@ -14,9 +14,9 @@ export default class {
   private selector: Selector
   private readonly anchor: HTMLElement | null = null
   private site: SiteAbstract
-  private sisters: Sisters
+  private sisters: Sister
   private configStore = useConfigStore()
-  constructor(site: SiteAbstract, selector: Selector, sisters: Sisters) {
+  constructor(site: SiteAbstract, selector: Selector, sisters: Sister) {
     this.site = site
     this.selector = selector
     this.page = reactive(new Pagination(this.getDetail(document)))
