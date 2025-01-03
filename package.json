@@ -15,6 +15,7 @@
     "@element-plus/icons-vue": "^2.3.1",
     "@supabase/supabase-js": "^2.46.1",
     "@vueuse/core": "^10.9.0",
+    "@vueuse/math": "^12.3.0",
     "axios": "^1.7.7",
     "dayjs": "^1.11.11",
     "element-plus": "^2.7.2",

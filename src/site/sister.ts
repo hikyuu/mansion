@@ -1,7 +1,7 @@
 import $ from 'jquery'
 import { ElNotification } from 'element-plus'
 
-export class Sisters {
+export class Sister {
   current_index: number | undefined = undefined
   current_key: string | undefined = undefined
   queue: Array<Info> = []

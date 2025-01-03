@@ -1,7 +1,7 @@
 import type { Selector } from '@/waterfall'
 import Waterfall from '../waterfall'
 import type { SiteInterface } from './site-interface'
-import { Sisters } from './sisters'
+import { Sister } from './sister'
 import type { Theme } from '@/site/index'
 import type { Ref } from 'vue'
 import { FORMAT, KEY, picx } from '@/dictionary'
@@ -21,7 +21,7 @@ export abstract class SiteAbstract implements SiteInterface {
 
   abstract selector: Selector
 
-  abstract sisters: Sisters
+  abstract sisters: Sister
 
   abstract waterfall: Waterfall
 

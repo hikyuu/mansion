@@ -59,7 +59,8 @@ export const useConfigStore = defineStore('config', {
         '病院',
         '叔母',
         '息子',
-        '妊娠'
+        '妊娠',
+        '義母'
       ]
       this.$patch(state)
       console.log('当前配置', this.$state)

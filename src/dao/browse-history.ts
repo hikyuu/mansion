@@ -1,11 +1,11 @@
 import { ElNotification } from 'element-plus'
 import { fetchAllHistory } from '@/site/onejav/onejav-history'
-import { supabase } from '@/dao/archive'
 import { LockPool } from '@/common/lock-pool'
-import type { Info } from '@/site/sisters'
+import type { Info } from '@/site/sister'
 import dayjs, { Dayjs } from 'dayjs'
 import { FORMAT } from '@/dictionary'
 import { reactive } from 'vue'
+import { useUserStore } from '@/store/user-store'
 
 const refreshTime = new Date()
 
@@ -40,7 +40,7 @@ export async function upsertBulkHistory() {
         } as HistoryDto
       })
     console.log('查询结果：', dtos)
-
+    const supabase = await useUserStore().getAuthSupabase()
     const { data, error } = await supabase
       .from('browse_history')
       .upsert(dtos, { onConflict: 'serial_number,path_date,site' })
@@ -56,6 +56,7 @@ export async function upsertBulkHistory() {
 }
 
 export async function getHistories(serialNumber: string): Promise<HistoryDto[]> {
+  const supabase = await useUserStore().getAuthSupabase()
   const { data, error } = await supabase.from('browse_history').select().eq('serial_number', serialNumber)
   if (error) {
     console.error(error)
@@ -68,6 +69,7 @@ export async function loadDailyHistory(pathDates: Set<string> = new Set()) {
   if (pathDates.size === 0) {
     return Promise.resolve([])
   }
+  const supabase = await useUserStore().getAuthSupabase()
   const { data, error } = await supabase.from('daily_history').select().in('path_date', Array.from(pathDates))
 
   if (error) {
@@ -82,6 +84,7 @@ export async function loadDailyHistory(pathDates: Set<string> = new Set()) {
 }
 
 export async function fetchDailyHistoryRange(monthStart: Dayjs, monthEnd: Dayjs) {
+  const supabase = await useUserStore().getAuthSupabase()
   const { data, error } = await supabase
     .from('daily_history')
     .select()
@@ -92,7 +95,7 @@ export async function fetchDailyHistoryRange(monthStart: Dayjs, monthEnd: Dayjs)
     return Promise.reject(error)
   }
   console.log('加载月份', monthStart.format('YYYY-MM-DD'), data.length)
-  console.log(data)
+  // console.log(data)
   for (const history of data) {
     dailyNumberRef.set(history.path_date, history.history_number)
   }
@@ -106,9 +109,10 @@ async function uploadRemoteHistory(
 ): Promise<HistoryDto[]> {
   console.log(`记录`, serialNumber)
   lockPool.lock(serialNumber)
+  const supabase = await useUserStore().getAuthSupabase()
   const { data, error } = await supabase
     .from('browse_history')
-    .upsert(history, { onConflict: 'serial_number,path_date,site' })
+    .upsert(history, { onConflict: 'serial_number,path_date,site,user_id' })
     .select()
   if (error) {
     console.error(error)
@@ -145,6 +149,7 @@ export async function uploadHistory(serialNumber: string, info: Info): Promise<H
 
 export async function loadLatestHistory(): Promise<HistoryDto[]> {
   console.log('加载最新记录')
+  const supabase = await useUserStore().getAuthSupabase()
   const { data, error } = await supabase.from('browse_history').select().gte('watch_time', refreshTime.toISOString())
 
   if (error) {
@@ -155,7 +160,13 @@ export async function loadLatestHistory(): Promise<HistoryDto[]> {
   return data
 }
 
+export function clearHistory() {
+  dailyNumberRef.clear()
+}
+
 export declare interface HistoryDto {
+  id: number
+  user_id: string
   serial_number: string
   path_date: string
   release_date: string

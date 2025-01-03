@@ -6,7 +6,7 @@ import $ from 'jquery'
 import { picx, WaterfallStatus } from '@/dictionary'
 
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
-import { Sisters } from '@/site/sisters'
+import { Sister } from '@/site/sister'
 import { Task } from '@/site/task'
 import { ElNotification } from 'element-plus'
 import { haveArchived } from '@/dao/archive'
@@ -59,7 +59,7 @@ export class Onejav extends SiteAbstract {
   public name = 'onejav'
   public siteId = 1
   public waterfall: Waterfall
-  public sisters: Sisters
+  public sisters: Sister
 
   selector: Selector = {
     next: 'a.pagination-next.button.is-primary',
@@ -74,7 +74,7 @@ export class Onejav extends SiteAbstract {
   }
   private task: Task = new Task(this)
 
-  constructor(sisters: Sisters) {
+  constructor(sisters: Sister) {
     super()
     this.sisters = sisters
     this.waterfall = new Waterfall(this, this.selector, sisters)
