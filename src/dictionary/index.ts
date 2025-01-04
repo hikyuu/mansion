@@ -31,3 +31,5 @@ export const WaterfallStatus = {
     code: 2
   }
 }
+
+export const sites = ['unknown', 'onejav', 'javdb']

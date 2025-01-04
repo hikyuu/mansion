@@ -3,12 +3,14 @@ import { computed, reactive, ref, toRef, watch } from 'vue'
 import $ from 'jquery'
 import { Sister } from '@/site/sister'
 import { SiteAbstract } from '@/site/site-abstract'
-import { ElNotification } from 'element-plus'
-import { onKeyStroke, useScroll } from '@vueuse/core'
+import { ElMessage, ElNotification } from 'element-plus'
+import { onKeyStroke, useActiveElement, useMagicKeys, useScroll, whenever } from '@vueuse/core'
 import { Location, Memo } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
 import { useConfigStore } from '@/store/config-store'
+import { sites } from '@/dictionary'
+import { logicAnd } from '@vueuse/math'
 
 const props = defineProps<{
   sister: Sister
@@ -34,11 +36,49 @@ const { x, y } = useScroll(window, {
 })
 
 onKeyStroke('ArrowLeft', (event: KeyboardEvent) => previous(event), { dedupe: true })
-onKeyStroke('ArrowRight', (event: KeyboardEvent) => nextStep(event), { dedupe: true })
-onKeyStroke('Enter', (event: KeyboardEvent) => download(event), { dedupe: true })
-onKeyStroke('ArrowUp', (event: KeyboardEvent) => scroll(event, true), { dedupe: true })
-onKeyStroke('ArrowDown', (event: KeyboardEvent) => scroll(event), { dedupe: true })
+onKeyStroke(
+  'ArrowRight',
+  (event: KeyboardEvent) => {
+    if (event.ctrlKey || event.altKey || event.shiftKey) return
+    nextStep(event)
+  },
+  { dedupe: true }
+)
+onKeyStroke(
+  'Enter',
+  (event: KeyboardEvent) => {
+    if (event.ctrlKey || event.altKey || event.shiftKey) return
+    download(event)
+  },
+  { dedupe: true }
+)
+onKeyStroke(
+  'ArrowUp',
+  (event: KeyboardEvent) => {
+    if (event.ctrlKey || event.altKey || event.shiftKey) return
+    scroll(event, true)
+  },
+  { dedupe: true }
+)
+onKeyStroke(
+  'ArrowDown',
+  (event: KeyboardEvent) => {
+    if (event.ctrlKey || event.altKey || event.shiftKey) return
+    scroll(event)
+  },
+  { dedupe: true }
+)
+const keys = useMagicKeys()
 
+const activeElement = useActiveElement()
+const notUsingInput = computed(
+  () => activeElement.value?.tagName !== 'INPUT' && activeElement.value?.tagName !== 'TEXTAREA'
+)
+
+whenever(logicAnd(keys.Ctrl_right, notUsingInput), () => {
+  console.log('Ctrl_right have been pressed')
+  lastUnread()
+})
 const haveRead = computed(() => {
   if (props.sister.current_index === undefined) return
   return queueRef.value[props.sister.current_index].haveRead
@@ -138,10 +178,19 @@ watch(
 watch(
   () => props.sister.current_index,
   (index) => {
+    if (index === undefined) return
     const pageSisterNumber = props.sister.sisterNumber
-    if (index !== undefined && index >= pageSisterNumber - 3) {
+    if (index >= pageSisterNumber - 3) {
       console.log('加载下一页')
       props.site.loadNext()
+    }
+    const info = props.sister.queue[index]
+    if (info.haveRead && info.repeatSite && info.repeatSite > 0 && info.repeatSite !== info.site) {
+      ElMessage({
+        message: `${info.serialNumber}在${sites[info.repeatSite]}看过`,
+        type: 'warning',
+        offset: 500
+      })
     }
   }
 )

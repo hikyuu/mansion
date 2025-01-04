@@ -109,21 +109,21 @@ function allRead() {
             </el-form-item>
             <el-form-item label="瀑布流">
               <el-radio-group v-model="currentConfig.scrollStatus" @change="scrollStatusChange">
-                <el-radio :value="0" border>关闭</el-radio>
-                <el-radio :value="1" border>懒加载</el-radio>
-                <el-radio :value="2" border>一步到位</el-radio>
+                <el-radio style="width: 100px" :value="0" border>关闭</el-radio>
+                <el-radio style="width: 100px" :value="1" border>懒加载</el-radio>
+                <el-radio style="width: 100px" :value="2" border>一步到位</el-radio>
               </el-radio-group>
             </el-form-item>
             <el-form-item label="滚动动画">
               <el-radio-group v-model="currentConfig.smooth" @change="scrollAnimationChange">
-                <el-radio :value="0" border>关</el-radio>
-                <el-radio :value="1" border>开</el-radio>
+                <el-radio style="width: 100px" :value="0" border>关</el-radio>
+                <el-radio style="width: 100px" :value="1" border>开</el-radio>
               </el-radio-group>
             </el-form-item>
             <el-form-item label="导航起点">
               <el-radio-group v-model="currentConfig.navigationPoint">
-                <el-radio :value="0" border>标题</el-radio>
-                <el-radio :value="1" border>预览</el-radio>
+                <el-radio style="width: 100px" :value="0" border>标题</el-radio>
+                <el-radio style="width: 100px" :value="1" border>预览</el-radio>
               </el-radio-group>
             </el-form-item>
             <el-row justify="center">
@@ -138,3 +138,13 @@ function allRead() {
     </m-img-item>
   </m-img-box>
 </template>
+
+<style scoped>
+.el-row {
+  margin-bottom: 18px;
+}
+
+.el-row:last-child {
+  margin-bottom: 0;
+}
+</style>
