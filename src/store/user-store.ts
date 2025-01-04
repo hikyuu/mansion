@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { createClient, type Session, SupabaseClient } from '@supabase/supabase-js'
 import { ElNotification } from 'element-plus'
-import type { SupabaseAuthClient } from '@supabase/supabase-js/dist/main/lib/SupabaseAuthClient'
 import { clearDailies } from '@/dao/onejav-daily-dao'
 import { clearHistory } from '@/dao/browse-history'
 // 你可以任意命名 `defineStore()` 的返回值，但最好使用 store 的名字，同时以 `use` 开头且以 `Store` 结尾。

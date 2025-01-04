@@ -143,7 +143,7 @@ async function signUpNewUser() {
       </el-icon>
       <el-drawer
         v-model="visible"
-        title="用户中心"
+        title="个人中心"
         direction="rtl"
         :append-to-body="true"
         size="50%"
@@ -206,8 +206,14 @@ async function signUpNewUser() {
             </el-form>
           </template>
           <template v-else>
-            <el-text> 已登录 </el-text>
-            <el-button type="primary" @click="useUserStore().logout()">登出</el-button>
+            <el-row style="flex-direction: column">
+              <el-descriptions border style="margin-top: 20px">
+                <el-descriptions-item label="邮箱">{{ useUserStore().session?.user.email }}</el-descriptions-item>
+              </el-descriptions>
+            </el-row>
+            <el-row justify="center">
+              <el-button type="primary" @click="useUserStore().logout()">登出</el-button>
+            </el-row>
           </template>
         </template>
       </el-drawer>
@@ -215,4 +221,12 @@ async function signUpNewUser() {
   </m-img-box>
 </template>
 
-<style scoped></style>
+<style scoped>
+.el-row {
+  margin-bottom: 18px;
+}
+
+.el-row:last-child {
+  margin-bottom: 0;
+}
+</style>
