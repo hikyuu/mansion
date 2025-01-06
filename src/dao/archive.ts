@@ -1,7 +1,7 @@
 import { useUserStore } from '@/store/user-store'
 
 declare interface Archive {
-  id: number
+  id?: number
   serial_number: string
   download_time: Date
 }
@@ -23,10 +23,19 @@ export async function haveArchived(serialNumber: string) {
   return false
 }
 
+export async function upsertArchive(archive: Archive) {
+  const supabase = await useUserStore().getAuthSupabase()
+  const { data, error } = await supabase.from('archive').upsert(archive, { onConflict: 'serial_number' })
+  if (error) {
+    console.error(error)
+  }
+  return data
+}
+
 function sortId(serialNumber: string) {
   return serialNumber
     .replace(/\s+/g, '')
-    .replace(/fc2[\s\S]?ppv[-_]?/gi, 'fc2')
+    .replace(/fc2[\s\S]?ppv[-_]?/gi, '')
     .replace(/^\d+/, '')
     .replace(/[-_]/g, '')
 }

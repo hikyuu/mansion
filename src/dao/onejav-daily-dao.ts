@@ -34,7 +34,7 @@ export async function uploadDaily(path_date: string, sister_number: number, load
 
   updateRemoteDaily(daily, retry)
     .then(() => {
-      updateOrAddDaily(daily)
+      upsertDaily(daily)
       //解锁
       lockPool.unlock(daily.path_date)
     })
@@ -93,7 +93,7 @@ async function fetchDailyRange(monthStart: Dayjs, monthEnd: Dayjs) {
   }
   loadedMonth.add(monthStart.toString())
   for (const onejavDaily of data) {
-    updateOrAddDaily(onejavDaily)
+    upsertDaily(onejavDaily)
   }
   return data
 }
@@ -110,7 +110,7 @@ export async function fetchRecentDaily(numberOfDays: number): Promise<any[]> {
     return Promise.reject(error)
   }
   for (const onejavDaily of data) {
-    updateOrAddDaily(onejavDaily)
+    upsertDaily(onejavDaily)
   }
   return data
 }
@@ -157,7 +157,7 @@ export async function loadDailies() {
           supabase.from(ONEJAV_DAILY).delete().eq('path_date', onejavDaily.pathDate)
           continue
         }
-        updateOrAddDaily(onejavDaily)
+        upsertDaily(onejavDaily)
       }
     })
 }
@@ -170,7 +170,7 @@ export const recentHistories = computed(() => {
     .slice(0, 10)
 })
 
-function updateOrAddDaily(onejavDaily: onejav_daily_dto) {
+function upsertDaily(onejavDaily: onejav_daily_dto) {
   onejavDaily.watch_time = new Date(onejavDaily.watch_time)
   dailiesRef.value.set(onejavDaily.path_date, onejavDaily)
 }

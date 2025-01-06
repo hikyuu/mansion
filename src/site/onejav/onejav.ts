@@ -9,7 +9,7 @@ import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { Sister } from '@/site/sister'
 import { Task } from '@/site/task'
 import { ElNotification } from 'element-plus'
-import { haveArchived } from '@/dao/archive'
+import { haveArchived, upsertArchive } from '@/dao/archive'
 import { highScoreMagnet } from '@/site/javdb/javdb-api'
 import { useConfigStore } from '@/store/config-store'
 import { getDetailFromJavStore } from '@/site'
@@ -108,8 +108,17 @@ export class Onejav extends SiteAbstract {
       .replace(/[\r\n]/g, '') //去掉空格//去掉回车换行
       .replace(/ /g, '')
 
+    item.attr('id', serialNumber)
+    const sisters = $(this.selector.container).find(`#${serialNumber}`)
+    if (sisters.length > 1) {
+      console.log('发现重复妹妹', sisters)
+      sisters.last().remove()
+      return
+    }
+
     const sortId = getSortId(serialNumber, type)
     console.log('sortId:', sortId)
+    if (sortId === undefined) return
     // let serialNumber: string = 'test123456'
     const el_link = detail.parentElement
 
@@ -119,7 +128,6 @@ export class Onejav extends SiteAbstract {
       super.addLink('智能搜索中', el_link, serialNumber, item)
     }
 
-    item.attr('id', serialNumber)
     const loadUrl = picx('/load.svg')
     const failedUrl = picx('/failed.svg')
 
@@ -141,7 +149,7 @@ export class Onejav extends SiteAbstract {
         return item.path_date !== info.pathDate || item.site !== info.site
       })
       if (repeats.length > 0) {
-        console.log('发现重复', repeats)
+        console.log('发现重复已读', repeats)
         this.sisters.updateInfo({ serialNumber, repeatSite: this.siteId })
         const otherSite = repeats.find((item: HistoryDto) => item.site !== info.site)
         if (otherSite !== undefined) {
@@ -296,6 +304,7 @@ export class Onejav extends SiteAbstract {
         ElNotification({ title: 'onejav', message: '已经开始下载', type: 'success' })
       })
       .finally(() => {
+        upsertArchive({ serial_number: serialNumber, download_time: new Date() })
         this.downloadList.delete(serialNumber)
         this.closeDetailPage()
       })

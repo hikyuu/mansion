@@ -191,6 +191,7 @@ export default class {
   }
 
   setSisterNumber() {
+    $(this.selector.item)
     const sisterNumber = $(this.selector.item).length
     if (sisterNumber === 0) {
       console.error('没有找到妹妹！')
