@@ -5,7 +5,7 @@ import { Sister } from '@/site/sister'
 import { SiteAbstract } from '@/site/site-abstract'
 import { ElMessage, ElNotification } from 'element-plus'
 import { onKeyStroke, useActiveElement, useMagicKeys, useScroll, whenever } from '@vueuse/core'
-import { Location, Memo } from '@element-plus/icons-vue'
+import { Location, Memo, Search } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
 import { useConfigStore } from '@/store/config-store'
@@ -189,7 +189,7 @@ watch(
       ElMessage({
         message: `${info.serialNumber}在${sites[info.repeatSite]}看过`,
         type: 'warning',
-        offset: 500
+        offset: window.innerHeight / 2
       })
     }
   }
@@ -240,7 +240,7 @@ watch(
         <span style="color: green">{{ haveReadNumber }}</span>
       </div>
     </m-img-item>
-    <m-img-item>
+    <m-img-item v-if="false">
       <el-icon size="60" class="icon-button" @click="viewOrClose" :color="site.theme.PRIMARY_COLOR">
         <so-fullscreen />
       </el-icon>
