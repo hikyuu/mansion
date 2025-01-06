@@ -1,16 +1,17 @@
 import type { Selector } from '@/waterfall'
 import Waterfall from '../waterfall'
 import type { SiteInterface } from './site-interface'
-import { Sister } from './sister'
+import { type Info, Sister } from './sister'
 import type { Theme } from '@/site/index'
+import { getDetailFromJavStore } from '@/site/index'
 import type { Ref } from 'vue'
-import { FORMAT, KEY, picx } from '@/dictionary'
+import { KEY, picx } from '@/dictionary'
 import $ from 'jquery'
 
-import { getJavstoreUrl, getPreviewElement, getPreviewUrlFromJavStore, getSortId } from '@/common'
+import { getJavstoreUrl, getPreviewElement, getSortId } from '@/common'
 import { useConfigStore } from '@/store/config-store'
-import dayjs from 'dayjs'
 import { getHistories, type HistoryDto, uploadHistory } from '@/dao/browse-history'
+import { getPreviewUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
 
 export abstract class SiteAbstract implements SiteInterface {
   hasLoadCompleted = false
@@ -48,7 +49,7 @@ export abstract class SiteAbstract implements SiteInterface {
 
   addLink(
     text: string,
-    titleElement: HTMLElement | null,
+    titleElement: JQuery | null,
     serialNumber: string,
     elem: JQuery,
     javstoreUrl: null | string = null,
@@ -62,18 +63,19 @@ export abstract class SiteAbstract implements SiteInterface {
       return
     }
     if (javstoreUrl) {
-      $(titleElement).append(
+      titleElement.append(
         `<a id="${javstore_key}" style="color:red;" href="${javstoreUrl}" target="_blank" title="点击到JavStore看看">&nbsp;&nbsp;JavStore</a>`
       )
       return
     }
-    const $title = $(titleElement)
-    $title.append(`<a id="${javstore_key}" style="color:red;" target="_blank" title="点击重试">&nbsp;&nbsp;${text}</a>`)
+    titleElement.append(
+      `<a id="${javstore_key}" style="color:red;" target="_blank" title="点击重试">&nbsp;&nbsp;${text}</a>`
+    )
     const $titleInfo = elem.find(javstore_id_key).first().last()
     $titleInfo.on('click', () => {
       $titleInfo.css('color', 'blue').text(`\u00A0\u00A0${text}重试中`)
       console.log(`重试`)
-      this.addPreview(elem)
+      this.addPreview(elem).then()
     })
   }
 
@@ -91,7 +93,7 @@ export abstract class SiteAbstract implements SiteInterface {
   }
 
   loadNext(): void {
-    this.waterfall.appendNext().then()
+    this.waterfall.appendNext()
   }
 
   protected getCurrentWindowElement(detail: JQuery, scrollTop: number) {
@@ -130,50 +132,40 @@ export abstract class SiteAbstract implements SiteInterface {
       .first()
       .text()
       .replace(/[-_]/g, '')
-      .replace(/[\r\n]/g, '')
+      .replace(/[\r\n]/g, '') //去掉空格//去掉回车换行
       .replace(/ /g, '')
-    //去掉空格//去掉回车换行
-    if (this.sisters.queue.findIndex((info) => info.serialNumber === serialNumber) >= 0) {
-      console.log('已经加载过了', serialNumber)
+
+    item.attr('id', serialNumber)
+    const sisters = $(this.selector.container).find(`#${serialNumber}`)
+    if (sisters.length > 1) {
+      console.log('发现重复妹妹', sisters)
+      sisters.last().remove()
       return
     }
-    item.attr('id', serialNumber)
-    const sortId = getSortId(serialNumber, type)
-    console.log('sortId:', sortId)
 
-    const date = item.find(this.selector.date).text().trim()
-    const parsedDate = dayjs(date)
-    let pathDate
-    if (parsedDate.isValid()) {
-      pathDate = dayjs(date).format(FORMAT.PATH_DATE)
-    }
-
-    const el_link = item.find('div.tag.is-info')[0]
-    this.addLink('搜索中', el_link, serialNumber, item)
-    if (type > 0) {
-      this.addLink('智能搜索中', el_link, serialNumber, item)
-    }
     const loadUrl = picx('/load.svg')
     const failedUrl = picx('/failed.svg')
-
+    const date = item.find(this.selector.date).text().trim()
     const histories = await getHistories(serialNumber)
     const haveRead = histories.length > 0
+
     const info = this.sisters.updateInfo({
       serialNumber,
       src: loadUrl,
       date,
       haveRead,
       repeatSite: 0,
-      pathDate,
       site: this.siteId,
       status: 200
     })
+    this.updateInfo(item, info)
 
     if (haveRead) {
       const repeats = histories.filter((item) => {
         return item.path_date !== info.pathDate || item.site !== info.site
       })
       if (repeats.length > 0) {
+        console.log('发现重复已读', repeats)
         this.sisters.updateInfo({ serialNumber, repeatSite: this.siteId })
         const otherSite = repeats.find((item: HistoryDto) => item.site !== info.site)
         if (otherSite !== undefined) {
@@ -184,7 +176,20 @@ export abstract class SiteAbstract implements SiteInterface {
         uploadHistory(serialNumber, info).then()
       }
     }
+
+    const sortId = getSortId(serialNumber, type)
+
+    console.log('sortId:', sortId)
+
+    const el_link = item.find(this.selector.link).first()
+
+    this.addLink('搜索中', el_link, serialNumber, item)
+    if (type > 0) {
+      this.addLink('智能搜索中', el_link, serialNumber, item)
+    }
+
     if (useConfigStore().currentConfig.skipRead && haveRead) {
+      this.addLink('跳过已读', el_link, serialNumber, item)
       return
     }
 
@@ -211,7 +216,22 @@ export abstract class SiteAbstract implements SiteInterface {
       this.sisters.updateInfo({ serialNumber, javStoreUrl: javstoreUrl })
     }
 
-    const imgUrl = await getPreviewUrlFromJavStore(javstoreUrl, serialNumber, 1000)
+    const javstoreDetail = await getDetailFromJavStore(javstoreUrl)
+    if (javstoreDetail === undefined) {
+      this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 404 })
+      preview.children('img').attr('src', failedUrl)
+      this.addLink('详情获取失败', el_link, serialNumber, item, javstoreUrl, false)
+      return
+    }
+
+    const title = getTitleFromDetail(javstoreDetail)
+    console.log(serialNumber, '标题', title)
+    if (title) {
+      this.resolveTitle(serialNumber, title)
+    }
+
+    // 番号预览大图
+    const imgUrl = await getPreviewUrlFromDetail(javstoreDetail, serialNumber)
     if (!imgUrl) {
       this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 405 })
       preview.children('img').attr('src', failedUrl)
@@ -239,5 +259,18 @@ export abstract class SiteAbstract implements SiteInterface {
         })
         .attr('src', imgUrl)
     }
+  }
+
+  abstract updateInfo(item: JQuery, info: Info): void
+
+  protected resolveTitle(serialNumber: string, title: string) {
+    if (title === '') return
+    const likeWords = useConfigStore().currentConfig.keyword.like.filter((item) => {
+      return title.includes(item)
+    })
+    const unlikeWords = useConfigStore().currentConfig.keyword.unlike.filter((item) => {
+      return title.includes(item)
+    })
+    this.sisters.updateInfo({ serialNumber, likeWords, unlikeWords })
   }
 }

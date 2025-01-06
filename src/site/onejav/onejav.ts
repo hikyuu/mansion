@@ -6,7 +6,7 @@ import $ from 'jquery'
 import { picx, WaterfallStatus } from '@/dictionary'
 
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
-import { Sister } from '@/site/sister'
+import { type Info, Sister } from '@/site/sister'
 import { Task } from '@/site/task'
 import { ElNotification } from 'element-plus'
 import { haveArchived, upsertArchive } from '@/dao/archive'
@@ -65,7 +65,10 @@ export class Onejav extends SiteAbstract {
     next: 'a.pagination-next.button.is-primary',
     item: 'div.card.mb-3',
     container: '#waterfall',
-    pagination: '.pagination.is-centered'
+    pagination: '.pagination.is-centered',
+    serialNumber: 'h5.title.is-4.is-spaced a',
+    link: 'h5.title.is-4.is-spaced',
+    date: 'p.subtitle a'
   } as Selector
   theme = {
     PRIMARY_COLOR: '#00d1b2',
@@ -98,11 +101,15 @@ export class Onejav extends SiteAbstract {
     }
   }
 
-  async addPreview(item: JQuery, type = 0, onlyInfo = false) {
-    const detail = item.find('h5.title.is-4.is-spaced a')[0]
-    const date = item.find('p.subtitle a').text().trim()
+  updateInfo(item: JQuery, info: Info): void {
     const pathDate = item.find('p.subtitle a').attr('href')
-    const serialNumber = $(detail)
+    this.sisters.updateInfo({ serialNumber: info.serialNumber, pathDate })
+  }
+
+  async addPreview_backup(item: JQuery, type = 0, onlyInfo = false) {
+    const serialNumber = item
+      .find(this.selector.serialNumber)
+      .first()
       .text()
       .replace(/[-_]/g, '')
       .replace(/[\r\n]/g, '') //去掉空格//去掉回车换行
@@ -116,34 +123,35 @@ export class Onejav extends SiteAbstract {
       return
     }
 
-    const sortId = getSortId(serialNumber, type)
-    console.log('sortId:', sortId)
-    if (sortId === undefined) return
-    // let serialNumber: string = 'test123456'
-    const el_link = detail.parentElement
-
-    super.addLink('搜索中', el_link, serialNumber, item)
-
-    if (type > 0) {
-      super.addLink('智能搜索中', el_link, serialNumber, item)
-    }
-
+    const date = item.find(this.selector.date).text().trim()
+    const histories = await getHistories(serialNumber)
+    const haveRead = histories.length > 0
     const loadUrl = picx('/load.svg')
     const failedUrl = picx('/failed.svg')
-
     const info = this.sisters.updateInfo({
       serialNumber,
       src: loadUrl,
       date,
+      haveRead,
       repeatSite: 0,
-      pathDate,
       site: this.siteId,
       status: 200
     })
 
-    const histories = await getHistories(serialNumber)
-    const haveRead = histories.length > 0
-    this.sisters.updateInfo({ serialNumber, haveRead })
+    const sortId = getSortId(serialNumber, type)
+    console.log('sortId:', sortId)
+
+    if (sortId === undefined) return
+
+    // let serialNumber: string = 'test123456'
+
+    const el_link = item.find(this.selector.link).first()
+
+    super.addLink('搜索中', el_link, serialNumber, item)
+    if (type > 0) {
+      super.addLink('智能搜索中', el_link, serialNumber, item)
+    }
+
     if (haveRead) {
       const repeats = histories.filter((item) => {
         return item.path_date !== info.pathDate || item.site !== info.site
@@ -168,7 +176,6 @@ export class Onejav extends SiteAbstract {
 
     const preview = getPreviewElement(serialNumber, loadUrl, false)
     const divEle = item.find('div.container')[0]
-
     item.find('#preview').remove()
     $(divEle).append(preview)
 
@@ -181,8 +188,7 @@ export class Onejav extends SiteAbstract {
 
     if (onlyInfo) return
 
-    const javstoreUrl = await getJavstoreUrl(sortId, 3)
-
+    const javstoreUrl = await getJavstoreUrl(sortId, 1000)
     if (javstoreUrl === null) {
       this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 404 })
       preview.children('img').attr('src', failedUrl)
@@ -209,7 +215,6 @@ export class Onejav extends SiteAbstract {
 
     // 番号预览大图
     const imgUrl = await getPreviewUrlFromDetail(javstoreDetail, serialNumber)
-
     if (!imgUrl) {
       this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 405 })
       preview.children('img').attr('src', failedUrl)
@@ -237,17 +242,6 @@ export class Onejav extends SiteAbstract {
         })
         .attr('src', imgUrl)
     }
-  }
-
-  private resolveTitle(serialNumber: string, title: string) {
-    if (title === '') return
-    const likeWords = useConfigStore().currentConfig.keyword.like.filter((item) => {
-      return title.includes(item)
-    })
-    const unlikeWords = useConfigStore().currentConfig.keyword.unlike.filter((item) => {
-      return title.includes(item)
-    })
-    this.sisters.updateInfo({ serialNumber, likeWords, unlikeWords })
   }
 
   save(serialNumber: string): void {
@@ -304,7 +298,7 @@ export class Onejav extends SiteAbstract {
         ElNotification({ title: 'onejav', message: '已经开始下载', type: 'success' })
       })
       .finally(() => {
-        upsertArchive({ serial_number: serialNumber, download_time: new Date() })
+        upsertArchive(serialNumber)
         this.downloadList.delete(serialNumber)
         this.closeDetailPage()
       })

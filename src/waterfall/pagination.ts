@@ -1,5 +1,3 @@
-import { ref } from 'vue'
-import type { Ref } from 'vue'
 export class Pagination {
   constructor(detail: JQuery) {
     this.detail = detail

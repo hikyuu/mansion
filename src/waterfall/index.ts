@@ -91,7 +91,15 @@ export default class {
     return true
   }
 
-  async appendNext(oneStep: boolean = false) {
+  appendNext(oneStep: boolean = false) {
+    if (this.lock.locked) {
+      console.log(`下一页正在加载中`)
+      return
+    }
+    this.fetchNextSync(oneStep).then()
+  }
+
+  private appendNextLocal() {
     if (this.page.isEnd) {
       console.log(`没有下一页`)
       return this.end()
@@ -103,9 +111,6 @@ export default class {
     $(this.selector.container).append(this.page.nextDetail)
     this.setSisterNumber()
     this.page.nextDetail = null
-    // console.log(`解锁`);
-    this.lock.unlock()
-    return this.fetchNextSync(oneStep)
   }
 
   isEnd() {
@@ -127,17 +132,27 @@ export default class {
     }
     try {
       await this.fetchURL()
+      this.appendNextLocal()
       if (!oneStep) {
-        return
+        const sisterNumber = this.sisters.sisterNumber
+        const lazyLimit = useConfigStore().currentConfig.lazyLimit
+        const haveReadNumber = this.sisters.queue.filter((item) => item.haveRead).length
+        if (sisterNumber - haveReadNumber > lazyLimit) {
+          return
+        }
       }
-      this.appendNext(oneStep).then()
+      this.lock.unlock()
+      if (this.page.isEnd) return
+      this.fetchNextSync(oneStep).then()
     } catch (e) {
-      // Locked!
       console.error(e)
+    } finally {
+      this.lock.unlock()
     }
   }
 
   async fetchURL(retry = 3): Promise<void> {
+    if (this.page.isEnd) return
     if (this.page.nextUrl === null) {
       return this.isEnd()
     }
@@ -192,11 +207,15 @@ export default class {
 
   setSisterNumber() {
     $(this.selector.item)
-    const sisterNumber = $(this.selector.item).length
+    let sisterNumber = $(this.selector.item).length
+    if (this.page.nextDetail !== null) {
+      sisterNumber += this.page.nextDetail.find(this.selector.item).length
+    }
     if (sisterNumber === 0) {
       console.error('没有找到妹妹！')
     }
     this.sisters.sisterNumber = sisterNumber
+    return sisterNumber
   }
 
   private loadPreview(detail: JQuery) {
@@ -235,6 +254,10 @@ export declare interface Selector {
    * 路径日期选择器
    */
   pathDate: string
+  /**
+   * 链接选择器
+   */
+  link: string
 }
 
 class Lock {
