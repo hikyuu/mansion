@@ -7,7 +7,7 @@ declare interface Archive {
 }
 
 export async function haveArchived(serialNumber: string) {
-  const id = sortId(serialNumber)
+  const id = getSortId(serialNumber)
   console.log(id)
   const supabase = await useUserStore().getAuthSupabase()
   const { data, error } = await supabase.from('archive').select('id').ilike('serial_number', `%${id}%`)
@@ -23,7 +23,12 @@ export async function haveArchived(serialNumber: string) {
   return false
 }
 
-export async function upsertArchive(archive: Archive) {
+export async function upsertArchive(serialNumber: string) {
+  const sortId = getSortId(serialNumber)
+  const archive: Archive = {
+    serial_number: sortId,
+    download_time: new Date()
+  }
   const supabase = await useUserStore().getAuthSupabase()
   const { data, error } = await supabase.from('archive').upsert(archive, { onConflict: 'serial_number' })
   if (error) {
@@ -32,10 +37,11 @@ export async function upsertArchive(archive: Archive) {
   return data
 }
 
-function sortId(serialNumber: string) {
+function getSortId(serialNumber: string) {
   return serialNumber
     .replace(/\s+/g, '')
-    .replace(/fc2[\s\S]?ppv[-_]?/gi, '')
+    .replace(/fc2[\s\S]?ppv[-_]?/gi, 'fc2')
     .replace(/^\d+/, '')
     .replace(/[-_]/g, '')
+    .toUpperCase()
 }

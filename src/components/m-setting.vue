@@ -126,7 +126,7 @@ function allRead() {
                 <el-radio style="width: 100px" :value="1" border>预览</el-radio>
               </el-radio-group>
             </el-form-item>
-            <el-row justify="center">
+            <el-row v-if="false" justify="center">
               <el-button type="primary" @click="allRead">全部已读</el-button>
             </el-row>
             <el-row justify="center">

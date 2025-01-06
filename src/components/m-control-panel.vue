@@ -179,11 +179,15 @@ watch(
   () => props.sister.current_index,
   (index) => {
     if (index === undefined) return
-    const pageSisterNumber = props.sister.sisterNumber
-    if (index >= pageSisterNumber - 3) {
+    const sisterNumber = props.sister.sisterNumber
+    console.log('sisterNumber', sisterNumber)
+    const unreadNumber = sisterNumber - haveReadNumber.value
+
+    if (unreadNumber < useConfigStore().currentConfig.lazyLimit) {
       console.log('加载下一页')
       props.site.loadNext()
     }
+
     const info = props.sister.queue[index]
     if (info.haveRead && info.repeatSite && info.repeatSite > 0 && info.repeatSite !== info.site) {
       ElMessage({

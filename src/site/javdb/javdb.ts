@@ -1,18 +1,19 @@
 import { SiteAbstract } from '@/site/site-abstract'
 import type { Selector } from '@/waterfall'
 import Waterfall from '@/waterfall/index'
-import type { Sister } from '@/site/sister'
+import type { Info, Sister } from '@/site/sister'
 import { loginApiKey } from '@/site/realm'
 import $ from 'jquery'
 import { Task } from '@/site/task'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { useConfigStore } from '@/store/config-store'
-import { WaterfallStatus } from '@/dictionary'
+import { FORMAT, WaterfallStatus } from '@/dictionary'
 import { ElNotification } from 'element-plus'
-import { haveArchived } from '@/dao/archive'
+import { haveArchived, upsertArchive } from '@/dao/archive'
 import { clickMagnet } from '@/site/onejav/onejav'
 import { downloadFromLocal, getDetailHref } from '@/site/javdb/javdb-api'
 import { uploadHistory } from '@/dao/browse-history'
+import dayjs from 'dayjs'
 
 export const javdb_selector: Selector = {
   next: 'a.pagination-next',
@@ -21,7 +22,8 @@ export const javdb_selector: Selector = {
   pagination: 'nav.pagination',
   serialNumber: 'div.video-title strong',
   date: 'div.meta',
-  pathDate: 'div.meta'
+  pathDate: 'div.meta',
+  link: 'div.tags.has-addons'
 }
 
 export class Javdb extends SiteAbstract {
@@ -87,6 +89,14 @@ export class Javdb extends SiteAbstract {
     this.hasLoadCompleted = true
   }
 
+  updateInfo(item: JQuery, info: Info): void {
+    const parsedDate = dayjs(info.date)
+    if (parsedDate.isValid()) {
+      const pathDate = parsedDate.format(FORMAT.PATH_DATE)
+      this.sisters.updateInfo({ serialNumber: info.serialNumber, pathDate })
+    }
+  }
+
   async download() {
     const serialNumber = this.sisters.current_key
     console.log('下载', serialNumber)
@@ -124,6 +134,7 @@ export class Javdb extends SiteAbstract {
         ElNotification.error({ title: 'javdb', message: e })
       })
       .finally(() => {
+        upsertArchive(serialNumber)
         this.downloadList.delete(serialNumber)
       })
   }

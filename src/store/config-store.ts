@@ -62,7 +62,10 @@ export const useConfigStore = defineStore('config', {
         '叔母',
         '息子',
         '妊娠',
-        '義母'
+        '義母',
+        '軽蔑',
+        '緊縛',
+        '輪姦'
       ]
       this.$patch(state)
       console.log('当前配置', this.$state)
@@ -89,7 +92,8 @@ function getDefaultWaterfall() {
     keyword: {
       like: [],
       unlike: []
-    }
+    },
+    lazyLimit: 200
   } as Waterfall
 }
 
@@ -111,5 +115,6 @@ export interface Waterfall {
     like: string[]
     unlike: string[]
   }
+  lazyLimit: number
   [key: string]: any
 }
