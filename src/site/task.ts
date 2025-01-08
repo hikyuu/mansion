@@ -1,4 +1,5 @@
 import { SiteAbstract } from './site-abstract'
+import { ProjectError } from '@/common/errors'
 
 export class Task {
   limit: number
@@ -27,10 +28,17 @@ export class Task {
     this.workNumber++
     const elem = this.waitQueue.shift()
     if (elem) {
-      this.work(elem).then(() => {
-        this.workNumber--
-        this.run()
-      })
+      this.work(elem)
+        .then()
+        .catch((reason) => {
+          if (reason instanceof ProjectError) {
+            console.log(reason.message)
+          }
+        })
+        .finally(() => {
+          this.workNumber--
+          this.run()
+        })
     }
   }
 

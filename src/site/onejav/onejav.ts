@@ -189,6 +189,7 @@ export class Onejav extends SiteAbstract {
     if (onlyInfo) return
 
     const javstoreUrl = await getJavstoreUrl(sortId, 1000)
+
     if (javstoreUrl === null) {
       this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 404 })
       preview.children('img').attr('src', failedUrl)
@@ -205,12 +206,6 @@ export class Onejav extends SiteAbstract {
       preview.children('img').attr('src', failedUrl)
       this.addLink('详情获取失败', el_link, serialNumber, item, javstoreUrl, false)
       return
-    }
-
-    const title = getTitleFromDetail(javstoreDetail)
-    console.log(serialNumber, '标题', title)
-    if (title) {
-      this.resolveTitle(serialNumber, title)
     }
 
     // 番号预览大图
