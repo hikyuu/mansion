@@ -17,6 +17,8 @@ import { ProjectError } from '@/common/errors'
 export abstract class SiteAbstract implements SiteInterface {
   hasLoadCompleted = false
 
+  downloadList: Map<string, number> = new Map()
+
   abstract name: string
 
   abstract siteId: number
@@ -28,9 +30,6 @@ export abstract class SiteAbstract implements SiteInterface {
   abstract waterfall: Waterfall
 
   abstract theme: Theme
-
-  downloadList: Map<string, number> = new Map()
-
   // 声明抽象的方法，让子类去实现
   abstract mount(): void
 
