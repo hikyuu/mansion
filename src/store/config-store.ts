@@ -65,7 +65,10 @@ export const useConfigStore = defineStore('config', {
         '義母',
         '軽蔑',
         '緊縛',
-        '輪姦'
+        '輪姦',
+        'SM',
+        '性玩',
+        '変態'
       ]
       this.$patch(state)
       console.log('当前配置', this.$state)
