@@ -66,6 +66,7 @@ export const useConfigStore = defineStore('config', {
         '軽蔑',
         '緊縛',
         '輪姦',
+        '輪',
         'SM',
         '性玩',
         '変態'
