@@ -32,7 +32,7 @@ jobs:
       run: | 
         meta_path="dist/mansion.meta.js"
         user_path="dist/mansion.user.js"
-        current_date=$(date +"%Y-%m-%d_%H-%M") 
+        current_date=$(TZ='Asia/Shanghai' date +"%Y-%m-%d_%H-%M") 
         sed -i "s|// @version[[:space:]]*1.0.0|// @version $current_date|" "$meta_path"
         sed -i "s|// @version[[:space:]]*1.0.0|// @version $current_date|" "$user_path"
 
