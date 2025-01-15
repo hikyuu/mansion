@@ -22,11 +22,13 @@ if (exactSite === undefined) {
   ElNotification({ title: 'mansion', message: `不支持当前网站!`, type: 'error' })
 } else {
   site.value = exactSite
-  configStore.loadLocalConfig(exactSite.name)
 
   configStore.$subscribe((mutation, state) => {
     configStore.saveLocal()
   })
+
+  configStore.loadLocalConfig(exactSite.name)
+
   exactSite.mount()
 }
 </script>
