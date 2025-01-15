@@ -60,6 +60,7 @@ export default defineConfig({
         author: 'gaki'
       },
       build: {
+        metaFileName: true,
         externalGlobals: {
           //key对应npm包名称,exportVarName对应暴露出的变量名
           // vue: cdn
