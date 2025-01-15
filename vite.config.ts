@@ -57,7 +57,9 @@ export default defineConfig({
         namespace: 'npm/mansion',
         match: ['*://*onejav.com/*', '*://*javdb.com/*'],
         connect: ['javstore.net', 'pixhost.to', 'javdb.com', 'onejav.com'],
-        author: 'gaki'
+        author: 'gaki',
+        updateURL: 'https://hikyuu.github.io/mansion/mansion.meta.js',
+        downloadURL: 'https://hikyuu.github.io/mansion/mansion.user.js'
       },
       build: {
         metaFileName: true,

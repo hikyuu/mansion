@@ -29,6 +29,14 @@ jobs:
     - run: npm run build --if-present
 
     - name: Upload GitHub Pages artifact
+      run: | 
+        meta_path="dist/mansion.meta.js"
+        user_path="dist/mansion.user.js"
+        current_date=$(date +"%Y-%m-%d_%H-%M") 
+        sed -i "s|// @version[[:space:]]*1.0.0|// @version $current_date|" "$meta_path"
+        sed -i "s|// @version[[:space:]]*1.0.0|// @version $current_date|" "$user_path"
+
+    - name: Upload GitHub Pages artifact
       uses: actions/upload-pages-artifact@v3.0.1
       with:
         # Path of the directory containing the static assets.
