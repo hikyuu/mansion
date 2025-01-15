@@ -2,7 +2,6 @@ import { SiteAbstract } from '@/site/site-abstract'
 import type { Selector } from '@/waterfall'
 import Waterfall from '@/waterfall/index'
 import type { Info, Sister } from '@/site/sister'
-import { loginApiKey } from '@/site/realm'
 import $ from 'jquery'
 import { Task } from '@/site/task'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
@@ -48,7 +47,6 @@ export class Javdb extends SiteAbstract {
   mount(): void {
     this.addStyle()
     this.enableWaterfall()
-    loginApiKey().then(() => {})
   }
 
   checkSite(): boolean {

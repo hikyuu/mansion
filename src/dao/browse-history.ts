@@ -1,5 +1,4 @@
 import { ElNotification } from 'element-plus'
-import { fetchAllHistory } from '@/site/onejav/onejav-history'
 import { LockPool } from '@/common/lock-pool'
 import type { Info } from '@/site/sister'
 import dayjs, { Dayjs } from 'dayjs'
@@ -12,49 +11,6 @@ const refreshTime = new Date()
 const lockPool = new LockPool()
 
 export const dailyNumberRef: Map<string, number> = reactive(new Map())
-
-export async function upsertBulkHistory() {
-  const pageSize = 1000
-  let lastId = null // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const uniquePathDates = new Set<string>()
-    const batch = await fetchAllHistory(pageSize, lastId)
-
-    if (batch === undefined || batch.length === 0) break
-    const dtos = batch
-      .filter((history) => {
-        if (uniquePathDates.has(history.serialNumber + history.pathDate)) {
-          return false
-        }
-        uniquePathDates.add(history.serialNumber + history.pathDate)
-        return true
-      })
-      .map((history) => {
-        return {
-          serial_number: history.serialNumber,
-          path_date: history.pathDate,
-          release_date: dayjs(history.releaseDate).format('YYYY-MM-DD'),
-          original_release_date: history.originalReleaseDate,
-          watch_time: history.watchTime,
-          site: 1
-        } as HistoryDto
-      })
-    console.log('查询结果：', dtos)
-    const supabase = await useUserStore().getAuthSupabase()
-    const { data, error } = await supabase
-      .from('browse_history')
-      .upsert(dtos, { onConflict: 'serial_number,path_date,site' })
-      .select()
-
-    if (error) {
-      console.error(error)
-      return Promise.reject(error)
-    }
-    console.log(data)
-    lastId = batch[batch.length - 1]._id
-  }
-}
-
 export async function getHistories(serialNumber: string): Promise<HistoryDto[]> {
   const supabase = await useUserStore().getAuthSupabase()
   const { data, error } = await supabase.from('browse_history').select().eq('serial_number', serialNumber)
