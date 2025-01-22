@@ -11,18 +11,22 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Sending message
-        uses: yakumioto/serverchan-action@v2
+        uses: chf007/action-wechat-work@master
+        env:
+          WECHAT_WORK_BOT_WEBHOOK: ${{secrets.WECHAT_WORK_BOT_WEBHOOK}}
         with:
-          key: ${{ secrets.sckey }}
-          text: ${{ github.repository }}构建成功
-          desp: ${{ github.event.workflow_run.head_commit.message }}
+          msgtype: markdown
+          content: "${{ github.repository }}构建成功 \n
+          ${{ github.event.workflow_run.head_commit.message }} \n"
   send-wechat-notification-on-failure:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     steps:
       - name: Sending message
-        uses: yakumioto/serverchan-action@v2
+        uses: chf007/action-wechat-work@master
+        env:
+          WECHAT_WORK_BOT_WEBHOOK: ${{secrets.WECHAT_WORK_BOT_WEBHOOK}}
         with:
-          key: ${{ secrets.sckey }}
-          text: ${{ github.repository }}构建失败
-          desp: ${{ github.event.workflow_run.head_commit.message }}
+          msgtype: markdown
+          content: "${{ github.repository }}构建成功 \n
+          ${{ github.event.workflow_run.head_commit.message }} \n"
