@@ -16,8 +16,8 @@ jobs:
           WECHAT_WORK_BOT_WEBHOOK: ${{secrets.WECHAT_WORK_BOT_WEBHOOK}}
         with:
           msgtype: markdown
-          content: "${{ github.repository }}构建成功 \n
-          ${{ github.event.workflow_run.head_commit.message }} \n"
+          content: "mansion 构建<font color=green>成功</font>\n
+          ${{ github.event.workflow_run.head_commit.message }}\n"
   send-wechat-notification-on-failure:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
@@ -28,5 +28,5 @@ jobs:
           WECHAT_WORK_BOT_WEBHOOK: ${{secrets.WECHAT_WORK_BOT_WEBHOOK}}
         with:
           msgtype: markdown
-          content: "${{ github.repository }}构建成功 \n
-          ${{ github.event.workflow_run.head_commit.message }} \n"
+          content: "mansion 构建<font color=red>失败</font>\n
+          ${{ github.event.workflow_run.head_commit.message }}\n"
