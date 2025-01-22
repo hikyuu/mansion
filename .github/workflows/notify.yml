@@ -17,7 +17,7 @@ jobs:
         with:
           msgtype: markdown
           content: "mansion 构建<font color=green>成功</font>\n
-          ${{ github.event.workflow_run.head_commit.message }}\n"
+          > ${{ github.event.workflow_run.head_commit.message }}\n"
   send-wechat-notification-on-failure:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
@@ -29,4 +29,5 @@ jobs:
         with:
           msgtype: markdown
           content: "mansion 构建<font color=red>失败</font>\n
-          ${{ github.event.workflow_run.head_commit.message }}\n"
+          > ${{ github.event.workflow_run.head_commit.message }}\n"
+          mentioned_list: '["@all"]'
