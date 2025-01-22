@@ -344,7 +344,7 @@ export class Onejav extends SiteAbstract {
               uploadHistory(info.serialNumber, info).then()
             }
           })
-          loadDailyHistory(pathDateSet).then()
+          loadDailyHistory(pathDateSet, this.siteId).then()
         })
       }
     })

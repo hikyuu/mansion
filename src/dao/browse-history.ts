@@ -11,6 +11,7 @@ const refreshTime = new Date()
 const lockPool = new LockPool()
 
 export const dailyNumberRef: Map<string, number> = reactive(new Map())
+
 export async function getHistories(serialNumber: string): Promise<HistoryDto[]> {
   const supabase = await useUserStore().getAuthSupabase()
   const { data, error } = await supabase.from('browse_history').select().eq('serial_number', serialNumber)
@@ -21,12 +22,16 @@ export async function getHistories(serialNumber: string): Promise<HistoryDto[]> 
   return data
 }
 
-export async function loadDailyHistory(pathDates: Set<string> = new Set()) {
+export async function loadDailyHistory(pathDates: Set<string> = new Set(), siteId: number) {
   if (pathDates.size === 0) {
     return Promise.resolve([])
   }
   const supabase = await useUserStore().getAuthSupabase()
-  const { data, error } = await supabase.from('daily_history').select().in('path_date', Array.from(pathDates))
+  const { data, error } = await supabase
+    .from('daily_history')
+    .select()
+    .in('path_date', Array.from(pathDates))
+    .eq('site', siteId)
 
   if (error) {
     console.error(error)
@@ -39,13 +44,15 @@ export async function loadDailyHistory(pathDates: Set<string> = new Set()) {
   return data
 }
 
-export async function fetchDailyHistoryRange(monthStart: Dayjs, monthEnd: Dayjs) {
+export async function fetchDailyHistoryRange(monthStart: Dayjs, monthEnd: Dayjs, siteId: number) {
   const supabase = await useUserStore().getAuthSupabase()
+  console.log('siteId', siteId)
   const { data, error } = await supabase
     .from('daily_history')
     .select()
     .gte('release_date', monthStart.format('YYYY-MM-DD'))
     .lte('release_date', monthEnd.format('YYYY-MM-DD'))
+    .eq('site', siteId)
   if (error) {
     console.error(error)
     return Promise.reject(error)

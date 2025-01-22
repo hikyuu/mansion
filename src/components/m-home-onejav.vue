@@ -99,7 +99,7 @@ function dateStyle(date: Date) {
     backgroundColor: 'white'
   }
 
-  const today = getDailyByPathDate(pathDate)
+  const today = getDailyByPathDate(pathDate, onejav.siteId.value)
 
   if (!today) return style
   const number = haveReadNumber(pathDate)
@@ -117,7 +117,7 @@ function readNumber(date: Date) {
   if (!visible.value) return ''
   const pathDate = dayjs(date).format(FORMAT.PATH_DATE)
 
-  const today = getDailyByPathDate(pathDate)
+  const today = getDailyByPathDate(pathDate, onejav.siteId.value)
 
   if (!today) return ''
   return `${haveReadNumber(pathDate)}/${today.sister_number}`
