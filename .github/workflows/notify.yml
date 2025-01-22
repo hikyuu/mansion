@@ -1,0 +1,28 @@
+name: Send WeChat Notification on Completion
+
+on:
+  workflow_run:
+    types: ['completed']
+    jobs: ['all']
+
+jobs:
+  send-wechat-notification-on-success:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Sending message
+        uses: yakumioto/serverchan-action@v2
+        with:
+          key: ${{ secrets.sckey }}
+          text: ${{ github.repository }}构建成功
+          desp: ${{ github.event.workflow_run.head_commit.message }}
+  send-wechat-notification-on-failure:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - name: Sending message
+        uses: yakumioto/serverchan-action@v2
+        with:
+          key: ${{ secrets.sckey }}
+          text: ${{ github.repository }}构建失败
+          desp: ${{ github.event.workflow_run.head_commit.message }}
