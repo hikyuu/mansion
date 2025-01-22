@@ -3,7 +3,7 @@ name: Send WeChat Notification on Completion
 on:
   workflow_run:
     types: ['completed']
-    workflows: ["*"]
+    workflows: ["build-and-deploy"]
 
 jobs:
   send-wechat-notification-on-success:
