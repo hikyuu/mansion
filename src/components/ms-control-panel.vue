@@ -232,7 +232,7 @@ window.addEventListener('resize', () => {
       </el-icon>
     </m-img-item>
     <m-img-item>
-      <el-icon size="80" class="icon-button" @click="previous">
+      <el-icon size="60" class="icon-button" @click="previous">
         <so-previous />
       </el-icon>
     </m-img-item>
@@ -251,7 +251,7 @@ window.addEventListener('resize', () => {
       </div>
     </m-img-item>
     <m-img-item>
-      <el-icon size="80" class="icon-button" @click="nextStep">
+      <el-icon size="60" class="icon-button" @click="nextStep">
         <so-next />
       </el-icon>
     </m-img-item>

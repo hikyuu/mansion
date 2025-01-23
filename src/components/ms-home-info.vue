@@ -129,9 +129,9 @@ window.addEventListener('resize', () => {
           </el-col>
           <el-col :span="6" class="flex-space">
             <m-sister-statistics :sister="sister" :site="site" :size="25" style="height: 50px" />
-            <m-onejav-calendar v-if="site instanceof Onejav" :onejav="site" :size="50" />
-            <m-home-user :site="site" :size="50" />
-            <m-setting :site="site" :size="50" />
+            <m-onejav-calendar v-if="site instanceof Onejav" :onejav="site" :size="40" />
+            <m-home-user :site="site" :size="40" />
+            <m-setting :site="site" :size="40" />
           </el-col>
         </template>
       </el-row>

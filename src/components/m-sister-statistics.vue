@@ -25,8 +25,17 @@ const props = defineProps({
     default: false
   }
 })
-const loadAll = reactive({
-  color: props.site.theme.WARNING_COLOR
+
+const loadAll = computed(() => {
+  if (props.site.waterfall.page.isEnd) {
+    return {
+      color: 'green'
+    }
+  } else {
+    return {
+      color: props.site.theme.WARNING_COLOR
+    }
+  }
 })
 const queueRef = toRef(props.sister, 'queue')
 
@@ -49,7 +58,9 @@ const { x, y } = useScroll(window, {
         <el-icon :color="site.theme.PRIMARY_COLOR" :size="props.size">
           <Memo />
         </el-icon>
-        <span :style="loadAll">{{ sister.sisterNumber }}</span>
+        <div style="min-width: 30px">
+          <span :style="loadAll">{{ sister.sisterNumber }}</span>
+        </div>
       </div>
       <div
         v-if="sister.current_index !== undefined"
@@ -59,7 +70,9 @@ const { x, y } = useScroll(window, {
         <el-icon :color="site.theme.PRIMARY_COLOR" :size="props.size">
           <Location />
         </el-icon>
-        <span style="color: green">{{ sister.current_index + 1 }}</span>
+        <div style="min-width: 30px">
+          <span style="color: green">{{ sister.current_index + 1 }}</span>
+        </div>
       </div>
     </el-row>
     <el-row>
@@ -67,13 +80,17 @@ const { x, y } = useScroll(window, {
         <el-icon :color="site.theme.PRIMARY_COLOR" :size="props.size">
           <Picture />
         </el-icon>
-        <span style="color: green">{{ sister.queue.length }}</span>
+        <div style="min-width: 30px">
+          <span style="color: green">{{ sister.queue.length }}</span>
+        </div>
       </div>
       <div class="count-group" :class="{ 'flex-direction-column': props.column }" @click="props.sister?.lastUnread(y)">
         <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" :size="props.size">
           <svg-readed />
         </el-icon>
-        <span style="color: green">{{ haveReadNumber }}</span>
+        <div style="min-width: 30px">
+          <span style="color: green">{{ haveReadNumber }}</span>
+        </div>
       </div>
     </el-row>
   </m-img-item>
