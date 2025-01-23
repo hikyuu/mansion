@@ -182,6 +182,12 @@ watch(
   },
   { immediate: true }
 )
+
+const isDesktop = ref(window.innerHeight >= 700)
+
+window.addEventListener('resize', () => {
+  isDesktop.value = window.innerHeight >= 700
+})
 </script>
 
 <template>
@@ -191,7 +197,7 @@ watch(
     </div>
   </div>
   <m-img-box>
-    <m-img-item style="height: 60px">
+    <m-img-item v-if="isDesktop" style="height: 60px">
       <div class="count-group">
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Memo />
@@ -205,8 +211,7 @@ watch(
         <span style="color: green">{{ sister.current_index + 1 }}</span>
       </div>
     </m-img-item>
-
-    <m-img-item style="height: 60px">
+    <m-img-item v-if="isDesktop" style="height: 60px">
       <div class="count-group">
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Picture />
@@ -231,10 +236,9 @@ watch(
         <so-previous />
       </el-icon>
     </m-img-item>
-
     <m-img-item>
       <div style="display: flex; justify-content: center">
-        <m-img-item>
+        <m-img-item v-if="false">
           <el-icon v-if="haveRead" :color="site.theme.PRIMARY_COLOR" size="50">
             <svg-readed />
           </el-icon>

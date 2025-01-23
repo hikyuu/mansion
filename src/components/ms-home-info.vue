@@ -11,6 +11,7 @@ import { Onejav } from '@/site/onejav/onejav'
 import MHomeUser from '@/components/m-home-user.vue'
 import MSetting from '@/components/m-setting.vue'
 import MSisterStatistics from '@/components/m-sister-statistics.vue'
+import MOnejavCalendar from '@/components/m-onejav-calendar.vue'
 
 const props = defineProps<{
   site: SiteAbstract
@@ -128,7 +129,7 @@ window.addEventListener('resize', () => {
           </el-col>
           <el-col :span="6" class="flex-space">
             <m-sister-statistics :sister="sister" :site="site" :size="25" style="height: 50px" />
-            <m-home-onejav v-if="site instanceof Onejav" :onejav="site" :size="50" />
+            <m-onejav-calendar v-if="site instanceof Onejav" :onejav="site" :size="50" />
             <m-home-user :site="site" :size="50" />
             <m-setting :site="site" :size="50" />
           </el-col>

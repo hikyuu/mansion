@@ -31,6 +31,12 @@ if (exactSite === undefined) {
 
   exactSite.mount()
 }
+
+const isDesktop = ref(window.innerHeight >= 700)
+
+window.addEventListener('resize', () => {
+  isDesktop.value = window.innerHeight >= 700
+})
 </script>
 
 <template>
@@ -39,10 +45,10 @@ if (exactSite === undefined) {
       <ms-home-info :sister="sister" :site="site" />
     </div>
     <div class="mansion-right">
-      <m-home-user :site="site" />
-      <home-onejav v-if="site instanceof Onejav" :onejav="site" />
+      <m-home-user v-if="isDesktop" :site="site" />
+      <home-onejav v-if="site instanceof Onejav && isDesktop" :onejav="site" />
       <control-panel v-if="site.showControlPanel()" :sister="sister" :site="site" />
-      <mansion-setting :site="site" />
+      <mansion-setting v-if="isDesktop" :site="site" />
     </div>
   </template>
 </template>
