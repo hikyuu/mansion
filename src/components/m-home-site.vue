@@ -11,7 +11,6 @@ import { useConfigStore } from '@/store/config-store'
 import { ElNotification } from 'element-plus'
 import MHomeUser from '@/components/m-home-user.vue'
 import MHomeLeft from '@/components/m-home-left.vue'
-import MHomeBottom from '@/components/m-home-bottom.vue'
 
 const site = ref<SiteAbstract>()
 
