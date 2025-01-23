@@ -8,9 +8,17 @@ import { useConfigStore } from '@/store/config-store'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 
-const props = defineProps<{
-  site: SiteAbstract
-}>()
+const props = defineProps({
+  site: {
+    type: Object as () => SiteAbstract,
+    required: true
+  },
+  size: {
+    type: Number,
+    default: 60
+  }
+})
+
 const configStore = useConfigStore()
 const { currentConfig } = storeToRefs(configStore)
 
@@ -82,7 +90,7 @@ function allRead() {
         trigger="hover"
       >
         <template #reference>
-          <el-icon :color="props.site.theme.PRIMARY_COLOR" :size="60">
+          <el-icon :color="props.site.theme.PRIMARY_COLOR" :size="props.size">
             <Setting />
           </el-icon>
         </template>

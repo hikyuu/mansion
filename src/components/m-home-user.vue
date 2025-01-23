@@ -8,9 +8,16 @@ import { UserFilled } from '@element-plus/icons-vue'
 import { ElLoading, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { useUserStore } from '@/store/user-store'
 
-const props = defineProps<{
-  site: SiteAbstract
-}>()
+const props = defineProps({
+  site: {
+    type: Object as () => SiteAbstract,
+    required: true
+  },
+  size: {
+    type: Number,
+    default: 60
+  }
+})
 
 useUserStore().onAuthStateChange()
 useUserStore().getSession()
@@ -138,7 +145,12 @@ async function signUpNewUser() {
 <template>
   <m-img-box>
     <m-img-item>
-      <el-icon style="cursor: pointer" :color="props.site.theme.PRIMARY_COLOR" :size="60" @click="visible = !visible">
+      <el-icon
+        style="cursor: pointer"
+        :color="props.site.theme.PRIMARY_COLOR"
+        :size="props.size"
+        @click="visible = !visible"
+      >
         <UserFilled />
       </el-icon>
       <el-drawer

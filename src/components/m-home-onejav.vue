@@ -17,7 +17,16 @@ import { fetchRecentDaily, getDailyByPathDate, recentHistories } from '@/dao/one
 
 const calendar = ref<CalendarInstance>()
 
-const props = defineProps<{ onejav: Onejav }>()
+const props = defineProps({
+  onejav: {
+    type: Object as () => Onejav,
+    required: true
+  },
+  size: {
+    type: Number,
+    default: 60
+  }
+})
 
 const getCurrentDate = () => {
   const date = dayjs(location.pathname, FORMAT.PATH_DATE, true)
@@ -164,7 +173,7 @@ const repeat = computed(() => {
         <el-icon
           style="cursor: pointer"
           :color="onejav.theme.value.PRIMARY_COLOR"
-          :size="60"
+          :size="props.size"
           @click="visible = !visible"
         >
           <Calendar />

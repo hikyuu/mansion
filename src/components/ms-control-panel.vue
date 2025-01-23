@@ -3,7 +3,7 @@ import { computed, reactive, ref, toRef, watch } from 'vue'
 import $ from 'jquery'
 import { Sister } from '@/site/sister'
 import { SiteAbstract } from '@/site/site-abstract'
-import { ElMessage, ElNotification } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { onKeyStroke, useActiveElement, useMagicKeys, useScroll, whenever } from '@vueuse/core'
 import { Location, Memo } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
@@ -77,8 +77,9 @@ const notUsingInput = computed(
 
 whenever(logicAnd(keys.Ctrl_right, notUsingInput), () => {
   console.log('Ctrl_right have been pressed')
-  lastUnread()
+  props.sister.lastUnread(y)
 })
+
 const haveRead = computed(() => {
   if (props.sister.current_index === undefined) return
   return queueRef.value[props.sister.current_index].haveRead
@@ -92,31 +93,6 @@ const src = computed(() => {
   if (props.sister.current_index === undefined) return
   return queueRef.value[props.sister.current_index].src
 })
-
-function lastUnread() {
-  const index = props.sister.queue.findIndex((sister) => {
-    if (!sister.haveRead) {
-      return true
-    }
-  })
-  if (index === -1) {
-    ElNotification({ title: '提示', message: '没有未读的图片', type: 'info' })
-    return
-  }
-  props.sister
-    .getScrollTop(index)
-    .then((scrollTop) => {
-      console.log('坐标', scrollTop)
-      y.value = scrollTop
-    })
-    .catch((reason) => {
-      ElNotification({
-        title: '提示',
-        message: reason,
-        type: 'info'
-      })
-    })
-}
 
 function viewOrClose() {
   showImage.value ? close() : view()
@@ -244,6 +220,7 @@ watch(
         <span style="color: green">{{ haveReadNumber }}</span>
       </div>
     </m-img-item>
+
     <m-img-item v-if="false">
       <el-icon size="60" class="icon-button" @click="viewOrClose" :color="site.theme.PRIMARY_COLOR">
         <so-fullscreen />

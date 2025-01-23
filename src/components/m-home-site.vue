@@ -4,13 +4,13 @@ import { reactive, ref } from 'vue'
 import { Sister } from '@/site/sister'
 import { SiteAbstract } from '@/site/site-abstract'
 import { Onejav } from '@/site/onejav/onejav'
-import ControlPanel from './m-control-panel.vue'
+import ControlPanel from './ms-control-panel.vue'
 import HomeOnejav from '@/components/m-home-onejav.vue'
 import MansionSetting from '@/components/m-setting.vue'
 import { useConfigStore } from '@/store/config-store'
 import { ElNotification } from 'element-plus'
 import MHomeUser from '@/components/m-home-user.vue'
-import MHomeLeft from '@/components/m-home-left.vue'
+import MsHomeInfo from '@/components/ms-home-info.vue'
 
 const site = ref<SiteAbstract>()
 
@@ -36,7 +36,7 @@ if (exactSite === undefined) {
 <template>
   <template v-if="site">
     <div style="padding-left: 5px">
-      <m-home-left :sister="sister" :site="site" />
+      <ms-home-info :sister="sister" :site="site" />
     </div>
     <div class="mansion-right">
       <m-home-user :site="site" />

@@ -11,7 +11,5 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  min-width: 80px;
-  height: 80px;
 }
 </style>

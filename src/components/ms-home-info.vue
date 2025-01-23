@@ -6,6 +6,11 @@ import { detailUrl } from '@/site/javdb/javdb-api'
 import { BASEURL } from '@/dictionary'
 import { ElNotification } from 'element-plus'
 import { Hide, Star } from '@element-plus/icons-vue'
+import MHomeOnejav from '@/components/m-home-onejav.vue'
+import { Onejav } from '@/site/onejav/onejav'
+import MHomeUser from '@/components/m-home-user.vue'
+import MSetting from '@/components/m-setting.vue'
+import MSisterStatistics from '@/components/m-sister-statistics.vue'
 
 const props = defineProps<{
   site: SiteAbstract
@@ -116,12 +121,17 @@ window.addEventListener('resize', () => {
             </el-text>
             <el-text style="font-size: 15px" v-if="site.downloadList.size > 0">
               [下载列表]
-              <el-tag type="" v-for="(entry, index) in Array.from(site.downloadList.entries())" :key="index">
+              <el-tag v-for="(entry, index) in Array.from(site.downloadList.entries())" :key="index">
                 {{ entry[0] }}
               </el-tag>
             </el-text>
           </el-col>
-          <el-col :span="6" class="flex-space"> </el-col>
+          <el-col :span="6" class="flex-space">
+            <m-sister-statistics :sister="sister" :site="site" :size="25" style="height: 50px" />
+            <m-home-onejav v-if="site instanceof Onejav" :onejav="site" :size="50" />
+            <m-home-user :site="site" :size="50" />
+            <m-setting :site="site" :size="50" />
+          </el-col>
         </template>
       </el-row>
     </div>

@@ -7,6 +7,30 @@ export class Sister {
   queue: Array<Info> = []
   sisterNumber = 0
 
+  lastUnread(y: any) {
+    const index = this.queue.findIndex((sister) => {
+      if (!sister.haveRead) {
+        return true
+      }
+    })
+    if (index === -1) {
+      ElNotification({ title: '提示', message: '没有未读的图片', type: 'info' })
+      return
+    }
+    this.getScrollTop(index)
+      .then((scrollTop) => {
+        console.log('坐标', scrollTop)
+        y.value = scrollTop
+      })
+      .catch((reason) => {
+        ElNotification({
+          title: '提示',
+          message: reason,
+          type: 'info'
+        })
+      })
+  }
+
   previous() {
     // console.log(this)
     if (!this.current_key || this.current_index === undefined || this.current_index <= 0) return
