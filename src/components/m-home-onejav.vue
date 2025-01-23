@@ -9,9 +9,7 @@ import { useActiveElement, useMagicKeys, whenever } from '@vueuse/core'
 import dayjs from 'dayjs'
 import { ElLoading, ElNotification } from 'element-plus'
 import { logicAnd } from '@vueuse/math'
-
 import 'dayjs/locale/zh-cn'
-import { fetchRecentDaily } from '@/dao/onejav-daily-dao'
 import MOnejavCalendar from '@/components/m-onejav-calendar.vue'
 
 const props = defineProps({
@@ -26,17 +24,6 @@ const props = defineProps({
 })
 
 const onejav = toRefs<Onejav>(props.onejav)
-
-const visible = ref<boolean>(false)
-
-//监听visible变化
-watch(visible, (value) => {
-  if (value) {
-    fetchRecentDaily(10).then((histories) => {
-      console.log('最近历史日期加载完成', histories.length)
-    })
-  }
-})
 
 function openNextDay(self: boolean) {
   const date = dayjs(location.pathname, FORMAT.PATH_DATE, true)

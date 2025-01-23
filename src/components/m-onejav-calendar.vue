@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { getDailyByPathDate, recentHistories } from '@/dao/onejav-daily-dao'
+import { fetchRecentDaily, getDailyByPathDate, recentHistories } from '@/dao/onejav-daily-dao'
 import MImgItem from '@/components/m-img-item.vue'
 import { Calendar } from '@element-plus/icons-vue'
-import { defineProps, ref, toRefs } from 'vue'
+import { defineProps, ref, toRefs, watch } from 'vue'
 import { Onejav } from '@/site/onejav/onejav'
 import dayjs from 'dayjs'
 import { FORMAT } from '@/dictionary'
@@ -22,6 +22,15 @@ const props = defineProps({
 const calendar = ref<CalendarInstance>()
 
 const visible = ref<boolean>(false)
+//监听visible变化
+watch(visible, (value) => {
+  if (value) {
+    fetchRecentDaily(10).then((histories) => {
+      console.log('最近历史日期加载完成', histories.length)
+    })
+  }
+})
+
 const onejav = toRefs<Onejav>(props.onejav)
 const getCurrentDate = () => {
   const date = dayjs(location.pathname, FORMAT.PATH_DATE, true)
@@ -81,6 +90,7 @@ function readNumber(date: Date) {
   if (!today) return ''
   return `${haveReadNumber(pathDate)}/${today.sister_number}`
 }
+
 function solveLink(date: Date) {
   return dayjs(date).format(FORMAT.PATH_DATE)
 }
