@@ -213,7 +213,7 @@ watch(
         </el-icon>
         <span style="color: green">{{ sister.queue.length }}</span>
       </div>
-      <div class="count-group" @click="lastUnread">
+      <div class="count-group" @click="props.sister.lastUnread(y)">
         <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" size="30">
           <svg-readed />
         </el-icon>
