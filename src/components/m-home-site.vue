@@ -11,6 +11,7 @@ import { useConfigStore } from '@/store/config-store'
 import { ElNotification } from 'element-plus'
 import MHomeUser from '@/components/m-home-user.vue'
 import MHomeLeft from '@/components/m-home-left.vue'
+import MHomeBottom from '@/components/m-home-bottom.vue'
 
 const site = ref<SiteAbstract>()
 
@@ -35,7 +36,7 @@ if (exactSite === undefined) {
 
 <template>
   <template v-if="site">
-    <div class="mansion-left" style="padding-left: 5px">
+    <div style="padding-left: 5px">
       <m-home-left :sister="sister" :site="site" />
     </div>
     <div class="mansion-right">
@@ -57,11 +58,6 @@ if (exactSite === undefined) {
   position: fixed;
   top: 50%;
   right: 0;
-  transform: translateY(-50%);
-}
-.mansion-left {
-  position: fixed;
-  top: 50%;
   transform: translateY(-50%);
 }
 </style>

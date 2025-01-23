@@ -30,8 +30,8 @@ export const useUserStore = defineStore('user', {
           // handle initial session
         } else if (event === 'SIGNED_IN') {
           // handle sign in event
-          this.session = session
           this.initial = true
+          this.session = session
         } else if (event === 'SIGNED_OUT') {
           // handle sign out event
           this.session = null
@@ -39,6 +39,9 @@ export const useUserStore = defineStore('user', {
           clearHistory()
         } else if (event === 'PASSWORD_RECOVERY') {
           // handle password recovery event
+          this.session = null
+          clearDailies()
+          clearHistory()
           //跳转到密码重置页面
         } else if (event === 'TOKEN_REFRESHED') {
           this.session = session

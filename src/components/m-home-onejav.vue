@@ -157,7 +157,7 @@ const repeat = computed(() => {
       <m-img-item v-if="repeat > 0">
         <el-icon style="" :color="onejav.theme.value.WARNING_COLOR" :size="60">
           <DocumentCopy v-if="repeat === 1" />
-          <so-db v-if="repeat === 2" />
+          <so-javdb v-if="repeat === 2" />
         </el-icon>
       </m-img-item>
       <m-img-item>
@@ -171,6 +171,7 @@ const repeat = computed(() => {
         </el-icon>
 
         <el-drawer
+          style="min-width: 700px"
           v-model="visible"
           title="日历"
           direction="rtl"

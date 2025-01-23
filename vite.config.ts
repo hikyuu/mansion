@@ -76,7 +76,6 @@ export default defineConfig({
           //   ),
           // jquery: cdn.jsdelivr('jQuery', 'dist/jquery.min.js')
           // pinia: cdn.jsdelivr('Pinia', 'dist/pinia.iife.prod.js'),
-          // 'realm-web': cdn.jsdelivr('Realm', 'dist/bundle.iife.js'),
           // 'element-plus': cdn.jsdelivr('ElementPlus', 'dist/index.full.min.js'),
           // '@element-plus/icons-vue': cdn.jsdelivr('ElementPlusIconsVue', 'dist/index.iife.min.js')
         },
