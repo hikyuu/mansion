@@ -13,9 +13,9 @@ import { haveArchived, upsertArchive } from '@/dao/archive'
 import { highScoreMagnet } from '@/site/javdb/javdb-api'
 import { useConfigStore } from '@/store/config-store'
 import { getDetailFromJavStore } from '@/site'
-import { getPreviewUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
+import { getPreviewUrlFromDetail } from '@/site/javstore/javstore-api'
 import { uploadDaily } from '@/dao/onejav-daily-dao'
-import { getHistories, type HistoryDto, loadDailyHistory, loadLatestHistory, uploadHistory } from '@/dao/browse-history'
+import { getHistories, loadDailyHistory, loadLatestHistory, uploadHistory } from '@/dao/browse-history'
 
 export function clickMagnet(magnet: string) {
   const $a = $('<a>', {
@@ -104,139 +104,6 @@ export class Onejav extends SiteAbstract {
   updateInfo(item: JQuery, info: Info): void {
     const pathDate = item.find('p.subtitle a').attr('href')
     this.sisters.updateInfo({ serialNumber: info.serialNumber, pathDate })
-  }
-
-  async addPreview_backup(item: JQuery, type = 0, onlyInfo = false) {
-    const serialNumber = item
-      .find(this.selector.serialNumber)
-      .first()
-      .text()
-      .replace(/[-_]/g, '')
-      .replace(/[\r\n]/g, '') //去掉空格//去掉回车换行
-      .replace(/ /g, '')
-
-    item.attr('id', serialNumber)
-    const sisters = $(this.selector.container).find(`#${serialNumber}`)
-    if (sisters.length > 1) {
-      console.log('发现重复妹妹', sisters)
-      sisters.last().remove()
-      return
-    }
-
-    const date = item.find(this.selector.date).text().trim()
-    const histories = await getHistories(serialNumber)
-    const haveRead = histories.length > 0
-    const loadUrl = picx('/load.svg')
-    const failedUrl = picx('/failed.svg')
-    const info = this.sisters.updateInfo({
-      serialNumber,
-      src: loadUrl,
-      date,
-      haveRead,
-      repeatSite: 0,
-      site: this.siteId,
-      status: 200
-    })
-
-    const sortId = getSortId(serialNumber, type)
-    console.log('sortId:', sortId)
-
-    if (sortId === undefined) return
-
-    // let serialNumber: string = 'test123456'
-
-    const el_link = item.find(this.selector.link).first()
-
-    super.addLink('搜索中', el_link, serialNumber, item)
-    if (type > 0) {
-      super.addLink('智能搜索中', el_link, serialNumber, item)
-    }
-
-    if (haveRead) {
-      const repeats = histories.filter((item) => {
-        return item.path_date !== info.pathDate || item.site !== info.site
-      })
-      if (repeats.length > 0) {
-        console.log('发现重复已读', repeats)
-        this.sisters.updateInfo({ serialNumber, repeatSite: this.siteId })
-        const otherSite = repeats.find((item: HistoryDto) => item.site !== info.site)
-        if (otherSite !== undefined) {
-          this.sisters.updateInfo({ serialNumber, repeatSite: otherSite.site })
-        }
-      }
-      if (histories.find((item) => item.path_date === info.pathDate && item.site === info.site) === undefined) {
-        uploadHistory(serialNumber, info).then()
-      }
-    }
-
-    if (useConfigStore().currentConfig.skipRead && haveRead) {
-      super.addLink('跳过已读', el_link, serialNumber, item)
-      return
-    }
-
-    const preview = getPreviewElement(serialNumber, loadUrl, false)
-    const divEle = item.find('div.container')[0]
-    item.find('#preview').remove()
-    $(divEle).append(preview)
-
-    if (sortId === undefined) {
-      this.addLink('没找到', el_link, serialNumber, item)
-      this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 500 })
-      preview.children('img').attr('src', failedUrl)
-      return
-    }
-
-    if (onlyInfo) return
-
-    const javstoreUrl = await getJavstoreUrl(sortId, 1000)
-
-    if (javstoreUrl === null) {
-      this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 404 })
-      preview.children('img').attr('src', failedUrl)
-      this.addPreview(item, type + 1).then()
-      return
-    } else {
-      this.addLink('JavStore', el_link, serialNumber, item, javstoreUrl)
-      this.sisters.updateInfo({ serialNumber, javStoreUrl: javstoreUrl })
-    }
-
-    const javstoreDetail = await getDetailFromJavStore(javstoreUrl)
-    if (javstoreDetail === undefined) {
-      this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 404 })
-      preview.children('img').attr('src', failedUrl)
-      this.addLink('详情获取失败', el_link, serialNumber, item, javstoreUrl, false)
-      return
-    }
-
-    // 番号预览大图
-    const imgUrl = await getPreviewUrlFromDetail(javstoreDetail, serialNumber)
-    if (!imgUrl) {
-      this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 405 })
-      preview.children('img').attr('src', failedUrl)
-      this.addLink('图片获取失败', el_link, serialNumber, item, javstoreUrl, false)
-    } else {
-      this.sisters.updateInfo({ serialNumber, src: imgUrl, status: 202 })
-      preview
-        .children('img')
-        .on('load', () => {
-          this.sisters.updateInfo({ serialNumber, status: 200 })
-        })
-        .on('error', () => {
-          const retryString = $(this).attr('retry')
-          if (retryString === undefined) return
-          let retry = Number(retryString)
-          if (retry > 3) {
-            $(this).attr('src', picx('/failed.svg')) //设置碎图
-            // $(this).css('width', 200).css('height', 200);
-            this.sisters.updateInfo({ serialNumber, status: 501 })
-          } else {
-            console.log('图片加载失败,重试中...')
-            $(this).attr('retry', retry++) //重试次数+1
-            $(this).attr('src', imgUrl) //继续刷新图片
-          }
-        })
-        .attr('src', imgUrl)
-    }
   }
 
   save(serialNumber: string): void {

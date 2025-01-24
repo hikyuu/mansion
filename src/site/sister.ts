@@ -106,6 +106,13 @@ export class Sister {
     }
     return offset.top
   }
+
+  deleteInfo(serialNumber: string) {
+    const index = this.queue.findIndex((item) => item.serialNumber === serialNumber)
+    if (index >= 0) {
+      this.queue.splice(index, 1)
+    }
+  }
 }
 
 export declare interface Info {

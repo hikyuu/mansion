@@ -211,6 +211,10 @@ export abstract class SiteAbstract implements SiteInterface {
       this.addLink('智能搜索中', el_link, serialNumber, item)
     }
     if (useConfigStore().currentConfig.skipRead && info.haveRead) {
+      item.remove()
+      console.log('删除已读', serialNumber)
+      this.sisters.sisterNumber--
+      this.sisters.deleteInfo(serialNumber)
       this.addLink('跳过已读', el_link, serialNumber, item)
       throw new ProjectError({
         name: 'GET_PROJECT_ERROR',
