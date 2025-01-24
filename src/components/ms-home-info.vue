@@ -12,6 +12,7 @@ import MHomeUser from '@/components/m-home-user.vue'
 import MSetting from '@/components/m-setting.vue'
 import MSisterStatistics from '@/components/m-sister-statistics.vue'
 import MOnejavCalendar from '@/components/m-onejav-calendar.vue'
+import { useReactStore } from '@/store/react-store'
 
 const props = defineProps<{
   site: SiteAbstract
@@ -41,16 +42,10 @@ const haveUnlike = computed(() => {
   if (sister.unlikeWords === undefined) return false
   return sister.unlikeWords.length > 0
 })
-
-const isDesktop = ref(window.innerWidth >= 1670)
-
-window.addEventListener('resize', () => {
-  isDesktop.value = window.innerWidth >= 1670
-})
 </script>
 <template>
   <template v-if="sister.current_index != undefined">
-    <el-card style="max-width: 160px" class="mansion-left" v-if="isDesktop">
+    <el-card style="max-width: 160px" class="mansion-left" v-if="useReactStore().wgt1670">
       <el-row>
         <el-text truncated style="font-size: 20px" tag="b">{{ sister.current_key }}</el-text>
         <el-link

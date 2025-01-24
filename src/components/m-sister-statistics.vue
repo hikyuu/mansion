@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Location, Memo } from '@element-plus/icons-vue'
 import MImgItem from '@/components/m-img-item.vue'
-import { computed, defineProps, reactive, toRef } from 'vue'
+import { computed, defineProps, toRef } from 'vue'
 import type { Sister } from '@/site/sister'
 import type { SiteAbstract } from '@/site/site-abstract'
 import { useScroll } from '@vueuse/core'
@@ -49,6 +49,10 @@ const { x, y } = useScroll(window, {
   },
   behavior: useConfigStore().currentConfig.smooth ? 'smooth' : 'auto'
 })
+
+function lastUnRead() {
+  props.sister?.lastUnread(y)
+}
 </script>
 
 <template>
@@ -84,7 +88,7 @@ const { x, y } = useScroll(window, {
           <span style="color: green">{{ sister.queue.length }}</span>
         </div>
       </div>
-      <div class="count-group" :class="{ 'flex-direction-column': props.column }" @click="props.sister?.lastUnread(y)">
+      <div class="count-group" :class="{ 'flex-direction-column': props.column }" @click="lastUnRead">
         <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" :size="props.size">
           <svg-readed />
         </el-icon>

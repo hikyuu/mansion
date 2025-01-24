@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { Onejav } from '@/site/onejav/onejav'
-import { computed, defineProps, ref, toRef, toRefs, watch } from 'vue'
+import { computed, defineProps, toRef, toRefs } from 'vue'
 import { FORMAT } from '@/dictionary'
 import { DocumentCopy, Right } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
@@ -11,6 +11,7 @@ import { ElLoading, ElNotification } from 'element-plus'
 import { logicAnd } from '@vueuse/math'
 import 'dayjs/locale/zh-cn'
 import MOnejavCalendar from '@/components/m-onejav-calendar.vue'
+import { useReactStore } from '@/store/react-store'
 
 const props = defineProps({
   onejav: {
@@ -87,7 +88,7 @@ const repeat = computed(() => {
           <so-javdb v-if="repeat === 2" />
         </el-icon>
       </m-img-item>
-      <m-onejav-calendar :onejav="props.onejav" :size="size" />
+      <m-onejav-calendar v-if="useReactStore().wgt1670" :onejav="props.onejav" :size="size" />
     </div>
   </m-img-box>
 </template>

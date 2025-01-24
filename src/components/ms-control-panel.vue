@@ -11,6 +11,7 @@ import MImgItem from '@/components/m-img-item.vue'
 import { useConfigStore } from '@/store/config-store'
 import { sites } from '@/dictionary'
 import { logicAnd } from '@vueuse/math'
+import { useReactStore } from '@/store/react-store'
 
 const props = defineProps<{
   sister: Sister
@@ -183,11 +184,9 @@ watch(
   { immediate: true }
 )
 
-const isDesktop = ref(window.innerHeight >= 700)
-
-window.addEventListener('resize', () => {
-  isDesktop.value = window.innerHeight >= 700
-})
+function lastUnRead() {
+  props.sister?.lastUnread(y)
+}
 </script>
 
 <template>
@@ -197,7 +196,7 @@ window.addEventListener('resize', () => {
     </div>
   </div>
   <m-img-box>
-    <m-img-item v-if="isDesktop" style="height: 60px">
+    <m-img-item v-if="useReactStore().wgt1670" style="height: 60px">
       <div class="count-group">
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Memo />
@@ -211,14 +210,14 @@ window.addEventListener('resize', () => {
         <span style="color: green">{{ sister.current_index + 1 }}</span>
       </div>
     </m-img-item>
-    <m-img-item v-if="isDesktop" style="height: 60px">
+    <m-img-item v-if="useReactStore().wgt1670" style="height: 60px">
       <div class="count-group">
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Picture />
         </el-icon>
         <span style="color: green">{{ sister.queue.length }}</span>
       </div>
-      <div class="count-group" @click="props.sister.lastUnread(y)">
+      <div class="count-group" @click="lastUnRead">
         <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" size="30">
           <svg-readed />
         </el-icon>

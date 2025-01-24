@@ -11,6 +11,7 @@ import { useConfigStore } from '@/store/config-store'
 import { ElNotification } from 'element-plus'
 import MHomeUser from '@/components/m-home-user.vue'
 import MsHomeInfo from '@/components/ms-home-info.vue'
+import { useReactStore } from '@/store/react-store'
 
 const site = ref<SiteAbstract>()
 
@@ -29,14 +30,10 @@ if (exactSite === undefined) {
 
   configStore.loadLocalConfig(exactSite.name)
 
+  useReactStore().listen()
+
   exactSite.mount()
 }
-
-const isDesktop = ref(window.innerHeight >= 700)
-
-window.addEventListener('resize', () => {
-  isDesktop.value = window.innerHeight >= 700
-})
 </script>
 
 <template>
@@ -45,10 +42,10 @@ window.addEventListener('resize', () => {
       <ms-home-info :sister="sister" :site="site" />
     </div>
     <div class="mansion-right">
-      <m-home-user v-if="isDesktop" :site="site" />
-      <home-onejav v-if="site instanceof Onejav && isDesktop" :onejav="site" />
+      <m-home-user v-if="useReactStore().wgt1670" :site="site" />
+      <home-onejav v-if="site instanceof Onejav" :onejav="site" />
       <control-panel v-if="site.showControlPanel()" :sister="sister" :site="site" />
-      <mansion-setting v-if="isDesktop" :site="site" />
+      <mansion-setting v-if="useReactStore().wgt1670" :site="site" />
     </div>
   </template>
 </template>

@@ -1,5 +1,6 @@
 import $ from 'jquery'
 import { ElNotification } from 'element-plus'
+import { ProjectError } from '@/common/errors'
 
 export class Sister {
   current_index: number | undefined = undefined
@@ -17,18 +18,13 @@ export class Sister {
       ElNotification({ title: '提示', message: '没有未读的图片', type: 'info' })
       return
     }
-    this.getScrollTop(index)
-      .then((scrollTop) => {
-        console.log('坐标', scrollTop)
-        y.value = scrollTop
-      })
-      .catch((reason) => {
-        ElNotification({
-          title: '提示',
-          message: reason,
-          type: 'info'
-        })
-      })
+    try {
+      const scrollTop = this.getScrollTop(index)
+      console.log('坐标：', scrollTop)
+      y.value = scrollTop
+    } catch (reason: any) {
+      ElNotification({ title: '提示', message: reason, type: 'info' })
+    }
   }
 
   previous() {
@@ -86,17 +82,28 @@ export class Sister {
     return existInfo
   }
 
-  async getScrollTop(index: number) {
+  getScrollTop(index: number) {
     console.log(index, this.queue.length)
     if (index > this.queue.length - 1) {
-      return Promise.reject('当前页面还没有这么多内容')
+      throw new ProjectError({
+        name: 'GET_PROJECT_ERROR',
+        message: '当前页面还没有这么多内容'
+      })
     }
     const nextPreview = $('#' + this.queue[index].serialNumber).find('#preview')
-    if (nextPreview.length === 0) return Promise.reject('没有找到预览图')
-
+    if (nextPreview.length === 0) {
+      throw new ProjectError({
+        name: 'GET_PROJECT_ERROR',
+        message: '没有找到预览图'
+      })
+    }
     const offset = nextPreview.offset()
-    if (offset === undefined) return Promise.reject('没有找到预览图')
-
+    if (offset === undefined) {
+      throw new ProjectError({
+        name: 'GET_PROJECT_ERROR',
+        message: '没有找到预览图'
+      })
+    }
     return offset.top
   }
 }
