@@ -140,7 +140,7 @@ export abstract class SiteAbstract implements SiteInterface {
 
     const info = this.sisters.updateInfo({
       serialNumber,
-      src: loadUrl,
+      src: [loadUrl],
       date,
       repeatSite: 0,
       site: this.siteId,
@@ -163,7 +163,7 @@ export abstract class SiteAbstract implements SiteInterface {
 
     await this.updateRepeat(serialNumber, info)
 
-    const preview = this.handlePreview(serialNumber, item)
+    const preview = this.creatPreview(serialNumber, item)
 
     const el_link = this.handleLink(item, serialNumber, type, info)
 
@@ -181,12 +181,12 @@ export abstract class SiteAbstract implements SiteInterface {
   }
 
   private handleSortId(serialNumber: string, type: number, el_link: JQuery, item: JQuery, preview: JQuery) {
-    const failedUrl = picx('/failed.svg')
     const sortId = getSortId(serialNumber, type)
     console.log('sortId:', sortId)
     if (sortId === undefined) {
       this.addLink('没找到', el_link, serialNumber, item)
-      preview.children('img').attr('src', failedUrl)
+      const failedUrl = [picx('/failed.svg')]
+      this.updatePreview(serialNumber, preview, failedUrl)
       this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 500 })
       throw new ProjectError({
         name: 'GET_PROJECT_ERROR',
@@ -196,11 +196,16 @@ export abstract class SiteAbstract implements SiteInterface {
     return sortId
   }
 
-  private handlePreview(serialNumber: string, item: JQuery) {
-    const preview = getPreviewElement(serialNumber, picx('/load.svg'), false)
+  private creatPreview(serialNumber: string, item: JQuery) {
+    const preview = getPreviewElement(serialNumber, [picx('/load.svg')])
     item.find('#preview').remove()
     item.append(preview)
     return preview
+  }
+
+  private updatePreview(serialNumber: string, preview: JQuery, urls: string[]) {
+    const element = getPreviewElement(serialNumber, urls)
+    preview.replaceWith(element)
   }
 
   private handleLink(item: JQuery, serialNumber: string, type: number, info: Info) {
@@ -233,8 +238,9 @@ export abstract class SiteAbstract implements SiteInterface {
   ) {
     const javstoreDetail = await getDetailFromJavStore(javstoreUrl)
     if (javstoreDetail === undefined) {
-      this.sisters.updateInfo({ serialNumber, src: picx('/failed.svg'), status: 404 })
-      preview.children('img').attr('src', picx('/failed.svg'))
+      const failed = [picx('/failed.svg')]
+      this.sisters.updateInfo({ serialNumber, src: failed, status: 404 })
+      this.updatePreview(serialNumber, preview, failed)
       this.addLink('详情获取失败', el_link, serialNumber, item, javstoreUrl, false)
       throw new ProjectError({
         name: 'GET_PROJECT_ERROR',
@@ -254,8 +260,9 @@ export abstract class SiteAbstract implements SiteInterface {
   ) {
     const javstoreUrl = await getJavstoreUrl(sortId, 1000)
     if (javstoreUrl === null) {
-      this.sisters.updateInfo({ serialNumber, src: picx('/failed.svg'), status: 404 })
-      preview.children('img').attr('src', picx('/failed.svg'))
+      const failed = [picx('/failed.svg')]
+      this.sisters.updateInfo({ serialNumber, src: failed, status: 404 })
+      this.updatePreview(serialNumber, preview, failed)
       this.addPreview(item, type + 1).then()
       throw new ProjectError({
         name: 'GET_PROJECT_ERROR',
@@ -291,32 +298,35 @@ export abstract class SiteAbstract implements SiteInterface {
     javstoreUrl: string
   ) {
     const imgUrl = await getPreviewUrlFromDetail(javstoreDetail, serialNumber)
-    if (!imgUrl) {
-      this.sisters.updateInfo({ serialNumber, src: picx('/failed.svg'), status: 405 })
-      preview.children('img').attr('src', picx('/failed.svg'))
+    if (imgUrl.length === 0) {
+      const failed = [picx('/failed.svg')]
+      this.sisters.updateInfo({ serialNumber, src: failed, status: 405 })
+      this.updatePreview(serialNumber, preview, failed)
       this.addLink('图片获取失败', el_link, serialNumber, item, javstoreUrl, false)
     } else {
       this.sisters.updateInfo({ serialNumber, src: imgUrl, status: 202 })
-      preview
-        .children('img')
-        .on('load', () => {
-          this.sisters.updateInfo({ serialNumber, status: 200 })
-        })
-        .on('error', () => {
-          const retryString = $(this).attr('retry')
-          if (retryString === undefined) return
-          let retry = Number(retryString)
-          if (retry > 3) {
-            $(this).attr('src', picx('/failed.svg')) //设置碎图
-            // $(this).css('width', 200).css('height', 200);
-            this.sisters.updateInfo({ serialNumber, status: 501 })
-          } else {
-            console.log('图片加载失败,重试中...')
-            $(this).attr('retry', retry++) //重试次数+1
-            $(this).attr('src', imgUrl) //继续刷新图片
-          }
-        })
-        .attr('src', imgUrl)
+      this.updatePreview(serialNumber, preview, imgUrl)
+      console.log('添加预览图：通用')
+      // preview
+      //   .children('img')
+      //   .on('load', () => {
+      //     this.sisters.updateInfo({ serialNumber, status: 200 })
+      //   })
+      //   .on('error', () => {
+      //     const retryString = $(this).attr('retry')
+      //     if (retryString === undefined) return
+      //     let retry = Number(retryString)
+      //     if (retry > 3) {
+      //       $(this).attr('src', picx('/failed.svg')) //设置碎图
+      //       // $(this).css('width', 200).css('height', 200);
+      //       this.sisters.updateInfo({ serialNumber, status: 501 })
+      //     } else {
+      //       console.log('图片加载失败,重试中...')
+      //       $(this).attr('retry', retry++) //重试次数+1
+      //       $(this).attr('src', imgUrl[0]) //继续刷新图片
+      //     }
+      //   })
+      //   .attr('src', imgUrl[0])
     }
   }
 

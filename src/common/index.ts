@@ -26,35 +26,22 @@ export function getAvCode(serialNumber: string): string {
   return letter.toString().replace(/,/g, '-') + '-' + num
 }
 
-export function getPreviewElement(serialNumber: string, targetImgUrl: string, isZoom: boolean) {
+export function getPreviewElement(serialNumber: string, targetImgUrl: string[]) {
   // console.log('显示的图片地址:' + targetImgUrl)
   //创建img元素,加载目标图片地址
   //创建新img元素
-  let className = 'max'
-  if (isZoom != undefined && !isZoom) {
-    className = 'min'
-  }
-  const $img = $(
-    `<div id="preview"><img id="IMG_${serialNumber}" title="点击可放大缩小 (图片正常时)" class="${className}" alt=""/></div>`
-  )
-  $img.css({ 'text-align': 'center' })
-  $img
-    .children(`#IMG_${serialNumber}`)
-    .attr('src', targetImgUrl)
-    .attr('retry', 0)
-    .on('click', function () {
-      if ($(this).hasClass('max')) {
-        $(this).attr('class', 'min')
-        if (this.parentElement) {
-          if (this.parentElement.parentElement) {
-            this.parentElement.parentElement.scrollIntoView()
-          }
-        }
-      } else {
-        $(this).attr('class', 'max')
-      }
+  const $preview = $('<div>', { id: 'preview' })
+
+  for (let i = 0; i < targetImgUrl.length; i++) {
+    const url = targetImgUrl[i]
+    const $img = $('<img>', {
+      id: `IMG_${i + 1}_${serialNumber}`,
+      src: url,
+      retry: 0,
+      alt: serialNumber,
+      style: 'width:100%;'
     })
-    .on('error', function () {
+    $img.on('error', function () {
       console.log('图片加载失败,重试中...')
       const retryString = $(this).attr('retry')
       if (retryString === undefined) return
@@ -64,10 +51,12 @@ export function getPreviewElement(serialNumber: string, targetImgUrl: string, is
         // $(this).css('width', 200).css('height', 200);
       } else {
         $(this).attr('retry', retry++) //重试次数+1
-        $(this).attr('src', targetImgUrl) //继续刷新图片
+        $(this).attr('src', url) //继续刷新图片
       }
     })
-  return $img
+    $preview.append($img)
+  }
+  return $preview
 }
 
 export function getJavstoreUrl(serialNumber: string, retry = 1): Promise<string | null> {

@@ -120,7 +120,7 @@ export declare interface Info {
   javStoreUrl?: string
   scrollTop?: number
   repeatSite?: number
-  src?: string
+  src?: string[]
   date?: string
   haveRead?: boolean
   pathDate?: string

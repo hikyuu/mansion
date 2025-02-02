@@ -43,7 +43,8 @@ export const useConfigStore = defineStore('config', {
         '同棲',
         '美人',
         '未亡人',
-        '逆NTR'
+        '逆NTR',
+        'ASMR'
       ]
       state.currentConfig.keyword.unlike = [
         '開発',

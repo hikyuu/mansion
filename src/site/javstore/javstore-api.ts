@@ -25,33 +25,35 @@ export function getTitleFromDetail(detail: Document) {
   }
 }
 
-export async function getPreviewUrlFromDetail(detail: Document, serialNumber: string) {
+export async function getPreviewUrlFromDetail(detail: Document, serialNumber: string): Promise<Array<string>> {
   try {
     let img_array = $(detail).find('.news a img[alt*=".th"]')
-    // console.log('原方法找到', img_array.length)
-
-    let imgUrl: string | undefined = undefined
-
+    let urls: string[] = []
     //新方法
     if (img_array.length <= 0) {
-      img_array = $(detail).find('.news > a')
+      img_array = $(detail).find('.news > a:contains("CLICK HERE!")')
       // console.log(`新方法找到`, img_array.length)
-      if (img_array.length <= 0) return null
-      const javUrl = img_array[0].getAttribute('href')
-      //如果 javUrl不是以http开头的,则返回null
-      if (javUrl === null) return null
-      // console.log(serialNumber+' javstore获取的图片地址:' + javUrl)
-      imgUrl = javUrl
-      if (javUrl.match(/(pixhost)/gi)) {
-        imgUrl = await getImgUrlFromPixhost(javUrl)
-        console.log(serialNumber + ' pixhost获取的图片地址:' + imgUrl)
+      if (img_array.length <= 0) return urls
+
+      for (const item of img_array) {
+        const javUrl = item.getAttribute('href')
+        if (!javUrl) continue
+        if (javUrl.match(/(pixhost)/gi)) {
+          console.log(serialNumber + ' pixhost获取的图片地址:' + javUrl)
+          const pixUrl = await getImgUrlFromPixhost(javUrl)
+          if (pixUrl) urls.push(pixUrl)
+        }
+        if (javUrl.match(/(sd)/gi) && urls.length > 0) continue
+        urls.push(javUrl)
       }
-      //原方法
+      console.log('图片列表', urls)
     } else {
+      //原方法
       // @ts-ignore
-      imgUrl = img_array[img_array.length - 1].src
+      let imgUrl = img_array[img_array.length - 1].src
       imgUrl = imgUrl ? imgUrl : img_array[0].dataset.src
-      if (imgUrl === undefined) return null
+      if (imgUrl === undefined) return urls
+
       imgUrl = imgUrl
         .replace('pixhost.org', 'pixhost.to')
         .replace('.th', '')
@@ -59,20 +61,19 @@ export async function getPreviewUrlFromDetail(detail: Document, serialNumber: st
         .replace('//t', '//img')
         .replace(/[?*"]/, '')
       // console.log('javstore获取的图片地址:' + imgUrl)
+      urls.push(imgUrl)
     }
+    urls = urls.filter((url) => {
+      const array = url.match(/(http:\/\/|https:\/\/)((\w|=|\?|\.|\/|&|-)+)/gi)
+      if (!array || array.length <= 0) {
+        return false
+      }
 
-    if (!imgUrl) return null
-
-    const array = imgUrl.match(/(http:\/\/|https:\/\/)((\w|=|\?|\.|\/|&|-)+)/gi)
-
-    if (!array || array.length <= 0) {
-      return null
-    }
-    const url = array.pop()
-    if (url === undefined) return null
-    return url
+      return true
+    })
+    return urls
   } catch (reason) {
     console.error(reason)
-    return null
+    return []
   }
 }
