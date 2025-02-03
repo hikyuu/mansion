@@ -45,8 +45,6 @@ export abstract class SiteAbstract implements SiteInterface {
 
   abstract checkSite(): boolean
 
-  abstract allRead(): void
-
   addLink(
     text: string,
     titleElement: JQuery | null,
@@ -156,7 +154,7 @@ export abstract class SiteAbstract implements SiteInterface {
    * @param type
    * @param onlyInfo
    */
-  async addPreview(item: JQuery, type = 0, onlyInfo = false) {
+  async addPreview(item: JQuery, type = 0, onlyInfo = false): Promise<void> {
     const serialNumber = this.sortSerialNumber(item)
 
     const info = this.buildInfo(item, serialNumber)
@@ -172,6 +170,8 @@ export abstract class SiteAbstract implements SiteInterface {
     if (onlyInfo) return
 
     const javstoreUrl = await this.handleJavstoreUrl(sortId, serialNumber, preview, item, type, el_link)
+
+    if (javstoreUrl === null) return await this.addPreview(item, type + 1)
 
     const javstoreDetail = await this.handleDetail(javstoreUrl, serialNumber, preview, el_link, item)
 
@@ -263,11 +263,7 @@ export abstract class SiteAbstract implements SiteInterface {
       const failed = [picx('/failed.svg')]
       this.sisters.updateInfo({ serialNumber, src: failed, status: 404 })
       this.updatePreview(serialNumber, preview, failed)
-      this.addPreview(item, type + 1).then()
-      throw new ProjectError({
-        name: 'GET_PROJECT_ERROR',
-        message: 'javstoreUrl is null'
-      })
+      return null
     } else {
       this.addLink('JavStore', el_link, serialNumber, item, javstoreUrl)
       this.sisters.updateInfo({ serialNumber, javStoreUrl: javstoreUrl })
