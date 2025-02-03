@@ -41,7 +41,7 @@ function getSortId(serialNumber: string) {
   return serialNumber
     .replace(/\s+/g, '')
     .replace(/fc2[\s\S]?ppv[-_]?/gi, 'fc2')
-    .replace(/^\d+/, '')
+    .replace(/(^\d+)(?=[a-zA-Z])/g, '')
     .replace(/[-_]/g, '')
     .toUpperCase()
 }

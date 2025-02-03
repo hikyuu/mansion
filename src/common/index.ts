@@ -41,19 +41,6 @@ export function getPreviewElement(serialNumber: string, targetImgUrl: string[]) 
       alt: serialNumber,
       style: 'width:100%;'
     })
-    $img.on('error', function () {
-      console.log('图片加载失败,重试中...')
-      const retryString = $(this).attr('retry')
-      if (retryString === undefined) return
-      let retry = Number(retryString)
-      if (retry > 3) {
-        $(this).attr('src', picx('/failed.svg')) //设置碎图
-        // $(this).css('width', 200).css('height', 200);
-      } else {
-        $(this).attr('retry', retry++) //重试次数+1
-        $(this).attr('src', url) //继续刷新图片
-      }
-    })
     $preview.append($img)
   }
   return $preview
@@ -79,11 +66,15 @@ export function getJavstoreUrl(serialNumber: string, retry = 1): Promise<string 
           }
         }
       }
-      if (a) {
-        return Promise.resolve(a.getAttribute('href'))
-      } else {
+      if (!a) return Promise.resolve(null)
+      const href = a.getAttribute('href')
+      if (href === null) {
         return Promise.resolve(null)
       }
+      if (containsHTML(href)) {
+        return Promise.resolve(null)
+      }
+      return Promise.resolve(href)
     })
     .catch((reason) => {
       console.error(reason)
@@ -95,7 +86,10 @@ export function getJavstoreUrl(serialNumber: string, retry = 1): Promise<string 
       }
     })
 }
-
+function containsHTML(text: string) {
+  const regex = /<\/?[a-z][\s\S]*>/i
+  return regex.test(text)
+}
 export async function getImgUrlFromPixhost(javUrl: string, retry: number = 3): Promise<string | undefined> {
   try {
     const response = await request(javUrl, 'https://javstore.net/')

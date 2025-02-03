@@ -284,7 +284,9 @@ export abstract class SiteAbstract implements SiteInterface {
       this.sisters.updateInfo({ serialNumber, likeWords, unlikeWords })
     }
   }
-
+  async sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+  }
   private async updateImgUrl(
     javstoreDetail: Document,
     serialNumber: string,
@@ -302,27 +304,6 @@ export abstract class SiteAbstract implements SiteInterface {
     } else {
       this.sisters.updateInfo({ serialNumber, src: imgUrl, status: 202 })
       this.updatePreview(serialNumber, preview, imgUrl)
-      console.log('添加预览图：通用')
-      // preview
-      //   .children('img')
-      //   .on('load', () => {
-      //     this.sisters.updateInfo({ serialNumber, status: 200 })
-      //   })
-      //   .on('error', () => {
-      //     const retryString = $(this).attr('retry')
-      //     if (retryString === undefined) return
-      //     let retry = Number(retryString)
-      //     if (retry > 3) {
-      //       $(this).attr('src', picx('/failed.svg')) //设置碎图
-      //       // $(this).css('width', 200).css('height', 200);
-      //       this.sisters.updateInfo({ serialNumber, status: 501 })
-      //     } else {
-      //       console.log('图片加载失败,重试中...')
-      //       $(this).attr('retry', retry++) //重试次数+1
-      //       $(this).attr('src', imgUrl[0]) //继续刷新图片
-      //     }
-      //   })
-      //   .attr('src', imgUrl[0])
     }
   }
 

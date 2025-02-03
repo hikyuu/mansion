@@ -11,11 +11,8 @@ import { Task } from '@/site/task'
 import { ElNotification } from 'element-plus'
 import { haveArchived, upsertArchive } from '@/dao/archive'
 import { highScoreMagnet } from '@/site/javdb/javdb-api'
-import { useConfigStore } from '@/store/config-store'
-import { getDetailFromJavStore } from '@/site'
-import { getPreviewUrlFromDetail } from '@/site/javstore/javstore-api'
 import { uploadDaily } from '@/dao/onejav-daily-dao'
-import { getHistories, loadDailyHistory, loadLatestHistory, uploadHistory } from '@/dao/browse-history'
+import { loadDailyHistory, loadLatestHistory, uploadHistory } from '@/dao/browse-history'
 
 export function clickMagnet(magnet: string) {
   const $a = $('<a>', {
