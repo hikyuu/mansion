@@ -28,7 +28,7 @@ export function getTitleFromDetail(detail: Document) {
 export async function getPreviewUrlFromDetail(detail: Document, serialNumber: string): Promise<Array<string>> {
   try {
     let img_array = $(detail).find('.news a img[alt*=".th"]')
-    let urls: string[] = []
+    const urls: string[] = []
     //新方法
     if (img_array.length <= 0) {
       img_array = $(detail).find('.news > a:contains("CLICK HERE!")')
@@ -63,15 +63,13 @@ export async function getPreviewUrlFromDetail(detail: Document, serialNumber: st
       // console.log('javstore获取的图片地址:' + imgUrl)
       urls.push(imgUrl)
     }
-    urls = urls.filter((url) => {
+    return urls.filter((url) => {
       const array = url.match(/(http:\/\/|https:\/\/)((\w|=|\?|\.|\/|&|-)+)/gi)
       if (!array || array.length <= 0) {
         return false
       }
-
       return true
     })
-    return urls
   } catch (reason) {
     console.error(reason)
     return []
