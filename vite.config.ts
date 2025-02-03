@@ -8,12 +8,35 @@ import Icons from 'unplugin-icons/vite'
 import IconsResolver from 'unplugin-icons/resolver'
 import { fileURLToPath, URL } from 'node:url'
 import { FileSystemIconLoader } from 'unplugin-icons/loaders'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+const isProduction = process.env.NODE_ENV === 'production' // 判断是否为生产环境
+
+function updateURL() {
+  return isProduction ? 'https://hikyuu.github.io/mansion/mansion.meta.js' : undefined
+}
+
+function downloadURL() {
+  return isProduction ? 'https://hikyuu.github.io/mansion/mansion.user.js' : undefined
+}
+
+function version() {
+  if (isProduction) {
+    return dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD_HH-mm')
+  }
+  return '1.0.0'
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
     hmr: false,
-    port: 3003
+    port: 9160
   },
   resolve: {
     alias: {
@@ -58,11 +81,13 @@ export default defineConfig({
         match: ['*://*onejav.com/*', '*://*javdb.com/*'],
         connect: ['javstore.net', 'pixhost.to', 'javdb.com', 'onejav.com'],
         author: 'gaki',
-        updateURL: 'https://hikyuu.github.io/mansion/mansion.meta.js',
-        downloadURL: 'https://hikyuu.github.io/mansion/mansion.user.js'
+        updateURL: updateURL(),
+        downloadURL: downloadURL(),
+        version: version()
       },
       build: {
         metaFileName: true,
+        systemjs: 'inline',
         externalGlobals: {
           //key对应npm包名称,exportVarName对应暴露出的变量名
           // vue: cdn

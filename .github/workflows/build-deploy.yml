@@ -29,15 +29,6 @@ jobs:
     - run: npm ci
     - run: npm run build --if-present
 
-    - name: Rename version
-      run: | 
-        meta_path="dist/mansion.meta.js"
-        user_path="dist/mansion.user.js"
-        current_date=$(TZ='Asia/Shanghai' date +"%Y-%m-%d_%H-%M")
-        echo "current_date: $current_date"
-        sed -i "s|// @version[[:space:]]*1.0.0|// @version $current_date|" "$meta_path"
-        sed -i "s|// @version[[:space:]]*1.0.0|// @version $current_date|" "$user_path"
-
     - name: Upload GitHub Pages artifact
       uses: actions/upload-pages-artifact@v3.0.1
       with:
