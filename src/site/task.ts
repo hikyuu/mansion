@@ -43,7 +43,9 @@ export class Task {
   }
 
   async work(elem: JQuery) {
-    return this.site.addPreview(elem)
+    return this.site.addPreview(elem).catch((reason) => {
+      console.error(reason.message)
+    })
   }
 
   runAll() {
