@@ -14,7 +14,22 @@ import timezone from 'dayjs/plugin/timezone'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
+const isProduction = process.env.NODE_ENV === 'production' // 判断是否为生产环境
 
+function updateURL() {
+  return isProduction ? 'https://hikyuu.github.io/mansion/mansion.meta.js' : undefined
+}
+
+function downloadURL() {
+  return isProduction ? 'https://hikyuu.github.io/mansion/mansion.user.js' : undefined
+}
+
+function version() {
+  if (isProduction) {
+    return dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD_HH-mm')
+  }
+  return '1.0.0'
+}
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
@@ -94,20 +109,3 @@ export default defineConfig({
     })
   ]
 })
-
-const isProduction = process.env.NODE_ENV === 'production' // 判断是否为生产环境
-
-function updateURL() {
-  return isProduction ? 'https://hikyuu.github.io/mansion/mansion.meta.js' : undefined
-}
-
-function downloadURL() {
-  return isProduction ? 'https://hikyuu.github.io/mansion/mansion.user.js' : undefined
-}
-
-function version() {
-  if (isProduction) {
-    return dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD_HH-mm')
-  }
-  return '1.0.0'
-}
