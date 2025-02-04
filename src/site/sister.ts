@@ -67,10 +67,10 @@ export class Sister {
       ElNotification.error({ title: '错误', message: 'serialNumber为空' })
       throw new Error('serialNumber')
     }
-    if (this.queue.length <= 0) {
-      this.current_index = 0
-      this.current_key = info.serialNumber
-    }
+    // if (this.queue.length <= 0) {
+    //   this.current_index = 0
+    //   this.current_key = info.serialNumber
+    // }
     let existInfo = this.queue.find((item) => item.serialNumber === info.serialNumber)
     if (existInfo === undefined) {
       existInfo = info as Info

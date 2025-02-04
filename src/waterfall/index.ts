@@ -27,13 +27,13 @@ export default class {
     this.sisters = sisters
   }
 
-  flow(waterfallScrollStatus: number | null = null) {
+  async flow(waterfallScrollStatus: number | null = null) {
     if ($(this.selector.item).length <= 0) {
       console.info(`没有妹妹`)
       return
     }
+    await this.loadPreview(this.page.detail)
     this.setSisterNumber()
-    this.loadPreview(this.page.detail)
 
     if (waterfallScrollStatus == null) {
       waterfallScrollStatus = this.configStore.currentConfig.scrollStatus
@@ -54,15 +54,15 @@ export default class {
 
   private flowLazy() {
     ElNotification({ title: '瀑布流', message: `启动懒加载`, type: 'info' })
-    this.loadNext(false)
+    this.loadNext(false).then()
   }
 
   private flowOneStep() {
     ElNotification({ title: '瀑布流', message: `启动一步到位模式`, type: 'info' })
-    this.loadNext(true)
+    this.loadNext(true).then()
   }
 
-  private loadNext(oneStep = false) {
+  private async loadNext(oneStep = false) {
     console.log(`===加载下一页===`)
     const nextUrl = this.getNextUrl(document)
     if (nextUrl === null) {
@@ -71,7 +71,7 @@ export default class {
       return
     }
     this.page.nextUrl = nextUrl
-    this.fetchNextSync(oneStep).then()
+    await this.fetchNextSync(oneStep)
   }
 
   async onScrollEvent() {
@@ -91,15 +91,15 @@ export default class {
     return true
   }
 
-  appendNext(oneStep: boolean = false) {
+  async appendNext(oneStep: boolean = false) {
     if (this.lock.locked) {
       console.log(`下一页正在加载中`)
       return
     }
-    this.fetchNextSync(oneStep).then()
+    await this.fetchNextSync(oneStep)
   }
 
-  private appendNextLocal() {
+  private async appendNextLocal() {
     if (this.page.isEnd) {
       console.log(`没有下一页`)
       return this.end()
@@ -108,7 +108,9 @@ export default class {
       console.log(`没有获取到下一页内容`)
       return this.isEnd()
     }
-    $(this.selector.container).append(this.page.nextDetail)
+    console.log(`加载下一页预览图`)
+    const items = await this.loadPreview(this.page.nextDetail)
+    $(this.selector.container).append(items)
     this.setSisterNumber()
     this.page.nextDetail = null
   }
@@ -127,12 +129,11 @@ export default class {
   async fetchNextSync(oneStep: boolean = false) {
     if (this.lock.locked) {
       return
-    } else {
-      this.lock.lock()
     }
+    this.lock.lock()
     try {
       await this.fetchURL()
-      this.appendNextLocal()
+      await this.appendNextLocal()
       if (!oneStep) {
         const sisterNumber = this.sisters.sisterNumber
         const lazyLimit = useConfigStore().currentConfig.lazyLimit
@@ -143,7 +144,7 @@ export default class {
       }
       this.lock.unlock()
       if (this.page.isEnd) return
-      this.fetchNextSync(oneStep).then()
+      await this.fetchNextSync(oneStep)
     } catch (e) {
       console.error(e)
     } finally {
@@ -166,8 +167,6 @@ export default class {
       const doc = new DOMParser().parseFromString(html, 'text/html')
       this.page.nextUrl = this.getNextUrl(doc)
       this.page.nextDetail = this.getDetail(doc)
-      console.log(`加载下一页预览图`)
-      this.loadPreview(this.page.nextDetail)
     } catch (reason) {
       console.error(reason)
       if (retry > 0) {
@@ -206,11 +205,7 @@ export default class {
   }
 
   setSisterNumber() {
-    $(this.selector.item)
-    let sisterNumber = $(this.selector.item).length
-    if (this.page.nextDetail !== null) {
-      sisterNumber += this.page.nextDetail.find(this.selector.item).length
-    }
+    const sisterNumber = $(this.selector.item).length
     if (sisterNumber === 0) {
       console.error('没有找到妹妹！')
     }
@@ -218,10 +213,11 @@ export default class {
     return sisterNumber
   }
 
-  private loadPreview(detail: JQuery) {
+  private async loadPreview(detail: JQuery) {
     if (this.configStore.currentConfig.loadPreviewSwitch) {
-      this.site.findImages(detail)
+      return await this.site.resolveElements(detail)
     }
+    return []
   }
 }
 

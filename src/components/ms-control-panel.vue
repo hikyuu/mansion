@@ -91,7 +91,7 @@ const haveReadNumber = computed(() => {
 })
 
 const src = computed(() => {
-  if (props.sister.current_index === undefined) return
+  if (props.sister.current_index === undefined) return undefined
   return queueRef.value[props.sister.current_index].src
 })
 
@@ -187,12 +187,18 @@ watch(
 function lastUnRead() {
   props.sister?.lastUnread(y)
 }
+function location() {
+  if (props.sister.current_index === undefined) {
+    return 0
+  }
+  return props.sister.current_index + 1
+}
 </script>
 
 <template>
   <div v-if="showImage" class="view-image">
     <div id="show-image" class="show-image-wrap vertical">
-      <img :src="src" alt="" class="panel-img-size" />
+      <img v-for="(item, index) in src" :src="item" :key="index" alt="" class="panel-img-size" />
     </div>
   </div>
   <m-img-box>
@@ -203,11 +209,11 @@ function lastUnRead() {
         </el-icon>
         <span :style="loadAll">{{ sister.sisterNumber }}</span>
       </div>
-      <div v-if="sister.current_index !== undefined" class="count-group">
+      <div class="count-group">
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Location />
         </el-icon>
-        <span style="color: green">{{ sister.current_index + 1 }}</span>
+        <span style="color: green">{{ location() }}</span>
       </div>
     </m-img-item>
     <m-img-item v-if="useReactStore().wgt1670" style="height: 60px">

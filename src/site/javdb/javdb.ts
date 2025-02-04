@@ -72,15 +72,16 @@ export class Javdb extends SiteAbstract {
       return
     }
     item[0].parentElement.id = 'waterfall'
-    this.waterfall.flow(WaterfallStatus.lazy.code)
+    this.waterfall.flow(WaterfallStatus.lazy.code).then()
   }
 
-  findImages(elems: JQuery): void {
+  async resolveElements(elems: JQuery): Promise<JQuery[]> {
     if (/(javdb)/g.test(location.href) && elems) {
-      for (let index = 0; index < elems.length; index++) {
-        this.task.addTask($(elems[index]))
-      }
+      const items = await this.filterReaded(elems)
+      this.task.addTasks(items)
+      return items
     }
+    return []
   }
 
   loadCompleted(): void {

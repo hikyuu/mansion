@@ -90,7 +90,7 @@ export class Onejav extends SiteAbstract {
     this.enableWaterfall($onejav)
   }
 
-  findImages(elems: JQuery) {
+  resolveElements(elems: JQuery): Promise<JQuery[]> {
     if (this.checkSite() && elems) {
       for (let index = 0; index < elems.length; index++) {
         this.task.addTask($(elems[index]))
@@ -261,9 +261,9 @@ export class Onejav extends SiteAbstract {
     $onejav[0].parentElement.id = 'waterfall'
     if (isNaN(Date.parse(location.pathname))) {
       ElNotification({ title: '瀑布流', message: `页数可能较多强制启用懒加载模式`, type: 'info' })
-      this.waterfall.flow(WaterfallStatus.lazy.code)
+      this.waterfall.flow(WaterfallStatus.lazy.code).then()
     } else {
-      this.waterfall.flow()
+      this.waterfall.flow().then()
     }
   }
 

@@ -46,7 +46,7 @@ export async function getPreviewUrlFromDetail(detail: Document, serialNumber: st
         if (javUrl.match(/(sd)/gi) && urls.length > 0) continue
         urls.push(javUrl)
       }
-      console.log('图片列表', urls)
+      // console.log('图片列表', urls)
     } else {
       //原方法
       // @ts-ignore

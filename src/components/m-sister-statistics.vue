@@ -53,6 +53,13 @@ const { x, y } = useScroll(window, {
 function lastUnRead() {
   props.sister?.lastUnread(y)
 }
+
+function location() {
+  if (props.sister.current_index === undefined) {
+    return 0
+  }
+  return props.sister.current_index + 1
+}
 </script>
 
 <template>
@@ -66,16 +73,12 @@ function lastUnRead() {
           <span :style="loadAll">{{ sister.sisterNumber }}</span>
         </div>
       </div>
-      <div
-        v-if="sister.current_index !== undefined"
-        class="count-group"
-        :class="{ 'flex-direction-column': props.column }"
-      >
+      <div class="count-group" :class="{ 'flex-direction-column': props.column }">
         <el-icon :color="site.theme.PRIMARY_COLOR" :size="props.size">
           <Location />
         </el-icon>
         <div style="min-width: 30px">
-          <span style="color: green">{{ sister.current_index + 1 }}</span>
+          <span style="color: green">{{ location() }}</span>
         </div>
       </div>
     </el-row>

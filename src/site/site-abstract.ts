@@ -13,6 +13,7 @@ import { useConfigStore } from '@/store/config-store'
 import { getHistories, type HistoryDto, uploadHistory } from '@/dao/browse-history'
 import { getPreviewUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
 import { ProjectError } from '@/common/errors'
+import { awaitExpression } from '@babel/types'
 
 export abstract class SiteAbstract implements SiteInterface {
   hasLoadCompleted = false
@@ -33,7 +34,7 @@ export abstract class SiteAbstract implements SiteInterface {
   // 声明抽象的方法，让子类去实现
   abstract mount(): void
 
-  abstract findImages(elems: JQuery): void
+  abstract resolveElements(elems: JQuery): Promise<JQuery[]>
 
   abstract download(): void
 
@@ -90,8 +91,8 @@ export abstract class SiteAbstract implements SiteInterface {
     y.value = offset.top - 52
   }
 
-  loadNext(): void {
-    this.waterfall.appendNext()
+  async loadNext() {
+    await this.waterfall.appendNext()
   }
 
   protected getCurrentWindowElement(detail: JQuery, scrollTop: number) {
@@ -161,6 +162,8 @@ export abstract class SiteAbstract implements SiteInterface {
 
     await this.updateRepeat(serialNumber, info)
 
+    this.DeleteReadedNode(item, info)
+
     const preview = this.creatPreview(serialNumber, item)
 
     const el_link = this.handleLink(item, serialNumber, type, info)
@@ -178,6 +181,45 @@ export abstract class SiteAbstract implements SiteInterface {
     this.resolveTitle(javstoreDetail, serialNumber)
     // 番号预览大图
     await this.updateImgUrl(javstoreDetail, serialNumber, preview, el_link, item, javstoreUrl)
+  }
+
+  DeleteReadedNode(item: JQuery, info: Info) {
+    if (useConfigStore().currentConfig.skipRead && info.haveRead) {
+      item.remove()
+      console.log('删除已读', info.serialNumber)
+      this.waterfall.setSisterNumber()
+      this.sisters.deleteInfo(info.serialNumber)
+      throw new ProjectError({
+        name: 'GET_PROJECT_ERROR',
+        message: '删除已读'
+      })
+    }
+  }
+
+  async filterReaded(elems: JQuery): Promise<JQuery[]> {
+    if (!useConfigStore().currentConfig.skipRead) {
+      const items = new Array<JQuery>()
+      elems.each((index, elem) => {
+        items.push($(elem))
+      })
+      return items
+    }
+    const items = new Map<string, JQuery>()
+    elems.each((index, elem) => {
+      const item = $(elem)
+      const serialNumber = this.sortSerialNumber(item)
+      items.set(serialNumber, item)
+    })
+    const keys = Array.from(items.keys())
+    const historyDtos = await getHistories(keys)
+    historyDtos.forEach((item) => {
+      const node = items.get(item.serial_number)
+      if (node) {
+        node.remove()
+        items.delete(item.serial_number)
+      }
+    })
+    return Array.from(items.values())
   }
 
   private handleSortId(serialNumber: string, type: number, el_link: JQuery, item: JQuery, preview: JQuery) {
@@ -216,10 +258,6 @@ export abstract class SiteAbstract implements SiteInterface {
       this.addLink('智能搜索中', el_link, serialNumber, item)
     }
     if (useConfigStore().currentConfig.skipRead && info.haveRead) {
-      item.remove()
-      console.log('删除已读', serialNumber)
-      this.sisters.sisterNumber--
-      this.sisters.deleteInfo(serialNumber)
       this.addLink('跳过已读', el_link, serialNumber, item)
       throw new ProjectError({
         name: 'GET_PROJECT_ERROR',
@@ -308,7 +346,7 @@ export abstract class SiteAbstract implements SiteInterface {
   }
 
   private async updateRepeat(serialNumber: string, info: Info) {
-    const histories = await getHistories(serialNumber)
+    const histories = await getHistories([serialNumber])
     const haveRead = histories.length > 0
     this.sisters.updateInfo({ serialNumber, haveRead })
     // console.log('添加预览图：通用')

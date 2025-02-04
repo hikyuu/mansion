@@ -2,7 +2,7 @@ export interface SiteInterface {
   // 声明抽象的方法，让子类去实现
   mount(): void
 
-  findImages(elems: JQuery): void
+  resolveElements(elems: JQuery): Promise<JQuery[]>
 
   onScrollEvent(windowHeight: number, scrollTop: number): void
 

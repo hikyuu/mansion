@@ -12,9 +12,12 @@ const lockPool = new LockPool()
 
 export const dailyNumberRef: Map<string, number> = reactive(new Map())
 
-export async function getHistories(serialNumber: string): Promise<HistoryDto[]> {
+export async function getHistories(serialNumbers: string[]): Promise<HistoryDto[]> {
+  if (serialNumbers.length === 0) {
+    return Promise.resolve([])
+  }
   const supabase = await useUserStore().getAuthSupabase()
-  const { data, error } = await supabase.from('browse_history').select().eq('serial_number', serialNumber)
+  const { data, error } = await supabase.from('browse_history').select().in('serial_number', serialNumbers)
   if (error) {
     console.error(error)
     return Promise.reject(error)
