@@ -11,25 +11,11 @@ import { FileSystemIconLoader } from 'unplugin-icons/loaders'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
+import tailwindcss from '@tailwindcss/vite'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
-const isProduction = process.env.NODE_ENV === 'production' // 判断是否为生产环境
 
-function updateURL() {
-  return isProduction ? 'https://hikyuu.github.io/mansion/mansion.meta.js' : undefined
-}
-
-function downloadURL() {
-  return isProduction ? 'https://hikyuu.github.io/mansion/mansion.user.js' : undefined
-}
-
-function version() {
-  if (isProduction) {
-    return dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD_HH-mm')
-  }
-  return '1.0.0'
-}
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
@@ -42,6 +28,7 @@ export default defineConfig({
     }
   },
   plugins: [
+    tailwindcss(),
     vue(),
     AutoImport({
       imports: ['vue'],
@@ -109,3 +96,22 @@ export default defineConfig({
     })
   ]
 })
+
+function isProduction() {
+  return process.env.NODE_ENV === 'production'
+}
+
+function updateURL() {
+  return isProduction() ? 'https://hikyuu.github.io/mansion/mansion.meta.js' : undefined
+}
+
+function downloadURL() {
+  return isProduction() ? 'https://hikyuu.github.io/mansion/mansion.user.js' : undefined
+}
+
+function version() {
+  if (isProduction()) {
+    return dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD_HH-mm')
+  }
+  return '1.0.0'
+}

@@ -13,7 +13,6 @@ import { useConfigStore } from '@/store/config-store'
 import { getHistories, type HistoryDto, uploadHistory } from '@/dao/browse-history'
 import { getPreviewUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
 import { ProjectError } from '@/common/errors'
-import { awaitExpression } from '@babel/types'
 
 export abstract class SiteAbstract implements SiteInterface {
   hasLoadCompleted = false

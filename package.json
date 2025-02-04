@@ -14,12 +14,14 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
     "@supabase/supabase-js": "^2.46.1",
+    "@tailwindcss/vite": "^4.0.3",
     "@vueuse/core": "^10.9.0",
     "@vueuse/math": "^12.3.0",
     "dayjs": "^1.11.11",
     "element-plus": "^2.7.2",
     "jquery": "^3.7.1",
     "pinia": "^2.1.7",
+    "tailwindcss": "^4.0.3",
     "vue": "^3.4.26"
   },
   "devDependencies": {
@@ -37,7 +39,8 @@
     "@vue/tsconfig": "^0.5.1",
     "eslint": "^8.57.0",
     "eslint-plugin-vue": "^9.25.0",
-    "prettier": "^3.2.5",
+    "prettier": "^3.4.2",
+    "prettier-plugin-tailwindcss": "^0.6.11",
     "typescript": "~5.4.5",
     "unplugin-auto-import": "^0.17.5",
     "unplugin-icons": "^0.18.5",

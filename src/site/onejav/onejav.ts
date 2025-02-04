@@ -1,9 +1,9 @@
 import type { Selector } from '@/waterfall'
 import Waterfall from '@/waterfall/index'
-import { getJavstoreUrl, getPreviewElement, getSortId, isFC2 } from '@/common'
+import { getPreviewElement, getSortId, isFC2 } from '@/common'
 import { SiteAbstract } from '../site-abstract'
 import $ from 'jquery'
-import { picx, WaterfallStatus } from '@/dictionary'
+import { WaterfallStatus } from '@/dictionary'
 
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { type Info, Sister } from '@/site/sister'
@@ -90,12 +90,13 @@ export class Onejav extends SiteAbstract {
     this.enableWaterfall($onejav)
   }
 
-  resolveElements(elems: JQuery): Promise<JQuery[]> {
+  async resolveElements(elems: JQuery): Promise<JQuery[]> {
     if (this.checkSite() && elems) {
-      for (let index = 0; index < elems.length; index++) {
-        this.task.addTask($(elems[index]))
-      }
+      const items = await this.filterReaded(elems)
+      this.task.addTasks(items)
+      return items
     }
+    return []
   }
 
   updateInfo(item: JQuery, info: Info): void {
