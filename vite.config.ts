@@ -28,7 +28,6 @@ export default defineConfig({
     }
   },
   plugins: [
-    tailwindcss(),
     vue(),
     AutoImport({
       imports: ['vue'],
