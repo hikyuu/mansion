@@ -56,7 +56,7 @@ const WaterfallStatus = {
   }
 }
 
-function loadPreviewSwitchChange(value: boolean) {
+function loadThumbnailSwitchChange(value: boolean) {
   if (value) {
     ElNotification({ title: '瀑布流', message: `加载预览图`, type: 'info' })
   } else {
@@ -75,9 +75,7 @@ watch(
 function reload() {
   window.location.reload()
 }
-function allRead() {
-  props.site.allRead()
-}
+function allRead() {}
 </script>
 
 <template>
@@ -98,8 +96,8 @@ function allRead() {
           <el-form label-position="right" label-width="auto">
             <el-form-item label="预览图">
               <el-switch
-                v-model="currentConfig.loadPreviewSwitch"
-                @change="loadPreviewSwitchChange"
+                v-model="currentConfig.loadThumbnailSwitch"
+                @change="loadThumbnailSwitchChange"
                 active-icon="Check"
                 inactive-icon="Close"
                 inline-prompt

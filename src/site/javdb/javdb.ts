@@ -54,7 +54,7 @@ export class Javdb extends SiteAbstract {
   }
 
   private addStyle() {
-    if (!useConfigStore().currentConfig.loadPreviewSwitch) {
+    if (!useConfigStore().currentConfig.loadThumbnailSwitch) {
       return
     }
     GM_addStyle(`.movie-list{display: flex;flex-direction: column;} .max{width:100%} .min{width:100%} 

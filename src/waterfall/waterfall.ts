@@ -34,7 +34,7 @@ export default class {
       console.info(`没有妹妹`)
       return
     }
-    await this.loadPreview(this.page.detail)
+    await this.loadThumbnail(this.page.detail)
     this.setSisterNumber()
 
     if (waterfallScrollStatus == null) {
@@ -111,7 +111,7 @@ export default class {
       return this.isEnd()
     }
     console.log(`加载下一页预览图`)
-    const items = await this.loadPreview(this.page.nextDetail)
+    const items = await this.loadThumbnail(this.page.nextDetail)
     if (items.length === 0) {
       this.allReadedPage++
     } else {
@@ -225,8 +225,8 @@ export default class {
     return sisterNumber
   }
 
-  private async loadPreview(detail: JQuery) {
-    if (this.configStore.currentConfig.loadPreviewSwitch) {
+  private async loadThumbnail(detail: JQuery) {
+    if (this.configStore.currentConfig.loadThumbnailSwitch) {
       return await this.site.resolveElements(detail)
     }
     return []

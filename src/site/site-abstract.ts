@@ -8,10 +8,10 @@ import type { Ref } from 'vue'
 import { KEY, picx } from '@/dictionary'
 import $ from 'jquery'
 
-import { getJavstoreUrl, getPreviewElement, getSortId } from '@/common'
+import { getJavstoreUrl, getThumbnailElement, getSortId, thumbnail_id } from '@/common'
 import { useConfigStore } from '@/store/config-store'
 import { getHistories, type HistoryDto, uploadHistory } from '@/dao/browse-history'
-import { getPreviewUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
+import { getThumbnailUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
 import { ProjectError } from '@/common/errors'
 
 export abstract class SiteAbstract implements SiteInterface {
@@ -73,7 +73,7 @@ export abstract class SiteAbstract implements SiteInterface {
     $titleInfo.on('click', () => {
       $titleInfo.css('color', 'blue').text(`\u00A0\u00A0${text}重试中`)
       console.log(`重试`)
-      this.thumbnail(elem).then()
+      this.processThumbnail(elem).then()
     })
   }
 
@@ -81,7 +81,7 @@ export abstract class SiteAbstract implements SiteInterface {
     let prev = $('#' + this.sisters.current_key)
     switch (useConfigStore().currentConfig.navigationPoint) {
       case 1:
-        prev = prev.find('#preview')
+        prev = prev.find(`#${thumbnail_id}`)
         break
     }
     if (prev.length === 0) return
@@ -154,7 +154,7 @@ export abstract class SiteAbstract implements SiteInterface {
    * @param type
    * @param onlyInfo
    */
-  async thumbnail(item: JQuery, type = 0, onlyInfo = false): Promise<void> {
+  async processThumbnail(item: JQuery, type = 0, onlyInfo = false): Promise<void> {
     const serialNumber = this.sortSerialNumber(item)
 
     const info = this.buildInfo(item, serialNumber)
@@ -163,23 +163,23 @@ export abstract class SiteAbstract implements SiteInterface {
 
     this.DeleteReadedNode(item, info)
 
-    const preview = this.creatPreview(serialNumber, item)
+    const thumbnail = this.creatThumbnail(serialNumber, item)
 
     const el_link = this.handleLink(item, serialNumber, type, info)
 
-    const sortId = this.handleSortId(serialNumber, type, el_link, item, preview)
+    const sortId = this.handleSortId(serialNumber, type, el_link, item, thumbnail)
 
     if (onlyInfo) return
 
-    const javstoreUrl = await this.handleJavstoreUrl(sortId, serialNumber, preview, item, type, el_link)
+    const javstoreUrl = await this.handleJavstoreUrl(sortId, serialNumber, thumbnail, item, type, el_link)
 
-    if (javstoreUrl === null) return await this.thumbnail(item, type + 1)
+    if (javstoreUrl === null) return await this.processThumbnail(item, type + 1)
 
-    const javstoreDetail = await this.handleDetail(javstoreUrl, serialNumber, preview, el_link, item)
+    const javstoreDetail = await this.handleDetail(javstoreUrl, serialNumber, thumbnail, el_link, item)
 
     this.resolveTitle(javstoreDetail, serialNumber)
     // 番号预览大图
-    await this.updateImgUrl(javstoreDetail, serialNumber, preview, el_link, item, javstoreUrl)
+    await this.updateImgUrl(javstoreDetail, serialNumber, thumbnail, el_link, item, javstoreUrl)
   }
 
   DeleteReadedNode(item: JQuery, info: Info) {
@@ -221,13 +221,13 @@ export abstract class SiteAbstract implements SiteInterface {
     return Array.from(items.values())
   }
 
-  private handleSortId(serialNumber: string, type: number, el_link: JQuery, item: JQuery, preview: JQuery) {
+  private handleSortId(serialNumber: string, type: number, el_link: JQuery, item: JQuery, thumbnail: JQuery) {
     const sortId = getSortId(serialNumber, type)
     console.log('sortId:', sortId)
     if (sortId === undefined) {
       this.addLink('没找到', el_link, serialNumber, item)
       const failedUrl = [picx('/failed.svg')]
-      this.updatePreview(serialNumber, preview, failedUrl)
+      this.updateThumbnail(serialNumber, thumbnail, failedUrl)
       this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 500 })
       throw new ProjectError({
         name: 'GET_PROJECT_ERROR',
@@ -237,16 +237,16 @@ export abstract class SiteAbstract implements SiteInterface {
     return sortId
   }
 
-  private creatPreview(serialNumber: string, item: JQuery) {
-    const preview = getPreviewElement(serialNumber, [picx('/load.svg')])
-    item.find('#preview').remove()
-    item.append(preview)
-    return preview
+  private creatThumbnail(serialNumber: string, item: JQuery) {
+    const thumbnail = getThumbnailElement(serialNumber, [picx('/load.svg')])
+    item.find(`#${thumbnail_id}`).remove()
+    item.append(thumbnail)
+    return thumbnail
   }
 
-  private updatePreview(serialNumber: string, preview: JQuery, urls: string[]) {
-    const element = getPreviewElement(serialNumber, urls)
-    preview.replaceWith(element)
+  private updateThumbnail(serialNumber: string, thumbnail: JQuery, urls: string[]) {
+    const element = getThumbnailElement(serialNumber, urls)
+    thumbnail.replaceWith(element)
   }
 
   private handleLink(item: JQuery, serialNumber: string, type: number, info: Info) {
@@ -269,7 +269,7 @@ export abstract class SiteAbstract implements SiteInterface {
   private async handleDetail(
     javstoreUrl: string,
     serialNumber: string,
-    preview: JQuery,
+    thumbnail: JQuery,
     el_link: JQuery,
     item: JQuery
   ) {
@@ -277,7 +277,7 @@ export abstract class SiteAbstract implements SiteInterface {
     if (javstoreDetail === undefined) {
       const failed = [picx('/failed.svg')]
       this.sisters.updateInfo({ serialNumber, src: failed, status: 404 })
-      this.updatePreview(serialNumber, preview, failed)
+      this.updateThumbnail(serialNumber, thumbnail, failed)
       this.addLink('详情获取失败', el_link, serialNumber, item, javstoreUrl, false)
       throw new ProjectError({
         name: 'GET_PROJECT_ERROR',
@@ -290,7 +290,7 @@ export abstract class SiteAbstract implements SiteInterface {
   private async handleJavstoreUrl(
     sortId: string,
     serialNumber: string,
-    preview: JQuery,
+    thumbnail: JQuery,
     item: JQuery,
     type: number,
     el_link: JQuery
@@ -299,7 +299,7 @@ export abstract class SiteAbstract implements SiteInterface {
     if (javstoreUrl === null) {
       const failed = [picx('/failed.svg')]
       this.sisters.updateInfo({ serialNumber, src: failed, status: 404 })
-      this.updatePreview(serialNumber, preview, failed)
+      this.updateThumbnail(serialNumber, thumbnail, failed)
       return null
     } else {
       this.addLink('JavStore', el_link, serialNumber, item, javstoreUrl)
@@ -327,20 +327,20 @@ export abstract class SiteAbstract implements SiteInterface {
   private async updateImgUrl(
     javstoreDetail: Document,
     serialNumber: string,
-    preview: JQuery,
+    thumbnail: JQuery,
     el_link: JQuery,
     item: JQuery,
     javstoreUrl: string
   ) {
-    const imgUrl = await getPreviewUrlFromDetail(javstoreDetail, serialNumber)
+    const imgUrl = await getThumbnailUrlFromDetail(javstoreDetail, serialNumber)
     if (imgUrl.length === 0) {
       const failed = [picx('/failed.svg')]
       this.sisters.updateInfo({ serialNumber, src: failed, status: 405 })
-      this.updatePreview(serialNumber, preview, failed)
+      this.updateThumbnail(serialNumber, thumbnail, failed)
       this.addLink('图片获取失败', el_link, serialNumber, item, javstoreUrl, false)
     } else {
       this.sisters.updateInfo({ serialNumber, src: imgUrl, status: 202 })
-      this.updatePreview(serialNumber, preview, imgUrl)
+      this.updateThumbnail(serialNumber, thumbnail, imgUrl)
     }
   }
 

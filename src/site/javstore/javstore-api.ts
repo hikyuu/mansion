@@ -25,7 +25,7 @@ export function getTitleFromDetail(detail: Document) {
   }
 }
 
-export async function getPreviewUrlFromDetail(detail: Document, serialNumber: string): Promise<Array<string>> {
+export async function getThumbnailUrlFromDetail(detail: Document, serialNumber: string): Promise<Array<string>> {
   try {
     let img_array = $(detail).find('.news a img[alt*=".th"]')
     const urls: string[] = []

@@ -1,6 +1,7 @@
 import $ from 'jquery'
 import { ElNotification } from 'element-plus'
 import { ProjectError } from '@/common/errors'
+import { thumbnail_id } from '@/common'
 
 export class Sister {
   current_index: number | undefined = undefined
@@ -90,14 +91,14 @@ export class Sister {
         message: '当前页面还没有这么多内容'
       })
     }
-    const nextPreview = $('#' + this.queue[index].serialNumber).find('#preview')
-    if (nextPreview.length === 0) {
+    const nextThumbnail = $('#' + this.queue[index].serialNumber).find(`#${thumbnail_id}`)
+    if (nextThumbnail.length === 0) {
       throw new ProjectError({
         name: 'GET_PROJECT_ERROR',
         message: '没有找到预览图'
       })
     }
-    const offset = nextPreview.offset()
+    const offset = nextThumbnail.offset()
     if (offset === undefined) {
       throw new ProjectError({
         name: 'GET_PROJECT_ERROR',

@@ -90,7 +90,7 @@ export const useConfigStore = defineStore('config', {
 
 function getDefaultWaterfall() {
   return {
-    loadPreviewSwitch: true,
+    loadThumbnailSwitch: true,
     scrollStatus: 1,
     smooth: 1,
     navigationPoint: 0,
@@ -112,7 +112,7 @@ interface LocalState extends State {
 }
 
 export interface Waterfall {
-  loadPreviewSwitch: boolean
+  loadThumbnailSwitch: boolean
   scrollStatus: number
   smooth: number
   navigationPoint: number
