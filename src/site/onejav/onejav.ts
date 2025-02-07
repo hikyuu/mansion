@@ -1,5 +1,5 @@
-import type { Selector } from '@/waterfall'
-import Waterfall from '@/waterfall/index'
+import type { Selector } from '@/waterfall/waterfall'
+import Waterfall from '@/waterfall/waterfall'
 import { getPreviewElement, getSortId, isFC2 } from '@/common'
 import { SiteAbstract } from '../site-abstract'
 import $ from 'jquery'

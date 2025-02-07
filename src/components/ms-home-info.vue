@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, defineProps, ref } from 'vue'
+import { computed, defineProps } from 'vue'
 import { SiteAbstract } from '@/site/site-abstract'
 import type { Sister } from '@/site/sister'
 import { detailUrl } from '@/site/javdb/javdb-api'
@@ -44,94 +44,105 @@ const haveUnlike = computed(() => {
 })
 </script>
 <template>
-  <template v-if="sister.current_index != undefined">
-    <el-card style="max-width: 160px" class="mansion-left" v-if="useReactStore().wgt1670">
-      <el-row>
-        <el-text truncated style="font-size: 20px" tag="b">{{ sister.current_key }}</el-text>
-        <el-link
-          type="danger"
-          v-if="sister.queue[sister.current_index].javStoreUrl"
-          :href="sister.queue[sister.current_index].javStoreUrl"
-          style="font-size: 20px"
-          target="_blank"
-          >JavStore
-        </el-link>
-        <el-link type="primary" style="font-size: 20px" @click="openJavDB">Javdb</el-link>
-      </el-row>
-      <el-row>
-        <el-text type="danger" v-if="haveLike">
-          <el-icon>
-            <Star />
-          </el-icon>
-          like
-          <li v-for="word in sister.queue[sister.current_index].likeWords" :key="word">
-            {{ word }}
-          </li>
-        </el-text>
-      </el-row>
-      <el-row>
-        <el-text type="info" v-if="haveUnlike">
-          <el-icon>
-            <Hide />
-          </el-icon>
-          unlike
-          <li v-for="word in sister.queue[sister.current_index].unlikeWords" :key="word">
-            {{ word }}
-          </li>
-        </el-text>
-      </el-row>
-      <el-row>
-        <el-text v-if="site.downloadList.size > 0" style="font-size: 15px">
-          [下载列表]
-          <li v-for="(entry, index) in Array.from(site.downloadList.entries())" :key="index">
-            {{ entry[0] }}
-          </li>
-        </el-text>
-      </el-row>
-    </el-card>
-    <div v-else style="background-color: white" class="mansion-bottom">
-      <el-row style="min-height: 3.25rem" justify="space-between">
+  <el-card
+    v-if="sister.current_index != undefined && useReactStore().wgt1670"
+    style="max-width: 160px"
+    class="mansion-left"
+  >
+    <el-row>
+      <el-text truncated style="font-size: 20px" tag="b">{{ sister.current_key }}</el-text>
+      <el-link
+        type="danger"
+        v-if="sister.queue[sister.current_index].javStoreUrl"
+        :href="sister.queue[sister.current_index].javStoreUrl"
+        style="font-size: 20px"
+        target="_blank"
+        >JavStore
+      </el-link>
+      <el-link type="primary" style="font-size: 20px" @click="openJavDB">Javdb</el-link>
+    </el-row>
+    <el-row>
+      <el-text type="danger" v-if="haveLike">
+        <el-icon>
+          <Star />
+        </el-icon>
+        like
+        <li v-for="word in sister.queue[sister.current_index].likeWords" :key="word">
+          {{ word }}
+        </li>
+      </el-text>
+    </el-row>
+    <el-row>
+      <el-text type="info" v-if="haveUnlike">
+        <el-icon>
+          <Hide />
+        </el-icon>
+        unlike
+        <li v-for="word in sister.queue[sister.current_index].unlikeWords" :key="word">
+          {{ word }}
+        </li>
+      </el-text>
+    </el-row>
+    <el-row>
+      <el-text v-if="site.downloadList.size > 0" style="font-size: 15px">
+        [下载列表]
+        <li v-for="(entry, index) in Array.from(site.downloadList.entries())" :key="index">
+          {{ entry[0] }}
+        </li>
+      </el-text>
+    </el-row>
+  </el-card>
+
+  <div v-if="!useReactStore().wgt1670" style="background-color: white" class="mansion-bottom">
+    <el-row style="min-height: 3.25rem" justify="space-between">
+      <el-col :span="6" class="flex-space">
         <template v-if="sister.current_index != undefined">
-          <el-col :span="6" class="flex-space">
-            <el-text truncated style="font-size: 20px" tag="b">{{ sister.current_key }}</el-text>
-            <el-link
-              type="danger"
-              v-if="sister.queue[sister.current_index].javStoreUrl"
-              :href="sister.queue[sister.current_index].javStoreUrl"
-              style="font-size: 20px"
-              target="_blank"
-              >JavStore
-            </el-link>
-            <el-link type="primary" style="font-size: 20px" @click="openJavDB">Javdb</el-link>
-          </el-col>
-          <el-col :span="12" class="flex-space">
-            <el-text size="large" type="danger" v-if="haveLike">
-              <el-tag v-for="(word, index) in sister.queue[sister.current_index].likeWords" :key="index" type="danger">
-                {{ word }}
-              </el-tag>
-            </el-text>
-            <el-text size="large" type="info" v-if="haveUnlike">
-              <el-tag v-for="(word, index) in sister.queue[sister.current_index].unlikeWords" :key="index" type="info">
-                {{ word }}
-              </el-tag>
-            </el-text>
-            <el-text style="font-size: 15px" v-if="site.downloadList.size > 0">
-              [下载列表]
-              <el-tag v-for="(entry, index) in Array.from(site.downloadList.entries())" :key="index">
-                {{ entry[0] }}
-              </el-tag>
-            </el-text>
-          </el-col>
-          <el-col :span="6" class="flex-space">
-            <m-sister-statistics :sister="sister" :site="site" :size="25" style="height: 50px" />
-            <m-onejav-calendar v-if="site instanceof Onejav" :onejav="site" :size="40" />
-            <m-home-user :site="site" :size="40" />
-            <m-setting :site="site" :size="40" />
-          </el-col>
+          <el-text truncated style="font-size: 20px" tag="b">{{ sister.current_key }}</el-text>
+          <el-link
+            type="danger"
+            v-if="sister.queue[sister.current_index].javStoreUrl"
+            :href="sister.queue[sister.current_index].javStoreUrl"
+            style="font-size: 20px"
+            target="_blank"
+            >JavStore
+          </el-link>
+          <el-link type="primary" style="font-size: 20px" @click="openJavDB">Javdb</el-link>
         </template>
-      </el-row>
-    </div>
-  </template>
+      </el-col>
+      <el-col :span="12" class="flex-space">
+        <template v-if="sister.current_index != undefined">
+          <el-text size="large" type="danger" v-if="haveLike">
+            <el-tag v-for="(word, index) in sister.queue[sister.current_index].likeWords" :key="index" type="danger">
+              {{ word }}
+            </el-tag>
+          </el-text>
+          <el-text size="large" type="info" v-if="haveUnlike">
+            <el-tag v-for="(word, index) in sister.queue[sister.current_index].unlikeWords" :key="index" type="info">
+              {{ word }}
+            </el-tag>
+          </el-text>
+          <el-text style="font-size: 15px" v-if="site.downloadList.size > 0">
+            [下载列表]
+            <el-tag v-for="(entry, index) in Array.from(site.downloadList.entries())" :key="index">
+              {{ entry[0] }}
+            </el-tag>
+          </el-text>
+        </template>
+      </el-col>
+      <el-col :span="6" class="flex-space">
+        <m-sister-statistics
+          v-if="sister.current_index != undefined"
+          :sister="sister"
+          :site="site"
+          :size="25"
+          style="height: 50px"
+        />
+        <m-home-user :site="site" :size="40" />
+        <m-onejav-calendar v-if="site instanceof Onejav" :onejav="site" :size="40" />
+        <m-setting :site="site" :size="40" />
+      </el-col>
+    </el-row>
+  </div>
 </template>
 <style scoped>
 .mansion-left {

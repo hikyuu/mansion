@@ -1,5 +1,5 @@
-import type { Selector } from '@/waterfall'
-import Waterfall from '../waterfall'
+import type { Selector } from '@/waterfall/waterfall'
+import Waterfall from '../waterfall/waterfall'
 import type { SiteInterface } from './site-interface'
 import { type Info, Sister } from './sister'
 import type { Theme } from '@/site/index'
@@ -73,7 +73,7 @@ export abstract class SiteAbstract implements SiteInterface {
     $titleInfo.on('click', () => {
       $titleInfo.css('color', 'blue').text(`\u00A0\u00A0${text}重试中`)
       console.log(`重试`)
-      this.addPreview(elem).then()
+      this.thumbnail(elem).then()
     })
   }
 
@@ -154,7 +154,7 @@ export abstract class SiteAbstract implements SiteInterface {
    * @param type
    * @param onlyInfo
    */
-  async addPreview(item: JQuery, type = 0, onlyInfo = false): Promise<void> {
+  async thumbnail(item: JQuery, type = 0, onlyInfo = false): Promise<void> {
     const serialNumber = this.sortSerialNumber(item)
 
     const info = this.buildInfo(item, serialNumber)
@@ -173,7 +173,7 @@ export abstract class SiteAbstract implements SiteInterface {
 
     const javstoreUrl = await this.handleJavstoreUrl(sortId, serialNumber, preview, item, type, el_link)
 
-    if (javstoreUrl === null) return await this.addPreview(item, type + 1)
+    if (javstoreUrl === null) return await this.thumbnail(item, type + 1)
 
     const javstoreDetail = await this.handleDetail(javstoreUrl, serialNumber, preview, el_link, item)
 

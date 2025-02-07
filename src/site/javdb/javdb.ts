@@ -1,6 +1,6 @@
 import { SiteAbstract } from '@/site/site-abstract'
-import type { Selector } from '@/waterfall'
-import Waterfall from '@/waterfall/index'
+import type { Selector } from '@/waterfall/waterfall'
+import Waterfall from '@/waterfall/waterfall'
 import type { Info, Sister } from '@/site/sister'
 import $ from 'jquery'
 import { Task } from '@/site/task'
@@ -16,7 +16,7 @@ import dayjs from 'dayjs'
 
 export const javdb_selector: Selector = {
   next: 'a.pagination-next',
-  container: 'div.movie-list.h.cols-4.vcols-8',
+  container: 'div.movie-list.h.cols-4',
   item: 'div.item',
   pagination: 'nav.pagination',
   serialNumber: 'div.video-title strong',

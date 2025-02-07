@@ -49,13 +49,13 @@ export class Task {
   }
 
   async work(elem: JQuery) {
-    return this.site.addPreview(elem)
+    return this.site.thumbnail(elem)
   }
 
   runAll() {
     const elem = this.waitQueue.shift()
     if (elem) {
-      this.site.addPreview(elem, 0, true).then(() => {
+      this.site.thumbnail(elem, 0, true).then(() => {
         this.runAll()
       })
     }

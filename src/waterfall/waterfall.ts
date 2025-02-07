@@ -16,6 +16,8 @@ export default class {
   private site: SiteAbstract
   private sisters: Sister
   private configStore = useConfigStore()
+  private allReadedPage: number = 0
+
   constructor(site: SiteAbstract, selector: Selector, sisters: Sister) {
     this.site = site
     this.selector = selector
@@ -110,8 +112,18 @@ export default class {
     }
     console.log(`加载下一页预览图`)
     const items = await this.loadPreview(this.page.nextDetail)
-    $(this.selector.container).append(items)
-    this.setSisterNumber()
+    if (items.length === 0) {
+      this.allReadedPage++
+    } else {
+      this.allReadedPage = 0
+      $(this.selector.container).append(items)
+      this.setSisterNumber()
+    }
+    if (this.allReadedPage > 4) {
+      console.log('连续5页没有预览图，停止加载')
+      this.isEnd()
+      return
+    }
     this.page.nextDetail = null
   }
 
