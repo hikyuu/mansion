@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import { computed, reactive, ref, toRef, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import $ from 'jquery'
-import { Sister } from '@/site/sister'
 import { SiteAbstract } from '@/site/site-abstract'
 import { ElMessage } from 'element-plus'
 import { onKeyStroke, useActiveElement, useMagicKeys, useScroll, whenever } from '@vueuse/core'
@@ -12,15 +11,13 @@ import { useConfigStore } from '@/store/config-store'
 import { sites } from '@/dictionary'
 import { logicAnd } from '@vueuse/math'
 import { useReactStore } from '@/store/react-store'
+import { useSisterStore } from '@/store/sister-store'
 
 const props = defineProps<{
-  sister: Sister
   site: SiteAbstract
 }>()
 
 const showImage = ref(false)
-
-const queueRef = toRef(props.sister, 'queue')
 
 const loadAll = reactive({
   color: props.site.theme.WARNING_COLOR
@@ -78,21 +75,23 @@ const notUsingInput = computed(
 
 whenever(logicAnd(keys.Ctrl_right, notUsingInput), () => {
   console.log('Ctrl_right have been pressed')
-  props.sister.lastUnread(y)
+  useSisterStore().lastUnread(y)
 })
 
 const haveRead = computed(() => {
-  if (props.sister.current_index === undefined) return
-  return queueRef.value[props.sister.current_index].haveRead
+  const currentIndex = useSisterStore().current_index
+  if (currentIndex === undefined) return
+  return useSisterStore().queue[currentIndex].haveRead
 })
 
 const haveReadNumber = computed(() => {
-  return queueRef.value.filter((sister) => sister.haveRead).length
+  return useSisterStore().queue.filter((sister) => sister.haveRead).length
 })
 
 const src = computed(() => {
-  if (props.sister.current_index === undefined) return undefined
-  return queueRef.value[props.sister.current_index].src
+  const currentIndex = useSisterStore().current_index
+  if (currentIndex === undefined) return undefined
+  return useSisterStore().queue[currentIndex].src
 })
 
 function viewOrClose() {
@@ -111,7 +110,7 @@ function close() {
 
 function previous(event: KeyboardEvent) {
   event.preventDefault()
-  props.sister.previous()
+  useSisterStore().previous()
   props.site.scrollToCurrent(x, y)
 }
 
@@ -122,7 +121,7 @@ function download(event: KeyboardEvent) {
 
 function nextStep(event: KeyboardEvent) {
   event.preventDefault()
-  props.sister.nextStep()
+  useSisterStore().nextStep()
   props.site.scrollToCurrent(x, y)
 }
 
@@ -141,7 +140,7 @@ function scroll(event: KeyboardEvent, reverse = false) {
 }
 
 watch(
-  () => props.sister.current_key,
+  () => useSisterStore().current_key,
   (key) => {
     // console.log('监听到key变化');
     if (!key) return
@@ -153,10 +152,10 @@ watch(
 )
 
 watch(
-  () => props.sister.current_index,
+  () => useSisterStore().current_index,
   (index) => {
     if (index === undefined) return
-    const sisterNumber = props.sister.sisterNumber
+    const sisterNumber = useSisterStore().sisterNumber
     console.log('sisterNumber', sisterNumber)
     const unreadNumber = sisterNumber - haveReadNumber.value
 
@@ -165,7 +164,7 @@ watch(
       props.site.loadNext()
     }
 
-    const info = props.sister.queue[index]
+    const info = useSisterStore().queue[index]
     if (info.haveRead && info.repeatSite && info.repeatSite > 0 && info.repeatSite !== info.site) {
       ElMessage({
         message: `${info.serialNumber}在${sites[info.repeatSite]}看过`,
@@ -185,13 +184,14 @@ watch(
 )
 
 function lastUnRead() {
-  props.sister?.lastUnread(y)
+  useSisterStore().lastUnread(y)
 }
 function location() {
-  if (props.sister.current_index === undefined) {
+  const index = useSisterStore().current_index
+  if (index === undefined) {
     return 0
   }
-  return props.sister.current_index + 1
+  return index + 1
 }
 </script>
 
@@ -207,7 +207,7 @@ function location() {
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Memo />
         </el-icon>
-        <span :style="loadAll">{{ sister.sisterNumber }}</span>
+        <span :style="loadAll">{{ useSisterStore().sisterNumber }}</span>
       </div>
       <div class="count-group">
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
@@ -221,7 +221,7 @@ function location() {
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Picture />
         </el-icon>
-        <span style="color: green">{{ sister.queue.length }}</span>
+        <span style="color: green">{{ useSisterStore().queue.length }}</span>
       </div>
       <div class="count-group" @click="lastUnRead">
         <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" size="30">

@@ -1,4 +1,4 @@
-import { getImgUrlFromPixhost, parseText, request } from '@/common'
+import { getImgUrlFromPixhost, parseText, request } from '@/common/common'
 
 export async function getDetailFromJavStore(javstore: string, retry = 3): Promise<Document | undefined> {
   try {

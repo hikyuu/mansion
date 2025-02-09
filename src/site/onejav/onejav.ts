@@ -1,18 +1,19 @@
 import type { Selector } from '@/waterfall/waterfall'
 import Waterfall from '@/waterfall/waterfall'
-import { getSortId, isFC2 } from '@/common'
+import { getSortId, isFC2 } from '@/common/common'
 import { SiteAbstract } from '../site-abstract'
 import $ from 'jquery'
 import { WaterfallStatus } from '@/dictionary'
 
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
-import { type Info, Sister } from '@/site/sister'
 import { Task } from '@/site/task'
 import { ElNotification } from 'element-plus'
 import { haveArchived, upsertArchive } from '@/dao/archive'
 import { highScoreMagnet } from '@/site/javdb/javdb-api'
 import { uploadDaily } from '@/dao/onejav-daily-dao'
 import { loadDailyHistory, loadLatestHistory, uploadHistory } from '@/dao/browse-history'
+import { useSisterStore } from '@/store/sister-store'
+import type { Info } from '@/store/sister-store'
 
 export function clickMagnet(magnet: string) {
   const $a = $('<a>', {
@@ -56,7 +57,6 @@ export class Onejav extends SiteAbstract {
   public name = 'onejav'
   public siteId = 1
   public waterfall: Waterfall
-  public sisters: Sister
 
   selector: Selector = {
     next: 'a.pagination-next.button.is-primary',
@@ -74,10 +74,9 @@ export class Onejav extends SiteAbstract {
   }
   private task: Task = new Task(this)
 
-  constructor(sisters: Sister) {
+  constructor() {
     super()
-    this.sisters = sisters
-    this.waterfall = new Waterfall(this, this.selector, sisters)
+    this.waterfall = new Waterfall(this, this.selector)
   }
   async mount(): Promise<void> {
     // this.adObserve()
@@ -101,11 +100,11 @@ export class Onejav extends SiteAbstract {
 
   updateInfo(item: JQuery, info: Info): void {
     const pathDate = item.find('p.subtitle a').attr('href')
-    this.sisters.updateInfo({ serialNumber: info.serialNumber, pathDate })
+    useSisterStore().updateInfo({ serialNumber: info.serialNumber, pathDate })
   }
 
   save(serialNumber: string): void {
-    const info = this.sisters.queue.find((item) => item.serialNumber === serialNumber)
+    const info = useSisterStore().queue.find((item) => item.serialNumber === serialNumber)
     if (!info) {
       return
     }
@@ -120,7 +119,7 @@ export class Onejav extends SiteAbstract {
       return
     }
     uploadHistory(serialNumber, info).then(() => {
-      this.sisters.updateInfo({ serialNumber, haveRead: true, status: 200 })
+      useSisterStore().updateInfo({ serialNumber, haveRead: true, status: 200 })
     })
   }
 
@@ -129,19 +128,21 @@ export class Onejav extends SiteAbstract {
   }
 
   async download() {
-    console.log('下载', this.sisters.current_key)
-    if (this.sisters.current_key === undefined) {
+    const currentKey = useSisterStore().current_key
+    console.log('下载', currentKey)
+    if (currentKey === undefined) {
       ElNotification({ title: '提示', message: '没有选中', type: 'info' })
       return
     }
-    if (await haveArchived(this.sisters.current_key)) {
+    if (await haveArchived(currentKey)) {
       ElNotification({ title: '提示', message: '已经归档', type: 'info' })
       return
     }
-    const $id = $('#' + this.sisters.current_key)
+    const $id = $('#' + currentKey)
     const $download = $id.find("a[title='Download .torrent']")
-    if (this.sisters.current_index === undefined) return
-    const serialNumber = this.sisters.queue[this.sisters.current_index].serialNumber
+    const currentIndex = useSisterStore().current_index
+    if (currentIndex === undefined) return
+    const serialNumber = useSisterStore().queue[currentIndex].serialNumber
     if (this.downloadList.has(serialNumber)) {
       ElNotification({ title: '提示', message: '正在下载中', type: 'info' })
       return
@@ -176,7 +177,7 @@ export class Onejav extends SiteAbstract {
 
   loadCompleted(): void {
     this.hasLoadCompleted = true
-    uploadDaily(location.pathname, this.sisters.sisterNumber, true).then()
+    uploadDaily(location.pathname, useSisterStore().sisterNumber, true).then()
   }
 
   private addStyle() {
@@ -200,12 +201,12 @@ export class Onejav extends SiteAbstract {
           const pathDateSet = new Set<string>()
           histories.forEach((history) => {
             pathDateSet.add(history.path_date)
-            const info = this.sisters.queue.find((item) => item.serialNumber === history.serial_number)
+            const info = useSisterStore().queue.find((item) => item.serialNumber === history.serial_number)
             if (info === undefined) return
             if (info.haveRead) return
-            this.sisters.updateInfo({ serialNumber: history.serial_number, haveRead: true })
+            useSisterStore().updateInfo({ serialNumber: history.serial_number, haveRead: true })
             if (info.pathDate !== history.path_date || info.site !== history.site) {
-              this.sisters.updateInfo({ serialNumber: history.serial_number, repeatSite: history.site })
+              useSisterStore().updateInfo({ serialNumber: history.serial_number, repeatSite: history.site })
               uploadHistory(info.serialNumber, info).then()
             }
           })

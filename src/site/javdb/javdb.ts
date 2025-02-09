@@ -1,7 +1,7 @@
 import { SiteAbstract } from '@/site/site-abstract'
 import type { Selector } from '@/waterfall/waterfall'
 import Waterfall from '@/waterfall/waterfall'
-import type { Info, Sister } from '@/site/sister'
+import type { Info } from '@/store/sister-store'
 import $ from 'jquery'
 import { Task } from '@/site/task'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
@@ -13,6 +13,7 @@ import { clickMagnet } from '@/site/onejav/onejav'
 import { downloadFromLocal, getDetailHref } from '@/site/javdb/javdb-api'
 import { uploadHistory } from '@/dao/browse-history'
 import dayjs from 'dayjs'
+import { useSisterStore } from '@/store/sister-store'
 
 export const javdb_selector: Selector = {
   next: 'a.pagination-next',
@@ -29,11 +30,9 @@ export class Javdb extends SiteAbstract {
   public name = 'javdb'
   public siteId = 2
   public waterfall: Waterfall
-  public sisters: Sister
-  constructor(sisters: Sister) {
+  constructor() {
     super()
-    this.sisters = sisters
-    this.waterfall = new Waterfall(this, this.selector, sisters)
+    this.waterfall = new Waterfall(this, this.selector)
   }
   private task: Task = new Task(this)
   selector: Selector = javdb_selector
@@ -92,12 +91,12 @@ export class Javdb extends SiteAbstract {
     const parsedDate = dayjs(info.date)
     if (parsedDate.isValid()) {
       const pathDate = parsedDate.format(FORMAT.PATH_DATE)
-      this.sisters.updateInfo({ serialNumber: info.serialNumber, pathDate })
+      useSisterStore().updateInfo({ serialNumber: info.serialNumber, pathDate })
     }
   }
 
   async download() {
-    const serialNumber = this.sisters.current_key
+    const serialNumber = useSisterStore().current_key
     console.log('下载', serialNumber)
     if (!serialNumber) {
       ElNotification({ title: '提示', message: '没有选中', type: 'info' })
@@ -141,7 +140,7 @@ export class Javdb extends SiteAbstract {
   allRead() {}
 
   save(serialNumber: string): void {
-    const info = this.sisters.queue.find((item) => item.serialNumber === serialNumber)
+    const info = useSisterStore().queue.find((item) => item.serialNumber === serialNumber)
     if (!info) {
       return
     }
@@ -158,7 +157,7 @@ export class Javdb extends SiteAbstract {
 
     uploadHistory(serialNumber, info).then((history) => {
       console.log('上传成功', history)
-      this.sisters.updateInfo({ serialNumber, haveRead: true, status: 200 })
+      useSisterStore().updateInfo({ serialNumber, haveRead: true, status: 200 })
     })
   }
 

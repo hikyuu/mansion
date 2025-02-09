@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { Onejav } from '@/site/onejav/onejav'
-import { computed, defineProps, toRef, toRefs } from 'vue'
+import { computed, defineProps, toRefs } from 'vue'
 import { FORMAT } from '@/dictionary'
 import { DocumentCopy, Right } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
@@ -12,6 +12,7 @@ import { logicAnd } from '@vueuse/math'
 import 'dayjs/locale/zh-cn'
 import MOnejavCalendar from '@/components/m-onejav-calendar.vue'
 import { useReactStore } from '@/store/react-store'
+import { useSisterStore } from '@/store/sister-store'
 
 const props = defineProps({
   onejav: {
@@ -55,20 +56,17 @@ whenever(logicAnd(keys.Ctrl_Enter, notUsingInput), () => {
 })
 
 const isLoadAll = computed(() => {
-  return (
-    props.onejav.sisters.queue.length >= props.onejav.sisters.sisterNumber * 0.9 && props.onejav.waterfall.page.isEnd
-  )
+  return useSisterStore().queue.length >= useSisterStore().sisterNumber * 0.9 && props.onejav.waterfall.page.isEnd
 })
 
 const isDatePage = computed(() => {
   return dayjs(location.pathname, FORMAT.PATH_DATE, true).isValid()
 })
 
-const queueRef = toRef(props.onejav.sisters, 'queue')
-
 const repeat = computed(() => {
-  if (props.onejav.sisters.current_index === undefined) return 0
-  const info = queueRef.value[props.onejav.sisters.current_index]
+  const currentIndex = useSisterStore().current_index
+  if (currentIndex === undefined) return 0
+  const info = useSisterStore().queue[currentIndex]
   if (!info || !info.repeatSite) return 0
   return info.repeatSite
 })

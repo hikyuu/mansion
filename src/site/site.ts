@@ -1,14 +1,13 @@
 import { Javdb } from '@/site/javdb/javdb'
 import type { SiteAbstract } from '@/site/site-abstract'
-import type { Sister } from '@/site/sister'
 import { Onejav } from '@/site/onejav/onejav'
 
-export function getSite(sisters: Sister): SiteAbstract | undefined {
+export function getSite(): SiteAbstract | undefined {
   if (/(onejav)/g.test(location.href)) {
-    return new Onejav(sisters)
+    return new Onejav()
   }
   if (/(javdb)/g.test(location.href)) {
-    return new Javdb(sisters)
+    return new Javdb()
   }
   return undefined
 }

@@ -1,11 +1,11 @@
 import { SiteAbstract } from '@/site/site-abstract'
 import $ from 'jquery'
-import { Sister } from '@/site/sister'
 import { Pagination } from './pagination'
 import { ElNotification } from 'element-plus'
 import { useConfigStore } from '@/store/config-store'
 import { WaterfallStatus } from '@/dictionary'
 import { reactive } from 'vue'
+import { useSisterStore } from '@/store/sister-store'
 
 export default class {
   public page: Pagination
@@ -14,11 +14,10 @@ export default class {
   private selector: Selector
   private readonly anchor: HTMLElement | null = null
   private site: SiteAbstract
-  private sisters: Sister
   private configStore = useConfigStore()
   private allReadedPage: number = 0
 
-  constructor(site: SiteAbstract, selector: Selector, sisters: Sister) {
+  constructor(site: SiteAbstract, selector: Selector) {
     this.site = site
     this.selector = selector
     this.page = reactive(new Pagination(this.getDetail(document)))
@@ -26,7 +25,6 @@ export default class {
     if ($pageNation.length > 0) {
       this.anchor = $pageNation[0]
     }
-    this.sisters = sisters
   }
 
   async flow(waterfallScrollStatus: number | null = null) {
@@ -110,7 +108,7 @@ export default class {
       console.log(`没有获取到下一页内容`)
       return this.isEnd()
     }
-    console.log(`加载下一页预览图`)
+    console.log(`加载下一页缩略图`)
     const items = await this.loadThumbnail(this.page.nextDetail)
     if (items.length === 0) {
       this.allReadedPage++
@@ -120,7 +118,7 @@ export default class {
       this.setSisterNumber()
     }
     if (this.allReadedPage > 4) {
-      console.log('连续5页没有预览图，停止加载')
+      console.log('连续5页没有缩略图，停止加载')
       this.isEnd()
       return
     }
@@ -147,9 +145,9 @@ export default class {
       await this.fetchURL()
       await this.appendNextLocal()
       if (!oneStep) {
-        const sisterNumber = this.sisters.sisterNumber
+        const sisterNumber = useSisterStore().sisterNumber
         const lazyLimit = useConfigStore().currentConfig.lazyLimit
-        const haveReadNumber = this.sisters.queue.filter((item) => item.haveRead).length
+        const haveReadNumber = useSisterStore().queue.filter((item) => item.haveRead).length
         if (sisterNumber - haveReadNumber > lazyLimit) {
           return
         }
@@ -221,7 +219,7 @@ export default class {
     if (sisterNumber === 0) {
       console.error('没有找到妹妹！')
     }
-    this.sisters.sisterNumber = sisterNumber
+    useSisterStore().sisterNumber = sisterNumber
     return sisterNumber
   }
 

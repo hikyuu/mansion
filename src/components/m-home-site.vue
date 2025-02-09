@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import { getSite } from '@/site'
-import { reactive, ref } from 'vue'
-import { Sister } from '@/site/sister'
+import { getSite } from '@/site/site'
+import { ref } from 'vue'
 import { SiteAbstract } from '@/site/site-abstract'
 import { Onejav } from '@/site/onejav/onejav'
 import ControlPanel from './ms-control-panel.vue'
@@ -15,10 +14,8 @@ import { useReactStore } from '@/store/react-store'
 
 const site = ref<SiteAbstract>()
 
-const sister = reactive<Sister>(new Sister())
-
 const configStore = useConfigStore()
-const exactSite = getSite(sister)
+const exactSite = getSite()
 if (exactSite === undefined) {
   ElNotification({ title: 'mansion', message: `不支持当前网站!`, type: 'error' })
 } else {
@@ -39,12 +36,12 @@ if (exactSite === undefined) {
 <template>
   <template v-if="site">
     <div style="padding-left: 5px">
-      <ms-home-info :sister="sister" :site="site" />
+      <ms-home-info :site="site" />
     </div>
     <div class="mansion-right">
       <m-home-user v-if="useReactStore().wgt1670" :site="site" />
       <home-onejav v-if="site instanceof Onejav" :onejav="site" />
-      <control-panel v-if="site.showControlPanel()" :sister="sister" :site="site" />
+      <control-panel v-if="site.showControlPanel()" :site="site" />
       <mansion-setting v-if="useReactStore().wgt1670" :site="site" />
     </div>
   </template>

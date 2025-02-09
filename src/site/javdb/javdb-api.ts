@@ -1,5 +1,5 @@
 import { javdb_selector } from '@/site/javdb/javdb'
-import { request, sortId } from '@/common'
+import { request, sortId } from '@/common/common'
 
 const baseUrl = 'https://javdb.com'
 

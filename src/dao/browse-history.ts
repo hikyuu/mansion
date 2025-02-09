@@ -1,10 +1,10 @@
 import { ElNotification } from 'element-plus'
 import { LockPool } from '@/common/lock-pool'
-import type { Info } from '@/site/sister'
 import dayjs, { Dayjs } from 'dayjs'
 import { FORMAT } from '@/dictionary'
 import { reactive } from 'vue'
 import { useUserStore } from '@/store/user-store'
+import type { Info } from '@/store/sister-store'
 
 const refreshTime = new Date()
 

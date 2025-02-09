@@ -1,26 +1,26 @@
 <script lang="ts" setup>
 import { computed, defineProps } from 'vue'
 import { SiteAbstract } from '@/site/site-abstract'
-import type { Sister } from '@/site/sister'
 import { detailUrl } from '@/site/javdb/javdb-api'
 import { BASEURL } from '@/dictionary'
 import { ElNotification } from 'element-plus'
 import { Hide, Star } from '@element-plus/icons-vue'
-import MHomeOnejav from '@/components/m-home-onejav.vue'
 import { Onejav } from '@/site/onejav/onejav'
 import MHomeUser from '@/components/m-home-user.vue'
 import MSetting from '@/components/m-setting.vue'
 import MSisterStatistics from '@/components/m-sister-statistics.vue'
 import MOnejavCalendar from '@/components/m-onejav-calendar.vue'
 import { useReactStore } from '@/store/react-store'
+import { useSisterStore } from '@/store/sister-store'
+const sisters = useSisterStore()
 
 const props = defineProps<{
   site: SiteAbstract
-  sister: Sister
 }>()
 function openJavDB() {
-  if (props.sister.current_key === undefined) return
-  detailUrl(props.sister.current_key)
+  const currentKey = sisters.current_key
+  if (currentKey === undefined) return
+  detailUrl(currentKey)
     .then((url) => {
       console.log(BASEURL.JAVDB + url)
       window.open(BASEURL.JAVDB + url, '_blank')
@@ -31,30 +31,32 @@ function openJavDB() {
 }
 
 const haveLike = computed(() => {
-  if (props.sister.current_index === undefined) return false
-  const sister = props.sister.queue[props.sister.current_index]
+  const currentIndex = sisters.current_index
+  if (currentIndex === undefined) return false
+  const sister = sisters.queue[currentIndex]
   if (sister.likeWords === undefined) return false
   return sister.likeWords.length > 0
 })
 const haveUnlike = computed(() => {
-  if (props.sister.current_index === undefined) return false
-  const sister = props.sister.queue[props.sister.current_index]
+  const currentIndex = sisters.current_index
+  if (currentIndex === undefined) return false
+  const sister = sisters.queue[currentIndex]
   if (sister.unlikeWords === undefined) return false
   return sister.unlikeWords.length > 0
 })
 </script>
 <template>
   <el-card
-    v-if="sister.current_index != undefined && useReactStore().wgt1670"
+    v-if="sisters.current_index != undefined && useReactStore().wgt1670"
     style="max-width: 160px"
     class="mansion-left"
   >
     <el-row>
-      <el-text truncated style="font-size: 20px" tag="b">{{ sister.current_key }}</el-text>
+      <el-text truncated style="font-size: 20px" tag="b">{{ sisters.current_key }}</el-text>
       <el-link
         type="danger"
-        v-if="sister.queue[sister.current_index].javStoreUrl"
-        :href="sister.queue[sister.current_index].javStoreUrl"
+        v-if="sisters.queue[sisters.current_index].javStoreUrl"
+        :href="sisters.queue[sisters.current_index].javStoreUrl"
         style="font-size: 20px"
         target="_blank"
         >JavStore
@@ -67,7 +69,7 @@ const haveUnlike = computed(() => {
           <Star />
         </el-icon>
         like
-        <li v-for="word in sister.queue[sister.current_index].likeWords" :key="word">
+        <li v-for="word in sisters.queue[sisters.current_index].likeWords" :key="word">
           {{ word }}
         </li>
       </el-text>
@@ -78,7 +80,7 @@ const haveUnlike = computed(() => {
           <Hide />
         </el-icon>
         unlike
-        <li v-for="word in sister.queue[sister.current_index].unlikeWords" :key="word">
+        <li v-for="word in sisters.queue[sisters.current_index].unlikeWords" :key="word">
           {{ word }}
         </li>
       </el-text>
@@ -96,12 +98,12 @@ const haveUnlike = computed(() => {
   <div v-if="!useReactStore().wgt1670" style="background-color: white" class="mansion-bottom">
     <el-row style="min-height: 3.25rem" justify="space-between">
       <el-col :span="6" class="flex-space">
-        <template v-if="sister.current_index != undefined">
-          <el-text truncated style="font-size: 20px" tag="b">{{ sister.current_key }}</el-text>
+        <template v-if="sisters.current_index != undefined">
+          <el-text truncated style="font-size: 20px" tag="b">{{ sisters.current_key }}</el-text>
           <el-link
             type="danger"
-            v-if="sister.queue[sister.current_index].javStoreUrl"
-            :href="sister.queue[sister.current_index].javStoreUrl"
+            v-if="sisters.queue[sisters.current_index].javStoreUrl"
+            :href="sisters.queue[sisters.current_index].javStoreUrl"
             style="font-size: 20px"
             target="_blank"
             >JavStore
@@ -110,14 +112,14 @@ const haveUnlike = computed(() => {
         </template>
       </el-col>
       <el-col :span="12" class="flex-space">
-        <template v-if="sister.current_index != undefined">
+        <template v-if="sisters.current_index != undefined">
           <el-text size="large" type="danger" v-if="haveLike">
-            <el-tag v-for="(word, index) in sister.queue[sister.current_index].likeWords" :key="index" type="danger">
+            <el-tag v-for="(word, index) in sisters.queue[sisters.current_index].likeWords" :key="index" type="danger">
               {{ word }}
             </el-tag>
           </el-text>
           <el-text size="large" type="info" v-if="haveUnlike">
-            <el-tag v-for="(word, index) in sister.queue[sister.current_index].unlikeWords" :key="index" type="info">
+            <el-tag v-for="(word, index) in sisters.queue[sisters.current_index].unlikeWords" :key="index" type="info">
               {{ word }}
             </el-tag>
           </el-text>
@@ -131,8 +133,8 @@ const haveUnlike = computed(() => {
       </el-col>
       <el-col :span="6" class="flex-space">
         <m-sister-statistics
-          v-if="sister.current_index != undefined"
-          :sister="sister"
+          v-if="sisters.current_index != undefined"
+          :sister="sisters"
           :site="site"
           :size="25"
           style="height: 50px"

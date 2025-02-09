@@ -58,9 +58,9 @@ const WaterfallStatus = {
 
 function loadThumbnailSwitchChange(value: boolean) {
   if (value) {
-    ElNotification({ title: '瀑布流', message: `加载预览图`, type: 'info' })
+    ElNotification({ title: '瀑布流', message: `加载缩略图`, type: 'info' })
   } else {
-    ElNotification({ title: '瀑布流', message: `不加载预览图`, type: 'info' })
+    ElNotification({ title: '瀑布流', message: `不加载缩略图`, type: 'info' })
   }
 }
 
@@ -94,7 +94,7 @@ function allRead() {}
         </template>
         <template #default>
           <el-form label-position="right" label-width="auto">
-            <el-form-item label="预览图">
+            <el-form-item label="缩略图">
               <el-switch
                 v-model="currentConfig.loadThumbnailSwitch"
                 @change="loadThumbnailSwitchChange"
@@ -129,7 +129,7 @@ function allRead() {}
             <el-form-item label="导航起点">
               <el-radio-group v-model="currentConfig.navigationPoint">
                 <el-radio style="width: 100px" :value="0" border>标题</el-radio>
-                <el-radio style="width: 100px" :value="1" border>预览</el-radio>
+                <el-radio style="width: 100px" :value="1" border>缩略</el-radio>
               </el-radio-group>
             </el-form-item>
             <el-row v-if="false" justify="center">

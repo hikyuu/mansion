@@ -1,19 +1,15 @@
 <script setup lang="ts">
 import { Location, Memo } from '@element-plus/icons-vue'
 import MImgItem from '@/components/m-img-item.vue'
-import { computed, defineProps, toRef } from 'vue'
-import type { Sister } from '@/site/sister'
+import { computed, defineProps } from 'vue'
 import type { SiteAbstract } from '@/site/site-abstract'
 import { useScroll } from '@vueuse/core'
 import { useConfigStore } from '@/store/config-store'
+import { useSisterStore } from '@/store/sister-store'
 
 const props = defineProps({
   site: {
     type: Object as () => SiteAbstract,
-    required: true
-  },
-  sister: {
-    type: Object as () => Sister,
     required: true
   },
   size: {
@@ -37,10 +33,10 @@ const loadAll = computed(() => {
     }
   }
 })
-const queueRef = toRef(props.sister, 'queue')
 
 const haveReadNumber = computed(() => {
-  return queueRef.value.filter((sister) => sister.haveRead).length
+  const queueRef = useSisterStore().queue
+  return queueRef.filter((sister) => sister.haveRead).length
 })
 
 const { x, y } = useScroll(window, {
@@ -51,14 +47,15 @@ const { x, y } = useScroll(window, {
 })
 
 function lastUnRead() {
-  props.sister?.lastUnread(y)
+  useSisterStore().lastUnread(y)
 }
 
 function location() {
-  if (props.sister.current_index === undefined) {
+  const currentIndex = useSisterStore().current_index
+  if (currentIndex === undefined) {
     return 0
   }
-  return props.sister.current_index + 1
+  return currentIndex + 1
 }
 </script>
 
@@ -70,7 +67,7 @@ function location() {
           <Memo />
         </el-icon>
         <div style="min-width: 30px">
-          <span :style="loadAll">{{ sister.sisterNumber }}</span>
+          <span :style="loadAll">{{ useSisterStore().sisterNumber }}</span>
         </div>
       </div>
       <div class="count-group" :class="{ 'flex-direction-column': props.column }">
@@ -88,7 +85,7 @@ function location() {
           <Picture />
         </el-icon>
         <div style="min-width: 30px">
-          <span style="color: green">{{ sister.queue.length }}</span>
+          <span style="color: green">{{ useSisterStore().queue.length }}</span>
         </div>
       </div>
       <div class="count-group" :class="{ 'flex-direction-column': props.column }" @click="lastUnRead">

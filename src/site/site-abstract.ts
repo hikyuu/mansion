@@ -1,18 +1,18 @@
 import type { Selector } from '@/waterfall/waterfall'
 import Waterfall from '../waterfall/waterfall'
 import type { SiteInterface } from './site-interface'
-import { type Info, Sister } from './sister'
-import type { Theme } from '@/site/index'
-import { getDetailFromJavStore } from '@/site/index'
+import type { Theme } from '@/site/site'
+import { getDetailFromJavStore } from '@/site/site'
 import type { Ref } from 'vue'
 import { KEY, picx } from '@/dictionary'
 import $ from 'jquery'
 
-import { getJavstoreUrl, getThumbnailElement, getSortId, thumbnail_id } from '@/common'
+import { getJavstoreUrl, getThumbnailElement, getSortId, thumbnail_id } from '@/common/common'
 import { useConfigStore } from '@/store/config-store'
 import { getHistories, type HistoryDto, uploadHistory } from '@/dao/browse-history'
 import { getThumbnailUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
 import { ProjectError } from '@/common/errors'
+import { type Info, useSisterStore } from '@/store/sister-store'
 
 export abstract class SiteAbstract implements SiteInterface {
   hasLoadCompleted = false
@@ -24,8 +24,6 @@ export abstract class SiteAbstract implements SiteInterface {
   abstract siteId: number
 
   abstract selector: Selector
-
-  abstract sisters: Sister
 
   abstract waterfall: Waterfall
 
@@ -78,7 +76,7 @@ export abstract class SiteAbstract implements SiteInterface {
   }
 
   scrollToCurrent(x: Ref<number>, y: Ref<number>): void {
-    let prev = $('#' + this.sisters.current_key)
+    let prev = $('#' + useSisterStore().current_key)
     switch (useConfigStore().currentConfig.navigationPoint) {
       case 1:
         prev = prev.find(`#${thumbnail_id}`)
@@ -104,10 +102,10 @@ export abstract class SiteAbstract implements SiteInterface {
       const serialNumber = detail.attr('id')
       // console.log(detailTop, scrollTop)
       // console.log('当前窗口元素：', serialNumber)
-      if (!serialNumber || this.sisters.current_key === serialNumber) {
+      if (!serialNumber || useSisterStore().current_key === serialNumber) {
         return
       }
-      this.sisters.setCurrent(serialNumber)
+      useSisterStore().setCurrent(serialNumber)
     }
   }
 
@@ -136,7 +134,7 @@ export abstract class SiteAbstract implements SiteInterface {
     const loadUrl = picx('/load.svg')
     const date = item.find(this.selector.date).text().trim()
 
-    const info = this.sisters.updateInfo({
+    const info = useSisterStore().updateInfo({
       serialNumber,
       src: [loadUrl],
       date,
@@ -149,7 +147,7 @@ export abstract class SiteAbstract implements SiteInterface {
   }
 
   /**
-   * 添加预览图
+   * 添加缩略图
    * @param item
    * @param type
    * @param onlyInfo
@@ -178,7 +176,7 @@ export abstract class SiteAbstract implements SiteInterface {
     const javstoreDetail = await this.handleDetail(javstoreUrl, serialNumber, thumbnail, el_link, item)
 
     this.resolveTitle(javstoreDetail, serialNumber)
-    // 番号预览大图
+    // 番号缩略大图
     await this.updateImgUrl(javstoreDetail, serialNumber, thumbnail, el_link, item, javstoreUrl)
   }
 
@@ -187,7 +185,7 @@ export abstract class SiteAbstract implements SiteInterface {
       item.remove()
       console.log('删除已读', info.serialNumber)
       this.waterfall.setSisterNumber()
-      this.sisters.deleteInfo(info.serialNumber)
+      useSisterStore().deleteInfo(info.serialNumber)
       throw new ProjectError({
         name: 'GET_PROJECT_ERROR',
         message: '删除已读'
@@ -228,7 +226,7 @@ export abstract class SiteAbstract implements SiteInterface {
       this.addLink('没找到', el_link, serialNumber, item)
       const failedUrl = [picx('/failed.svg')]
       this.updateThumbnail(serialNumber, thumbnail, failedUrl)
-      this.sisters.updateInfo({ serialNumber, src: failedUrl, status: 500 })
+      useSisterStore().updateInfo({ serialNumber, src: failedUrl, status: 500 })
       throw new ProjectError({
         name: 'GET_PROJECT_ERROR',
         message: 'sortId is undefined'
@@ -276,7 +274,7 @@ export abstract class SiteAbstract implements SiteInterface {
     const javstoreDetail = await getDetailFromJavStore(javstoreUrl)
     if (javstoreDetail === undefined) {
       const failed = [picx('/failed.svg')]
-      this.sisters.updateInfo({ serialNumber, src: failed, status: 404 })
+      useSisterStore().updateInfo({ serialNumber, src: failed, status: 404 })
       this.updateThumbnail(serialNumber, thumbnail, failed)
       this.addLink('详情获取失败', el_link, serialNumber, item, javstoreUrl, false)
       throw new ProjectError({
@@ -298,12 +296,12 @@ export abstract class SiteAbstract implements SiteInterface {
     const javstoreUrl = await getJavstoreUrl(sortId, 1000)
     if (javstoreUrl === null) {
       const failed = [picx('/failed.svg')]
-      this.sisters.updateInfo({ serialNumber, src: failed, status: 404 })
+      useSisterStore().updateInfo({ serialNumber, src: failed, status: 404 })
       this.updateThumbnail(serialNumber, thumbnail, failed)
       return null
     } else {
       this.addLink('JavStore', el_link, serialNumber, item, javstoreUrl)
-      this.sisters.updateInfo({ serialNumber, javStoreUrl: javstoreUrl })
+      useSisterStore().updateInfo({ serialNumber, javStoreUrl: javstoreUrl })
     }
     return javstoreUrl
   }
@@ -318,7 +316,7 @@ export abstract class SiteAbstract implements SiteInterface {
       const unlikeWords = useConfigStore().currentConfig.keyword.unlike.filter((item) => {
         return title.includes(item)
       })
-      this.sisters.updateInfo({ serialNumber, likeWords, unlikeWords })
+      useSisterStore().updateInfo({ serialNumber, likeWords, unlikeWords })
     }
   }
   async sleep(ms: number) {
@@ -335,11 +333,11 @@ export abstract class SiteAbstract implements SiteInterface {
     const imgUrl = await getThumbnailUrlFromDetail(javstoreDetail, serialNumber)
     if (imgUrl.length === 0) {
       const failed = [picx('/failed.svg')]
-      this.sisters.updateInfo({ serialNumber, src: failed, status: 405 })
+      useSisterStore().updateInfo({ serialNumber, src: failed, status: 405 })
       this.updateThumbnail(serialNumber, thumbnail, failed)
       this.addLink('图片获取失败', el_link, serialNumber, item, javstoreUrl, false)
     } else {
-      this.sisters.updateInfo({ serialNumber, src: imgUrl, status: 202 })
+      useSisterStore().updateInfo({ serialNumber, src: imgUrl, status: 202 })
       this.updateThumbnail(serialNumber, thumbnail, imgUrl)
     }
   }
@@ -347,18 +345,18 @@ export abstract class SiteAbstract implements SiteInterface {
   private async updateRepeat(serialNumber: string, info: Info) {
     const histories = await getHistories([serialNumber])
     const haveRead = histories.length > 0
-    this.sisters.updateInfo({ serialNumber, haveRead })
-    // console.log('添加预览图：通用')
+    useSisterStore().updateInfo({ serialNumber, haveRead })
+    // console.log('添加缩略图：通用')
     if (haveRead) {
       const repeats = histories.filter((item) => {
         return item.path_date !== info.pathDate || item.site !== info.site
       })
       if (repeats.length > 0) {
         console.log('发现重复已读', repeats)
-        this.sisters.updateInfo({ serialNumber, repeatSite: this.siteId })
+        useSisterStore().updateInfo({ serialNumber, repeatSite: this.siteId })
         const otherSite = repeats.find((item: HistoryDto) => item.site !== info.site)
         if (otherSite !== undefined) {
-          this.sisters.updateInfo({ serialNumber, repeatSite: otherSite.site })
+          useSisterStore().updateInfo({ serialNumber, repeatSite: otherSite.site })
         }
       }
       if (histories.find((item) => item.path_date === info.pathDate && item.site === info.site) === undefined) {
