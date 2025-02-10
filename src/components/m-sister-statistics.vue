@@ -7,6 +7,8 @@ import { useScroll } from '@vueuse/core'
 import { useConfigStore } from '@/store/config-store'
 import { useSisterStore } from '@/store/sister-store'
 
+const sister = useSisterStore()
+
 const props = defineProps({
   site: {
     type: Object as () => SiteAbstract,
@@ -34,11 +36,6 @@ const loadAll = computed(() => {
   }
 })
 
-const haveReadNumber = computed(() => {
-  const queueRef = useSisterStore().queue
-  return queueRef.filter((sister) => sister.haveRead).length
-})
-
 const { x, y } = useScroll(window, {
   onStop: () => {
     props.site.waterfall.onScrollEvent()
@@ -47,11 +44,11 @@ const { x, y } = useScroll(window, {
 })
 
 function lastUnRead() {
-  useSisterStore().lastUnread(y)
+  sister.lastUnread(y)
 }
 
 function location() {
-  const currentIndex = useSisterStore().current_index
+  const currentIndex = sister.current_index
   if (currentIndex === undefined) {
     return 0
   }
@@ -67,7 +64,7 @@ function location() {
           <Memo />
         </el-icon>
         <div style="min-width: 30px">
-          <span :style="loadAll">{{ useSisterStore().sisterNumber }}</span>
+          <span :style="loadAll">{{ sister.sisterNumber }}</span>
         </div>
       </div>
       <div class="count-group" :class="{ 'flex-direction-column': props.column }">
@@ -85,7 +82,7 @@ function location() {
           <Picture />
         </el-icon>
         <div style="min-width: 30px">
-          <span style="color: green">{{ useSisterStore().queue.length }}</span>
+          <span style="color: green">{{ sister.queue.length }}</span>
         </div>
       </div>
       <div class="count-group" :class="{ 'flex-direction-column': props.column }" @click="lastUnRead">
@@ -93,7 +90,7 @@ function location() {
           <svg-readed />
         </el-icon>
         <div style="min-width: 30px">
-          <span style="color: green">{{ haveReadNumber }}</span>
+          <span style="color: green">{{ sister.haveReadNumber }}</span>
         </div>
       </div>
     </el-row>

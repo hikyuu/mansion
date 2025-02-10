@@ -24,13 +24,13 @@ export function getAvCode(serialNumber: string): string {
   return letter.toString().replace(/,/g, '-') + '-' + num
 }
 
-export const thumbnail_id = 'thumbnail'
+export const THUMBNAIL_ID = 'thumbnail'
 
 export function getThumbnailElement(serialNumber: string, targetImgUrl: string[]) {
   // console.log('显示的图片地址:' + targetImgUrl)
   //创建img元素,加载目标图片地址
   //创建新img元素
-  const $thumbnail = $('<div>', { id: thumbnail_id })
+  const $thumbnail = $('<div>', { id: THUMBNAIL_ID })
 
   for (let i = 0; i < targetImgUrl.length; i++) {
     const url = targetImgUrl[i]
@@ -46,7 +46,7 @@ export function getThumbnailElement(serialNumber: string, targetImgUrl: string[]
   return $thumbnail
 }
 
-export function getJavstoreUrl(serialNumber: string, retry = 1): Promise<string | null> {
+export async function getJavstoreUrl(serialNumber: string, retry = 1): Promise<string | null> {
   //异步请求搜索JavStore的番号
   return request(`https://javstore.net/search/${serialNumber}.html`)
     .then((result) => {

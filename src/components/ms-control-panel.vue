@@ -13,6 +13,8 @@ import { logicAnd } from '@vueuse/math'
 import { useReactStore } from '@/store/react-store'
 import { useSisterStore } from '@/store/sister-store'
 
+const sister = useSisterStore()
+
 const props = defineProps<{
   site: SiteAbstract
 }>()
@@ -75,23 +77,19 @@ const notUsingInput = computed(
 
 whenever(logicAnd(keys.Ctrl_right, notUsingInput), () => {
   console.log('Ctrl_right have been pressed')
-  useSisterStore().lastUnread(y)
+  sister.lastUnread(y)
 })
 
 const haveRead = computed(() => {
-  const currentIndex = useSisterStore().current_index
+  const currentIndex = sister.current_index
   if (currentIndex === undefined) return
-  return useSisterStore().queue[currentIndex].haveRead
-})
-
-const haveReadNumber = computed(() => {
-  return useSisterStore().queue.filter((sister) => sister.haveRead).length
+  return sister.queue[currentIndex].haveRead
 })
 
 const src = computed(() => {
-  const currentIndex = useSisterStore().current_index
+  const currentIndex = sister.current_index
   if (currentIndex === undefined) return undefined
-  return useSisterStore().queue[currentIndex].src
+  return sister.queue[currentIndex].src
 })
 
 function viewOrClose() {
@@ -110,7 +108,7 @@ function close() {
 
 function previous(event: KeyboardEvent) {
   event.preventDefault()
-  useSisterStore().previous()
+  sister.previous()
   props.site.scrollToCurrent(x, y)
 }
 
@@ -121,7 +119,7 @@ function download(event: KeyboardEvent) {
 
 function nextStep(event: KeyboardEvent) {
   event.preventDefault()
-  useSisterStore().nextStep()
+  sister.nextStep()
   props.site.scrollToCurrent(x, y)
 }
 
@@ -140,7 +138,7 @@ function scroll(event: KeyboardEvent, reverse = false) {
 }
 
 watch(
-  () => useSisterStore().current_key,
+  () => sister.current_key,
   (key) => {
     // console.log('监听到key变化');
     if (!key) return
@@ -152,19 +150,19 @@ watch(
 )
 
 watch(
-  () => useSisterStore().current_index,
+  () => sister.current_index,
   (index) => {
     if (index === undefined) return
-    const sisterNumber = useSisterStore().sisterNumber
-    console.log('sisterNumber', sisterNumber)
-    const unreadNumber = sisterNumber - haveReadNumber.value
+    const sisterNumber = sister.sisterNumber
+    // console.log('sisterNumber', sisterNumber)
+    const unreadNumber = sisterNumber - sister.haveReadNumber
 
     if (unreadNumber < useConfigStore().currentConfig.lazyLimit) {
       console.log('加载下一页')
       props.site.loadNext()
     }
 
-    const info = useSisterStore().queue[index]
+    const info = sister.queue[index]
     if (info.haveRead && info.repeatSite && info.repeatSite > 0 && info.repeatSite !== info.site) {
       ElMessage({
         message: `${info.serialNumber}在${sites[info.repeatSite]}看过`,
@@ -184,10 +182,10 @@ watch(
 )
 
 function lastUnRead() {
-  useSisterStore().lastUnread(y)
+  sister.lastUnread(y)
 }
 function location() {
-  const index = useSisterStore().current_index
+  const index = sister.current_index
   if (index === undefined) {
     return 0
   }
@@ -207,7 +205,7 @@ function location() {
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Memo />
         </el-icon>
-        <span :style="loadAll">{{ useSisterStore().sisterNumber }}</span>
+        <span :style="loadAll">{{ sister.sisterNumber }}</span>
       </div>
       <div class="count-group">
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
@@ -221,13 +219,13 @@ function location() {
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Picture />
         </el-icon>
-        <span style="color: green">{{ useSisterStore().queue.length }}</span>
+        <span style="color: green">{{ sister.queue.length }}</span>
       </div>
       <div class="count-group" @click="lastUnRead">
         <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" size="30">
           <svg-readed />
         </el-icon>
-        <span style="color: green">{{ haveReadNumber }}</span>
+        <span style="color: green">{{ sister.haveReadNumber }}</span>
       </div>
     </m-img-item>
 

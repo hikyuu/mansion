@@ -14,6 +14,8 @@ import MOnejavCalendar from '@/components/m-onejav-calendar.vue'
 import { useReactStore } from '@/store/react-store'
 import { useSisterStore } from '@/store/sister-store'
 
+const sister = useSisterStore()
+
 const props = defineProps({
   onejav: {
     type: Object as () => Onejav,
@@ -56,7 +58,7 @@ whenever(logicAnd(keys.Ctrl_Enter, notUsingInput), () => {
 })
 
 const isLoadAll = computed(() => {
-  return useSisterStore().queue.length >= useSisterStore().sisterNumber * 0.9 && props.onejav.waterfall.page.isEnd
+  return sister.queue.length >= sister.sisterNumber * 0.9 && props.onejav.waterfall.page.isEnd
 })
 
 const isDatePage = computed(() => {
@@ -64,9 +66,9 @@ const isDatePage = computed(() => {
 })
 
 const repeat = computed(() => {
-  const currentIndex = useSisterStore().current_index
+  const currentIndex = sister.current_index
   if (currentIndex === undefined) return 0
-  const info = useSisterStore().queue[currentIndex]
+  const info = sister.queue[currentIndex]
   if (!info || !info.repeatSite) return 0
   return info.repeatSite
 })

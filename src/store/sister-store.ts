@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ElNotification } from 'element-plus'
 import { ProjectError } from '@/common/errors'
 import $ from 'jquery'
-import { thumbnail_id } from '@/common/common'
+import { THUMBNAIL_ID } from '@/common/common'
 
 export const useSisterStore = defineStore('sister', {
   state: (): {
@@ -18,7 +18,16 @@ export const useSisterStore = defineStore('sister', {
       sisterNumber: 0
     }
   },
-  getters: {},
+  getters: {
+    getCurrentSister(): Info | undefined {
+      if (this.current_index === undefined) return undefined
+      return this.queue[this.current_index]
+    },
+    haveReadNumber(): number {
+      const queueRef = useSisterStore().queue
+      return queueRef.filter((sister) => sister.haveRead).length
+    }
+  },
   actions: {
     lastUnread(y: any) {
       const index = this.queue.findIndex((sister) => {
@@ -97,7 +106,7 @@ export const useSisterStore = defineStore('sister', {
           message: '当前页面还没有这么多内容'
         })
       }
-      const nextThumbnail = $('#' + this.queue[index].serialNumber).find(`#${thumbnail_id}`)
+      const nextThumbnail = $('#' + this.queue[index].serialNumber).find(`#${THUMBNAIL_ID}`)
       if (nextThumbnail.length === 0) {
         throw new ProjectError({
           name: 'GET_PROJECT_ERROR',

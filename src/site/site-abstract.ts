@@ -6,8 +6,7 @@ import { getDetailFromJavStore } from '@/site/site'
 import type { Ref } from 'vue'
 import { KEY, picx } from '@/dictionary'
 import $ from 'jquery'
-
-import { getJavstoreUrl, getThumbnailElement, getSortId, thumbnail_id } from '@/common/common'
+import { getJavstoreUrl, getThumbnailElement, getSortId, THUMBNAIL_ID } from '@/common/common'
 import { useConfigStore } from '@/store/config-store'
 import { getHistories, type HistoryDto, uploadHistory } from '@/dao/browse-history'
 import { getThumbnailUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
@@ -79,7 +78,7 @@ export abstract class SiteAbstract implements SiteInterface {
     let prev = $('#' + useSisterStore().current_key)
     switch (useConfigStore().currentConfig.navigationPoint) {
       case 1:
-        prev = prev.find(`#${thumbnail_id}`)
+        prev = prev.find(`#${THUMBNAIL_ID}`)
         break
     }
     if (prev.length === 0) return
@@ -237,7 +236,7 @@ export abstract class SiteAbstract implements SiteInterface {
 
   private creatThumbnail(serialNumber: string, item: JQuery) {
     const thumbnail = getThumbnailElement(serialNumber, [picx('/load.svg')])
-    item.find(`#${thumbnail_id}`).remove()
+    item.find(`#${THUMBNAIL_ID}`).remove()
     item.append(thumbnail)
     return thumbnail
   }
