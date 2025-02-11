@@ -57,7 +57,7 @@ export class Onejav extends SiteAbstract {
   public name = 'onejav'
   public siteId = 1
   public waterfall: Waterfall
-
+  private sister = useSisterStore()
   selector: Selector = {
     next: 'a.pagination-next.button.is-primary',
     item: 'div.card.mb-3',
@@ -100,15 +100,14 @@ export class Onejav extends SiteAbstract {
 
   updateInfo(item: JQuery, info: Info): void {
     const pathDate = item.find('p.subtitle a').attr('href')
-    useSisterStore().updateInfo({ serialNumber: info.serialNumber, pathDate })
+    this.sister.updateInfo({ serialNumber: info.serialNumber, pathDate })
   }
 
   save(serialNumber: string): void {
-    const info = useSisterStore().queue.find((item) => item.serialNumber === serialNumber)
+    const info = this.sister.getInfo(serialNumber)
     if (!info) {
       return
     }
-
     const pathDate = info.pathDate
     if (pathDate === undefined || pathDate === '') {
       ElNotification({ title: '提示', message: `${serialNumber}日期格式有变动`, type: 'error' })
@@ -119,7 +118,7 @@ export class Onejav extends SiteAbstract {
       return
     }
     uploadHistory(serialNumber, info).then(() => {
-      useSisterStore().updateInfo({ serialNumber, haveRead: true, status: 200 })
+      this.sister.updateInfo({ serialNumber, haveRead: true, status: 200 })
     })
   }
 
@@ -128,7 +127,7 @@ export class Onejav extends SiteAbstract {
   }
 
   async download() {
-    const currentKey = useSisterStore().current_key
+    const currentKey = this.sister.current_key
     console.log('下载', currentKey)
     if (currentKey === undefined) {
       ElNotification({ title: '提示', message: '没有选中', type: 'info' })
@@ -140,9 +139,9 @@ export class Onejav extends SiteAbstract {
     }
     const $id = $('#' + currentKey)
     const $download = $id.find("a[title='Download .torrent']")
-    const currentIndex = useSisterStore().current_index
-    if (currentIndex === undefined) return
-    const serialNumber = useSisterStore().queue[currentIndex].serialNumber
+    const info = this.sister.currentSister
+    if (!info) return
+    const serialNumber = info.serialNumber
     if (this.downloadList.has(serialNumber)) {
       ElNotification({ title: '提示', message: '正在下载中', type: 'info' })
       return
@@ -177,7 +176,7 @@ export class Onejav extends SiteAbstract {
 
   loadCompleted(): void {
     this.hasLoadCompleted = true
-    uploadDaily(location.pathname, useSisterStore().sisterNumber, true).then()
+    uploadDaily(location.pathname, this.sister.sisterNumber, true).then()
   }
 
   private addStyle() {
@@ -201,12 +200,12 @@ export class Onejav extends SiteAbstract {
           const pathDateSet = new Set<string>()
           histories.forEach((history) => {
             pathDateSet.add(history.path_date)
-            const info = useSisterStore().queue.find((item) => item.serialNumber === history.serial_number)
+            const info = this.sister.getInfo(history.serial_number)
             if (info === undefined) return
             if (info.haveRead) return
-            useSisterStore().updateInfo({ serialNumber: history.serial_number, haveRead: true })
+            this.sister.updateInfo({ serialNumber: history.serial_number, haveRead: true })
             if (info.pathDate !== history.path_date || info.site !== history.site) {
-              useSisterStore().updateInfo({ serialNumber: history.serial_number, repeatSite: history.site })
+              this.sister.updateInfo({ serialNumber: history.serial_number, repeatSite: history.site })
               uploadHistory(info.serialNumber, info).then()
             }
           })

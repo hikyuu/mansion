@@ -147,8 +147,7 @@ export default class {
       if (!oneStep) {
         const sisterNumber = useSisterStore().sisterNumber
         const lazyLimit = useConfigStore().currentConfig.lazyLimit
-        const haveReadNumber = useSisterStore().queue.filter((item) => item.haveRead).length
-        if (sisterNumber - haveReadNumber > lazyLimit) {
+        if (sisterNumber - useSisterStore().haveReadNumber > lazyLimit) {
           return
         }
       }

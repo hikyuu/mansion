@@ -58,7 +58,7 @@ whenever(logicAnd(keys.Ctrl_Enter, notUsingInput), () => {
 })
 
 const isLoadAll = computed(() => {
-  return sister.queue.length >= sister.sisterNumber * 0.9 && props.onejav.waterfall.page.isEnd
+  return sister.size >= sister.sisterNumber * 0.9 && props.onejav.waterfall.page.isEnd
 })
 
 const isDatePage = computed(() => {
@@ -66,9 +66,7 @@ const isDatePage = computed(() => {
 })
 
 const repeat = computed(() => {
-  const currentIndex = sister.current_index
-  if (currentIndex === undefined) return 0
-  const info = sister.queue[currentIndex]
+  const info = sister.currentSister
   if (!info || !info.repeatSite) return 0
   return info.repeatSite
 })

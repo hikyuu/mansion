@@ -31,32 +31,26 @@ function openJavDB() {
 }
 
 const haveLike = computed(() => {
-  const currentIndex = sisters.current_index
-  if (currentIndex === undefined) return false
-  const sister = sisters.queue[currentIndex]
-  if (sister.likeWords === undefined) return false
-  return sister.likeWords.length > 0
+  const info = sisters.currentSister
+  if (info === undefined) return false
+  if (info.likeWords === undefined) return false
+  return info.likeWords.length > 0
 })
 const haveUnlike = computed(() => {
-  const currentIndex = sisters.current_index
-  if (currentIndex === undefined) return false
-  const sister = sisters.queue[currentIndex]
-  if (sister.unlikeWords === undefined) return false
-  return sister.unlikeWords.length > 0
+  const info = sisters.currentSister
+  if (info === undefined) return false
+  if (info.unlikeWords === undefined) return false
+  return info.unlikeWords.length > 0
 })
 </script>
 <template>
-  <el-card
-    v-if="sisters.current_index != undefined && useReactStore().wgt1670"
-    style="max-width: 160px"
-    class="mansion-left"
-  >
+  <el-card v-if="sisters.currentSister && useReactStore().wgt1670" style="max-width: 160px" class="mansion-left">
     <el-row>
       <el-text truncated style="font-size: 20px" tag="b">{{ sisters.current_key }}</el-text>
       <el-link
         type="danger"
-        v-if="sisters.queue[sisters.current_index].javStoreUrl"
-        :href="sisters.queue[sisters.current_index].javStoreUrl"
+        v-if="sisters.currentSister.javStoreUrl"
+        :href="sisters.currentSister.javStoreUrl"
         style="font-size: 20px"
         target="_blank"
         >JavStore
@@ -69,7 +63,7 @@ const haveUnlike = computed(() => {
           <Star />
         </el-icon>
         like
-        <li v-for="word in sisters.queue[sisters.current_index].likeWords" :key="word">
+        <li v-for="word in sisters.currentSister.likeWords" :key="word">
           {{ word }}
         </li>
       </el-text>
@@ -80,7 +74,7 @@ const haveUnlike = computed(() => {
           <Hide />
         </el-icon>
         unlike
-        <li v-for="word in sisters.queue[sisters.current_index].unlikeWords" :key="word">
+        <li v-for="word in sisters.currentSister.unlikeWords" :key="word">
           {{ word }}
         </li>
       </el-text>
@@ -98,12 +92,12 @@ const haveUnlike = computed(() => {
   <div v-if="!useReactStore().wgt1670" style="background-color: white" class="mansion-bottom">
     <el-row style="min-height: 3.25rem" justify="space-between">
       <el-col :span="6" class="flex-space">
-        <template v-if="sisters.current_index != undefined">
+        <template v-if="sisters.currentSister">
           <el-text truncated style="font-size: 20px" tag="b">{{ sisters.current_key }}</el-text>
           <el-link
             type="danger"
-            v-if="sisters.queue[sisters.current_index].javStoreUrl"
-            :href="sisters.queue[sisters.current_index].javStoreUrl"
+            v-if="sisters.currentSister.javStoreUrl"
+            :href="sisters.currentSister.javStoreUrl"
             style="font-size: 20px"
             target="_blank"
             >JavStore
@@ -112,14 +106,14 @@ const haveUnlike = computed(() => {
         </template>
       </el-col>
       <el-col :span="12" class="flex-space">
-        <template v-if="sisters.current_index != undefined">
+        <template v-if="sisters.currentSister">
           <el-text size="large" type="danger" v-if="haveLike">
-            <el-tag v-for="(word, index) in sisters.queue[sisters.current_index].likeWords" :key="index" type="danger">
+            <el-tag v-for="(word, index) in sisters.currentSister.likeWords" :key="index" type="danger">
               {{ word }}
             </el-tag>
           </el-text>
           <el-text size="large" type="info" v-if="haveUnlike">
-            <el-tag v-for="(word, index) in sisters.queue[sisters.current_index].unlikeWords" :key="index" type="info">
+            <el-tag v-for="(word, index) in sisters.currentSister.unlikeWords" :key="index" type="info">
               {{ word }}
             </el-tag>
           </el-text>

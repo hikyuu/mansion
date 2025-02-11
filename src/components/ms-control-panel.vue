@@ -81,15 +81,15 @@ whenever(logicAnd(keys.Ctrl_right, notUsingInput), () => {
 })
 
 const haveRead = computed(() => {
-  const currentIndex = sister.current_index
-  if (currentIndex === undefined) return
-  return sister.queue[currentIndex].haveRead
+  const info = sister.currentSister
+  if (!info) return false
+  return info.haveRead
 })
 
 const src = computed(() => {
-  const currentIndex = sister.current_index
-  if (currentIndex === undefined) return undefined
-  return sister.queue[currentIndex].src
+  const info = sister.currentSister
+  if (info === undefined) return undefined
+  return info.src
 })
 
 function viewOrClose() {
@@ -154,15 +154,13 @@ watch(
   (index) => {
     if (index === undefined) return
     const sisterNumber = sister.sisterNumber
-    // console.log('sisterNumber', sisterNumber)
     const unreadNumber = sisterNumber - sister.haveReadNumber
-
     if (unreadNumber < useConfigStore().currentConfig.lazyLimit) {
       console.log('加载下一页')
       props.site.loadNext()
     }
-
-    const info = sister.queue[index]
+    const info = sister.currentSister
+    if (!info) return
     if (info.haveRead && info.repeatSite && info.repeatSite > 0 && info.repeatSite !== info.site) {
       ElMessage({
         message: `${info.serialNumber}在${sites[info.repeatSite]}看过`,
@@ -219,7 +217,7 @@ function location() {
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Picture />
         </el-icon>
-        <span style="color: green">{{ sister.queue.length }}</span>
+        <span style="color: green">{{ sister.size }}</span>
       </div>
       <div class="count-group" @click="lastUnRead">
         <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" size="30">

@@ -82,7 +82,7 @@ function location() {
           <Picture />
         </el-icon>
         <div style="min-width: 30px">
-          <span style="color: green">{{ sister.queue.length }}</span>
+          <span style="color: green">{{ sister.size }}</span>
         </div>
       </div>
       <div class="count-group" :class="{ 'flex-direction-column': props.column }" @click="lastUnRead">

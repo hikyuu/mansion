@@ -30,6 +30,7 @@ export class Javdb extends SiteAbstract {
   public name = 'javdb'
   public siteId = 2
   public waterfall: Waterfall
+  private sister = useSisterStore()
   constructor() {
     super()
     this.waterfall = new Waterfall(this, this.selector)
@@ -140,10 +141,8 @@ export class Javdb extends SiteAbstract {
   allRead() {}
 
   save(serialNumber: string): void {
-    const info = useSisterStore().queue.find((item) => item.serialNumber === serialNumber)
-    if (!info) {
-      return
-    }
+    const info = this.sister.getInfo(serialNumber)
+    if (!info) return
     console.log(info.pathDate)
     if (info.haveRead) {
       console.log('已经记录', serialNumber)

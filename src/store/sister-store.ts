@@ -8,29 +8,38 @@ export const useSisterStore = defineStore('sister', {
   state: (): {
     current_index: number | undefined
     current_key: string | undefined
-    queue: Array<Info>
     sisterNumber: number
+    _queue: Array<Info>
+    _queueMap: Map<string, Info>
+    _haveReadSet: Set<string>
   } => {
     return {
       current_index: undefined as number | undefined,
       current_key: undefined as string | undefined,
-      queue: [] as Array<Info>,
-      sisterNumber: 0
+      sisterNumber: 0,
+      _queue: [] as Array<Info>,
+      _queueMap: new Map<string, Info>(),
+      _haveReadSet: new Set<string>()
     }
   },
   getters: {
-    getCurrentSister(): Info | undefined {
+    size(): number {
+      return this._queue.length
+    },
+    currentSister(): Info | undefined {
       if (this.current_index === undefined) return undefined
-      return this.queue[this.current_index]
+      return this._queue[this.current_index]
     },
     haveReadNumber(): number {
-      const queueRef = useSisterStore().queue
-      return queueRef.filter((sister) => sister.haveRead).length
+      return this._haveReadSet.size
     }
   },
   actions: {
+    getInfo(serialNumber: string): Info | undefined {
+      return this._queueMap.get(serialNumber)
+    },
     lastUnread(y: any) {
-      const index = this.queue.findIndex((sister) => {
+      const index = this._queue.findIndex((sister) => {
         if (!sister.haveRead) {
           return true
         }
@@ -51,24 +60,24 @@ export const useSisterStore = defineStore('sister', {
       // console.log(this)
       if (!this.current_key || this.current_index === undefined || this.current_index <= 0) return
       const $image = $('#show-image')
-      const info = this.queue[this.current_index]
+      const info = this._queue[this.current_index]
       const scrollTop = $image.scrollTop()
       if (info) info.scrollTop = scrollTop ? scrollTop : 0
       this.setCurrentIndex(this.current_index - 1)
-      this.current_key = this.queue[this.current_index].serialNumber
+      this.current_key = this._queue[this.current_index].serialNumber
     },
     nextStep() {
       if (!this.current_key || this.current_index === undefined) return
-      if (this.current_index >= this.queue.length - 1) return
+      if (this.current_index >= this._queue.length - 1) return
       const $image = $('#show-image')
-      const info = this.queue[this.current_index]
+      const info = this._queue[this.current_index]
       const scrollTop = $image.scrollTop()
       if (info) info.scrollTop = scrollTop ? scrollTop : 0
       this.setCurrentIndex(this.current_index + 1)
-      this.current_key = this.queue[this.current_index].serialNumber
+      this.current_key = this._queue[this.current_index].serialNumber
     },
     setCurrent(serialNumber: string) {
-      const index = this.queue.findIndex((item) => item.serialNumber === serialNumber)
+      const index = this._queue.findIndex((item) => item.serialNumber === serialNumber)
       if (index >= 0) {
         console.debug('当前下标：', index)
         this.setCurrentIndex(index)
@@ -82,31 +91,34 @@ export const useSisterStore = defineStore('sister', {
     updateInfo(info: Info) {
       if (info.serialNumber === '') {
         ElNotification.error({ title: '错误', message: 'serialNumber为空' })
-        throw new Error('serialNumber')
+        throw new ProjectError({
+          name: 'GET_PROJECT_ERROR',
+          message: 'serialNumber为空'
+        })
       }
-      // if (this.queue.length <= 0) {
-      //   this.current_index = 0
-      //   this.current_key = info.serialNumber
-      // }
-      let existInfo = this.queue.find((item) => item.serialNumber === info.serialNumber)
+      let existInfo = this._queueMap.get(info.serialNumber)
       if (existInfo === undefined) {
         existInfo = info as Info
         existInfo.serialNumber = info.serialNumber
-        this.queue.push(existInfo)
+        this._queue.push(existInfo)
+        this._queueMap.set(info.serialNumber, existInfo)
       } else {
         Object.assign(existInfo, info)
+      }
+      if (existInfo.haveRead) {
+        this._haveReadSet.add(existInfo.serialNumber)
       }
       return existInfo
     },
     getScrollTop(index: number) {
-      console.log(index, this.queue.length)
-      if (index > this.queue.length - 1) {
+      console.log(index, this._queue.length)
+      if (index > this._queue.length - 1) {
         throw new ProjectError({
           name: 'GET_PROJECT_ERROR',
           message: '当前页面还没有这么多内容'
         })
       }
-      const nextThumbnail = $('#' + this.queue[index].serialNumber).find(`#${THUMBNAIL_ID}`)
+      const nextThumbnail = $('#' + this._queue[index].serialNumber).find(`#${THUMBNAIL_ID}`)
       if (nextThumbnail.length === 0) {
         throw new ProjectError({
           name: 'GET_PROJECT_ERROR',
@@ -123,9 +135,14 @@ export const useSisterStore = defineStore('sister', {
       return offset.top
     },
     deleteInfo(serialNumber: string) {
-      const index = this.queue.findIndex((item) => item.serialNumber === serialNumber)
+      const info = this._queueMap.get(serialNumber)
+      if (!info) {
+        return
+      }
+      this._queueMap.delete(serialNumber)
+      const index = this._queue.findIndex((item) => item.serialNumber === serialNumber)
       if (index >= 0) {
-        this.queue.splice(index, 1)
+        this._queue.splice(index, 1)
       }
     }
   }
