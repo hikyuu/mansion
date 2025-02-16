@@ -41,6 +41,22 @@ export function getThumbnailElement(serialNumber: string, targetImgUrl: string[]
       alt: serialNumber,
       style: 'width:100%;'
     })
+    //加载失败重试
+    $img.on('error', function () {
+      const $this = $(this)
+      const retry = $this.attr('retry')
+      if (retry === undefined) {
+        $this.attr('retry', 1)
+        $this.attr('src', url)
+      } else {
+        const retryInt = parseInt(retry)
+        if (retryInt < 3) {
+          console.log('重试加载图片', serialNumber, retryInt)
+          $this.attr('retry', retryInt + 1)
+          $this.attr('src', url)
+        }
+      }
+    })
     $thumbnail.append($img)
   }
   return $thumbnail
