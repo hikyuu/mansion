@@ -158,7 +158,7 @@ export abstract class SiteAbstract implements SiteInterface {
 
     await this.updateRepeat(serialNumber, info)
 
-    this.DeleteReadedNode(item, info)
+    // this.DeleteReadedNode(item, info)
 
     const thumbnail = this.creatThumbnail(serialNumber, item)
 
