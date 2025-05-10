@@ -6,7 +6,7 @@ export interface SiteInterface {
 
   onScrollEvent(windowHeight: number, scrollTop: number): void
 
-  download(): void
+  download(checkArchive: boolean): void
 
   showControlPanel(): boolean
 

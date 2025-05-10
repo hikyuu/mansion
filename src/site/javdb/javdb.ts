@@ -96,14 +96,14 @@ export class Javdb extends SiteAbstract {
     }
   }
 
-  async download() {
+  async download(checkArchive: boolean) {
     const serialNumber = useSisterStore().current_key
     console.log('下载', serialNumber)
     if (!serialNumber) {
       ElNotification({ title: '提示', message: '没有选中', type: 'info' })
       return
     }
-    if (await haveArchived(serialNumber)) {
+    if (checkArchive && (await haveArchived(serialNumber))) {
       ElNotification({ title: '提示', message: '已经归档', type: 'info' })
       return
     }

@@ -126,14 +126,14 @@ export class Onejav extends SiteAbstract {
     return /(onejav)/g.test(document.URL)
   }
 
-  async download() {
+  async download(checkArchive: boolean) {
     const currentKey = this.sister.current_key
     console.log('下载', currentKey)
     if (currentKey === undefined) {
       ElNotification({ title: '提示', message: '没有选中', type: 'info' })
       return
     }
-    if (await haveArchived(currentKey)) {
+    if (checkArchive && (await haveArchived(currentKey))) {
       ElNotification({ title: '提示', message: '已经归档', type: 'info' })
       return
     }

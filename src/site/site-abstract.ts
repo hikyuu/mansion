@@ -32,7 +32,7 @@ export abstract class SiteAbstract implements SiteInterface {
 
   abstract resolveElements(elems: JQuery): Promise<JQuery[]>
 
-  abstract download(): void
+  abstract download(checkArchive: boolean): void
 
   abstract showControlPanel(): boolean
 

@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import $ from 'jquery'
 import { SiteAbstract } from '@/site/site-abstract'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import { onKeyStroke, useActiveElement, useMagicKeys, useScroll, whenever } from '@vueuse/core'
 import { Location, Memo } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
@@ -47,7 +47,7 @@ onKeyStroke(
 onKeyStroke(
   'Enter',
   (event: KeyboardEvent) => {
-    if (event.ctrlKey || event.altKey || event.shiftKey) return
+    if (event.ctrlKey || event.shiftKey) return
     download(event)
   },
   { dedupe: true }
@@ -112,9 +112,13 @@ function previous(event: KeyboardEvent) {
   props.site.scrollToCurrent(x, y)
 }
 
-function download(event: KeyboardEvent) {
+async function download(event: KeyboardEvent) {
   event.preventDefault()
-  props.site.download()
+  let checkArchive = true
+  if (event.altKey) {
+    checkArchive = false
+  }
+  props.site.download(checkArchive)
 }
 
 function nextStep(event: KeyboardEvent) {
