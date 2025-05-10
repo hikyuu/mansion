@@ -3,13 +3,13 @@ import { createClient, type Session, SupabaseClient } from '@supabase/supabase-j
 import { ElNotification } from 'element-plus'
 import { clearDailies } from '@/dao/onejav-daily-dao'
 import { clearHistory } from '@/dao/browse-history'
+const url = 'https://tlxamlurkzfqblzyfztp.supabase.co'
+const anonKey =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRseGFtbHVya3pmcWJsenlmenRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI0NzY3NjAsImV4cCI6MjA0ODA1Mjc2MH0.WtULPMnex03muMRS1L1M52yuxNTeEAG6nB3g_C2Q-CI'
 // 你可以任意命名 `defineStore()` 的返回值，但最好使用 store 的名字，同时以 `use` 开头且以 `Store` 结尾。
 // (比如 `useUserStore`，`useCartStore`，`useProductStore`)
 // 第一个参数是你的应用中 Store 的唯一 ID。
-const supabase = createClient(
-  'https://tlxamlurkzfqblzyfztp.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRseGFtbHVya3pmcWJsenlmenRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI0NzY3NjAsImV4cCI6MjA0ODA1Mjc2MH0.WtULPMnex03muMRS1L1M52yuxNTeEAG6nB3g_C2Q-CI'
-)
+const supabase = createClient(url, anonKey)
 export const useUserStore = defineStore('user', {
   state: (): { session: Session | null; initial: boolean } => {
     return {
