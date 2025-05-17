@@ -59,6 +59,10 @@ export abstract class SiteAbstract implements SiteInterface {
       console.log('正在加载中', serialNumber)
       return
     }
+    if (info.status !== 202) {
+      console.log('未加载成功不上传', serialNumber)
+      return
+    }
     const pathDate = info.pathDate
     if (pathDate === undefined || pathDate === '') {
       ElNotification({ title: '提示', message: `${serialNumber}日期格式有变动`, type: 'error' })
@@ -170,7 +174,7 @@ export abstract class SiteAbstract implements SiteInterface {
       date,
       repeatSite: 0,
       site: this.siteId,
-      status: 200
+      status: 100
     })
     this.updateInfo(item, info)
     return info
