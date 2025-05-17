@@ -12,11 +12,14 @@ import { getHistories, type HistoryDto, uploadHistory } from '@/dao/browse-histo
 import { getThumbnailUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
 import { ProjectError } from '@/common/errors'
 import { type Info, useSisterStore } from '@/store/sister-store'
+import { ElNotification } from 'element-plus'
 
 export abstract class SiteAbstract implements SiteInterface {
   hasLoadCompleted = false
 
   downloadList: Map<string, number> = new Map()
+
+  protected sister = useSisterStore()
 
   abstract name: string
 
@@ -36,11 +39,37 @@ export abstract class SiteAbstract implements SiteInterface {
 
   abstract showControlPanel(): boolean
 
-  abstract save(serialNumber: string): void
-
-  abstract loadCompleted(): void
+  abstract allLoadCompleted(): void
 
   abstract checkSite(): boolean
+
+  infoLoadCompleted(serialNumber: string) {
+    useSisterStore().updateInfo({ serialNumber, loadCompleted: true })
+  }
+
+  save(serialNumber: string): void {
+    const info = this.sister.getInfo(serialNumber)
+    if (!info) return
+    console.log(info.pathDate)
+    if (info.haveRead) {
+      console.log('已经记录', serialNumber)
+      return
+    }
+    if (info.loadCompleted !== true) {
+      console.log('正在加载中', serialNumber)
+      return
+    }
+    const pathDate = info.pathDate
+    if (pathDate === undefined || pathDate === '') {
+      ElNotification({ title: '提示', message: `${serialNumber}日期格式有变动`, type: 'error' })
+      return
+    }
+
+    uploadHistory(serialNumber, info).then((history) => {
+      console.log('上传成功', history)
+      useSisterStore().updateInfo({ serialNumber, haveRead: true, status: 200 })
+    })
+  }
 
   addLink(
     text: string,
@@ -70,7 +99,8 @@ export abstract class SiteAbstract implements SiteInterface {
     $titleInfo.on('click', () => {
       $titleInfo.css('color', 'blue').text(`\u00A0\u00A0${text}重试中`)
       console.log(`重试`)
-      this.processThumbnail(elem).then()
+      const serialNumber = this.sortSerialNumber(elem)
+      this.processThumbnail(serialNumber, elem).then()
     })
   }
 
@@ -119,6 +149,7 @@ export abstract class SiteAbstract implements SiteInterface {
       this.getCurrentWindowElement($(detail), scrollTop)
     }
   }
+
   private buildInfo(item: JQuery, serialNumber: any) {
     item.attr('id', serialNumber)
     const sisters = $(this.selector.container).find(`#${serialNumber}`)
@@ -147,13 +178,12 @@ export abstract class SiteAbstract implements SiteInterface {
 
   /**
    * 添加缩略图
+   * @param serialNumber
    * @param item
    * @param type
    * @param onlyInfo
    */
-  async processThumbnail(item: JQuery, type = 0, onlyInfo = false): Promise<void> {
-    const serialNumber = this.sortSerialNumber(item)
-
+  async processThumbnail(serialNumber: string, item: JQuery, type = 0, onlyInfo = false): Promise<void> {
     const info = this.buildInfo(item, serialNumber)
 
     await this.updateRepeat(serialNumber, info)
@@ -170,7 +200,7 @@ export abstract class SiteAbstract implements SiteInterface {
 
     const javstoreUrl = await this.handleJavstoreUrl(sortId, serialNumber, thumbnail, item, type, el_link)
 
-    if (javstoreUrl === null) return await this.processThumbnail(item, type + 1)
+    if (javstoreUrl === null) return await this.processThumbnail(serialNumber, item, type + 1)
 
     const javstoreDetail = await this.handleDetail(javstoreUrl, serialNumber, thumbnail, el_link, item)
 
@@ -364,7 +394,7 @@ export abstract class SiteAbstract implements SiteInterface {
     }
   }
 
-  private sortSerialNumber(item: JQuery) {
+  sortSerialNumber(item: JQuery) {
     return item
       .find(this.selector.serialNumber)
       .first()

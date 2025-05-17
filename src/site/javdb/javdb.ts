@@ -30,7 +30,6 @@ export class Javdb extends SiteAbstract {
   public name = 'javdb'
   public siteId = 2
   public waterfall: Waterfall
-  private sister = useSisterStore()
   constructor() {
     super()
     this.waterfall = new Waterfall(this, this.selector)
@@ -84,7 +83,7 @@ export class Javdb extends SiteAbstract {
     return []
   }
 
-  loadCompleted(): void {
+  allLoadCompleted(): void {
     this.hasLoadCompleted = true
   }
 
@@ -140,25 +139,25 @@ export class Javdb extends SiteAbstract {
 
   allRead() {}
 
-  save(serialNumber: string): void {
-    const info = this.sister.getInfo(serialNumber)
-    if (!info) return
-    console.log(info.pathDate)
-    if (info.haveRead) {
-      console.log('已经记录', serialNumber)
-      return
-    }
-    const pathDate = info.pathDate
-    if (pathDate === undefined || pathDate === '') {
-      ElNotification({ title: '提示', message: `${serialNumber}日期格式有变动`, type: 'error' })
-      return
-    }
-
-    uploadHistory(serialNumber, info).then((history) => {
-      console.log('上传成功', history)
-      useSisterStore().updateInfo({ serialNumber, haveRead: true, status: 200 })
-    })
-  }
+  // save(serialNumber: string): void {
+  //   const info = this.sister.getInfo(serialNumber)
+  //   if (!info) return
+  //   console.log(info.pathDate)
+  //   if (info.haveRead) {
+  //     console.log('已经记录', serialNumber)
+  //     return
+  //   }
+  //   const pathDate = info.pathDate
+  //   if (pathDate === undefined || pathDate === '') {
+  //     ElNotification({ title: '提示', message: `${serialNumber}日期格式有变动`, type: 'error' })
+  //     return
+  //   }
+  //
+  //   uploadHistory(serialNumber, info).then((history) => {
+  //     console.log('上传成功', history)
+  //     useSisterStore().updateInfo({ serialNumber, haveRead: true, status: 200 })
+  //   })
+  // }
 
   showControlPanel(): boolean {
     return $(this.selector.container).length > 0

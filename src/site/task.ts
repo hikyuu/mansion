@@ -34,28 +34,33 @@ export class Task {
     this.workNumber++
     const elem = this.waitQueue.shift()
     if (elem) {
-      this.work(elem)
+      const serialNumber = this.site.sortSerialNumber(elem)
+      this.work(serialNumber, elem)
         .then()
         .catch((reason) => {
           if (reason instanceof ProjectError) {
-            console.log(reason.message)
+            console.log('已知异常：', reason.message)
+          } else {
+            console.log('未知异常：', reason)
           }
         })
         .finally(() => {
+          this.site.infoLoadCompleted(serialNumber)
           this.workNumber--
           this.run()
         })
     }
   }
 
-  async work(elem: JQuery) {
-    return this.site.processThumbnail(elem)
+  async work(serialNumber: string, elem: JQuery) {
+    return this.site.processThumbnail(serialNumber, elem)
   }
 
   runAll() {
     const elem = this.waitQueue.shift()
     if (elem) {
-      this.site.processThumbnail(elem, 0, true).then(() => {
+      const serialNumber = this.site.sortSerialNumber(elem)
+      this.site.processThumbnail(serialNumber, elem, 0, true).then(() => {
         this.runAll()
       })
     }

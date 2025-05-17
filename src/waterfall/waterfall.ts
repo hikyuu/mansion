@@ -7,6 +7,8 @@ import { WaterfallStatus } from '@/dictionary'
 import { reactive } from 'vue'
 import { useSisterStore } from '@/store/sister-store'
 
+const allReadPageLimit = 5
+
 export default class {
   public page: Pagination
   private lock: Lock = new Lock()
@@ -117,7 +119,7 @@ export default class {
       $(this.selector.container).append(items)
       this.setSisterNumber()
     }
-    if (this.allReadedPage > 4) {
+    if (this.allReadedPage >= allReadPageLimit) {
       console.log('连续5页没有缩略图，停止加载')
       this.isEnd()
       return
@@ -127,7 +129,7 @@ export default class {
 
   isEnd() {
     this.page.isEnd = true
-    this.site.loadCompleted()
+    this.site.allLoadCompleted()
     ElNotification({ title: '提示', message: `瀑布流落地了`, type: 'success' })
   }
 

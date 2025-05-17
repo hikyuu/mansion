@@ -105,11 +105,18 @@ export const useSisterStore = defineStore('sister', {
       } else {
         Object.assign(existInfo, info)
       }
+      if (existInfo.haveRead === undefined) {
+        existInfo.haveRead = false
+      }
+      if (existInfo.loadCompleted === undefined) {
+        existInfo.loadCompleted = false
+      }
       if (existInfo.haveRead) {
         this._haveReadSet.add(existInfo.serialNumber)
       }
       return existInfo
     },
+
     getScrollTop(index: number) {
       console.log(index, this._queue.length)
       if (index > this._queue.length - 1) {
@@ -149,12 +156,13 @@ export const useSisterStore = defineStore('sister', {
 })
 export declare interface Info {
   serialNumber: string
+  loadCompleted?: boolean
+  haveRead?: boolean
   javStoreUrl?: string
   scrollTop?: number
   repeatSite?: number
   src?: string[]
   date?: string
-  haveRead?: boolean
   pathDate?: string
   likeWords?: string[]
   unlikeWords?: string[]

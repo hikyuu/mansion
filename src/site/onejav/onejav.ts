@@ -57,7 +57,6 @@ export class Onejav extends SiteAbstract {
   public name = 'onejav'
   public siteId = 1
   public waterfall: Waterfall
-  private sister = useSisterStore()
   selector: Selector = {
     next: 'a.pagination-next.button.is-primary',
     item: 'div.card.mb-3',
@@ -103,24 +102,24 @@ export class Onejav extends SiteAbstract {
     this.sister.updateInfo({ serialNumber: info.serialNumber, pathDate })
   }
 
-  save(serialNumber: string): void {
-    const info = this.sister.getInfo(serialNumber)
-    if (!info) {
-      return
-    }
-    const pathDate = info.pathDate
-    if (pathDate === undefined || pathDate === '') {
-      ElNotification({ title: '提示', message: `${serialNumber}日期格式有变动`, type: 'error' })
-      return
-    }
-    if (info.haveRead) {
-      console.log('已经记录', serialNumber)
-      return
-    }
-    uploadHistory(serialNumber, info).then(() => {
-      this.sister.updateInfo({ serialNumber, haveRead: true, status: 200 })
-    })
-  }
+  // save(serialNumber: string): void {
+  //   const info = this.sister.getInfo(serialNumber)
+  //   if (!info) {
+  //     return
+  //   }
+  //   const pathDate = info.pathDate
+  //   if (pathDate === undefined || pathDate === '') {
+  //     ElNotification({ title: '提示', message: `${serialNumber}日期格式有变动`, type: 'error' })
+  //     return
+  //   }
+  //   if (info.haveRead) {
+  //     console.log('已经记录', serialNumber)
+  //     return
+  //   }
+  //   uploadHistory(serialNumber, info).then(() => {
+  //     this.sister.updateInfo({ serialNumber, haveRead: true, status: 200 })
+  //   })
+  // }
 
   checkSite(): boolean {
     return /(onejav)/g.test(document.URL)
@@ -174,7 +173,7 @@ export class Onejav extends SiteAbstract {
     return !!$('body').has(this.selector.item).length
   }
 
-  loadCompleted(): void {
+  allLoadCompleted(): void {
     this.hasLoadCompleted = true
     uploadDaily(location.pathname, this.sister.sisterNumber, true).then()
   }
