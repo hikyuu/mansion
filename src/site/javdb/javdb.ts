@@ -11,7 +11,6 @@ import { ElNotification } from 'element-plus'
 import { haveArchived, upsertArchive } from '@/dao/archive'
 import { clickMagnet } from '@/site/onejav/onejav'
 import { downloadFromLocal, getDetailHref } from '@/site/javdb/javdb-api'
-import { uploadHistory } from '@/dao/browse-history'
 import dayjs from 'dayjs'
 import { useSisterStore } from '@/store/sister-store'
 
