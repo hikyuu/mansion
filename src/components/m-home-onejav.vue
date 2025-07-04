@@ -39,7 +39,7 @@ function openNextDay(self: boolean) {
     ElNotification({ title: '提示', message: '已经是最新日期', type: 'info' })
     return
   }
-  let nextDay = date.add(1, 'day').format(FORMAT.PATH_DATE)
+  const nextDay = date.add(1, 'day').format(FORMAT.PATH_DATE)
   window.open(nextDay, self ? '_self' : '_blank')
   if (self) {
     ElLoading.service({ lock: true, fullscreen: true, text: `跳转到${nextDay}` })

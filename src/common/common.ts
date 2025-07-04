@@ -68,7 +68,7 @@ export async function getJavstoreUrl(serialNumber: string, retry = 1): Promise<s
     .then((result) => {
       const overview = parseText(result.responseText)
       // 查找包含番号的a标签数组,忽略大小写
-      const a_array = $(overview).find(`.news_1n li h3 span a`)
+      const a_array = $(overview).find(`.news_1n ul li h3 span a`)
       // console.log(a_array)
       let a = a_array[0]
       //如果找到全高清大图优先获取全高清的
