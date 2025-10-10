@@ -1,6 +1,5 @@
 <script lang="ts" setup>
-import { computed, defineProps } from 'vue'
-import { SiteAbstract } from '@/site/site-abstract'
+import { computed } from 'vue'
 import { detailUrl } from '@/site/javdb/javdb-api'
 import { BASEURL } from '@/dictionary'
 import { ElNotification } from 'element-plus'
@@ -12,11 +11,9 @@ import MSisterStatistics from '@/components/m-sister-statistics.vue'
 import MOnejavCalendar from '@/components/m-onejav-calendar.vue'
 import { useReactStore } from '@/store/react-store'
 import { useSisterStore } from '@/store/sister-store'
+import { useSiteStore } from '@/store/site-store.ts'
 const sisters = useSisterStore()
 
-const props = defineProps<{
-  site: SiteAbstract
-}>()
 function openJavDB() {
   const currentKey = sisters.current_key
   if (currentKey === undefined) return
@@ -29,6 +26,8 @@ function openJavDB() {
       ElNotification({ title: 'javdb', message: reason, type: 'error' })
     })
 }
+
+const site = useSiteStore().getSite
 
 const haveLike = computed(() => {
   const info = sisters.currentSister

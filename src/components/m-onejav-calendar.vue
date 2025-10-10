@@ -32,6 +32,7 @@ watch(visible, (value) => {
 })
 
 const onejav = toRefs<Onejav>(props.onejav)
+
 const getCurrentDate = () => {
   const date = dayjs(location.pathname, FORMAT.PATH_DATE, true)
   if (!date.isValid()) {

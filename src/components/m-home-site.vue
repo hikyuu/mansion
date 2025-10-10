@@ -1,7 +1,5 @@
 <script lang="ts" setup>
 import { getSite } from '@/site/site'
-import { ref } from 'vue'
-import { SiteAbstract } from '@/site/site-abstract'
 import { Onejav } from '@/site/onejav/onejav'
 import ControlPanel from './ms-control-panel.vue'
 import HomeOnejav from '@/components/m-home-onejav.vue'
@@ -11,16 +9,18 @@ import { ElNotification } from 'element-plus'
 import MHomeUser from '@/components/m-home-user.vue'
 import MsHomeInfo from '@/components/ms-home-info.vue'
 import { useReactStore } from '@/store/react-store'
-
-const site = ref<SiteAbstract>()
+import { useSiteStore } from '@/store/site-store.ts'
 
 const configStore = useConfigStore()
+
 const exactSite = getSite()
+
 if (exactSite === undefined) {
   ElNotification({ title: 'mansion', message: `不支持当前网站!`, type: 'error' })
 } else {
-  site.value = exactSite
+  useSiteStore().setSite(exactSite)
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   configStore.$subscribe((mutation, state) => {
     configStore.saveLocal()
   })
@@ -31,18 +31,20 @@ if (exactSite === undefined) {
 
   exactSite.mount()
 }
+
+const site = useSiteStore().getSite
 </script>
 
 <template>
   <template v-if="site">
     <div style="padding-left: 5px">
-      <ms-home-info :site="site" />
+      <ms-home-info />
     </div>
     <div class="mansion-right">
-      <m-home-user v-if="useReactStore().wgt1670" :site="site" />
-      <home-onejav v-if="site instanceof Onejav" :onejav="site" />
-      <control-panel v-if="site.showControlPanel()" :site="site" />
-      <mansion-setting v-if="useReactStore().wgt1670" :site="site" />
+      <m-home-user v-if="useReactStore().wgt1670" />
+      <home-onejav v-if="site instanceof Onejav" />
+      <control-panel v-if="site.showControlPanel()" />
+      <mansion-setting v-if="useReactStore().wgt1670" />
     </div>
   </template>
 </template>

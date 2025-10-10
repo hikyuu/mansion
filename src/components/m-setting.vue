@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { SiteAbstract } from '@/site/site-abstract'
 import { Setting } from '@element-plus/icons-vue'
 import { ElNotification } from 'element-plus'
 import MImgBox from '@/components/m-img-box.vue'
@@ -7,17 +6,16 @@ import MImgItem from '@/components/m-img-item.vue'
 import { useConfigStore } from '@/store/config-store'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
+import { useSiteStore } from '@/store/site-store.ts'
 
 const props = defineProps({
-  site: {
-    type: Object as () => SiteAbstract,
-    required: true
-  },
   size: {
     type: Number,
     default: 60
   }
 })
+
+const site = useSiteStore().getSite
 
 const configStore = useConfigStore()
 const { currentConfig } = storeToRefs(configStore)
@@ -67,7 +65,7 @@ function loadThumbnailSwitchChange(value: boolean) {
 watch(
   () => currentConfig,
   (value) => {
-    configStore.waterfall.set(props.site.name, value.value)
+    configStore.waterfall.set(site.name, value.value)
   },
   { deep: true }
 )
@@ -88,7 +86,7 @@ function allRead() {}
         trigger="hover"
       >
         <template #reference>
-          <el-icon :color="props.site.theme.PRIMARY_COLOR" :size="props.size">
+          <el-icon :color="site.theme.PRIMARY_COLOR" :size="props.size">
             <Setting />
           </el-icon>
         </template>

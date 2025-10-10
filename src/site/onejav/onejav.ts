@@ -4,16 +4,14 @@ import { getSortId, isFC2 } from '@/common/common'
 import { SiteAbstract } from '../site-abstract'
 import $ from 'jquery'
 import { WaterfallStatus } from '@/dictionary'
-
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
-import { Task } from '@/site/task'
 import { ElNotification } from 'element-plus'
 import { haveArchived, upsertArchive } from '@/dao/archive'
 import { highScoreMagnet } from '@/site/javdb/javdb-api'
 import { uploadDaily } from '@/dao/onejav-daily-dao'
 import { loadDailyHistory, loadLatestHistory, uploadHistory } from '@/dao/browse-history'
-import { useSisterStore } from '@/store/sister-store'
 import type { Info } from '@/store/sister-store'
+import { useTaskStore } from '@/store/task-store.ts'
 
 export function clickMagnet(magnet: string) {
   const $a = $('<a>', {
@@ -71,8 +69,6 @@ export class Onejav extends SiteAbstract {
     SECONDARY_COLOR: '#e3f5f3',
     WARNING_COLOR: '#fadd65'
   }
-  private task: Task = new Task(this)
-
   constructor() {
     super()
     this.waterfall = new Waterfall(this, this.selector)
@@ -91,7 +87,7 @@ export class Onejav extends SiteAbstract {
   async resolveElements(elems: JQuery): Promise<JQuery[]> {
     if (this.checkSite() && elems) {
       const items = await this.filterReaded(elems)
-      this.task.addTasks(items)
+      useTaskStore().addTasks(items)
       return items
     }
     return []
@@ -265,13 +261,5 @@ export class Onejav extends SiteAbstract {
     } else {
       this.waterfall.flow().then()
     }
-  }
-
-  allRead() {
-    if (!this.waterfall.page.isEnd) {
-      ElNotification({ title: '提示', message: '请等待加载完成', type: 'warning' })
-      return
-    }
-    this.task.runAll()
   }
 }

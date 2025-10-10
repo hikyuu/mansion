@@ -3,7 +3,6 @@ import type { Selector } from '@/waterfall/waterfall'
 import Waterfall from '@/waterfall/waterfall'
 import type { Info } from '@/store/sister-store'
 import $ from 'jquery'
-import { Task } from '@/site/task'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { useConfigStore } from '@/store/config-store'
 import { FORMAT, WaterfallStatus } from '@/dictionary'
@@ -13,6 +12,7 @@ import { clickMagnet } from '@/site/onejav/onejav'
 import { downloadFromLocal, getDetailHref } from '@/site/javdb/javdb-api'
 import dayjs from 'dayjs'
 import { useSisterStore } from '@/store/sister-store'
+import { useTaskStore } from '@/store/task-store.ts'
 
 export const javdb_selector: Selector = {
   next: 'a.pagination-next',
@@ -33,7 +33,7 @@ export class Javdb extends SiteAbstract {
     super()
     this.waterfall = new Waterfall(this, this.selector)
   }
-  private task: Task = new Task(this)
+
   selector: Selector = javdb_selector
 
   theme = {
@@ -76,7 +76,7 @@ export class Javdb extends SiteAbstract {
   async resolveElements(elems: JQuery): Promise<JQuery[]> {
     if (/(javdb)/g.test(location.href) && elems) {
       const items = await this.filterReaded(elems)
-      this.task.addTasks(items)
+      useTaskStore().addTasks(items)
       return items
     }
     return []

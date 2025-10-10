@@ -1,18 +1,14 @@
 <script setup lang="ts">
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
-import { SiteAbstract } from '@/site/site-abstract'
 import { ref, reactive, computed } from 'vue'
 
 import { UserFilled } from '@element-plus/icons-vue'
 import { ElLoading, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { useUserStore } from '@/store/user-store'
+import { useSiteStore } from '@/store/site-store.ts'
 
 const props = defineProps({
-  site: {
-    type: Object as () => SiteAbstract,
-    required: true
-  },
   size: {
     type: Number,
     default: 60
@@ -20,7 +16,10 @@ const props = defineProps({
 })
 
 useUserStore().onAuthStateChange()
+
 useUserStore().getSession()
+
+const site = useSiteStore().getSite
 
 const visible = ref<boolean>(false)
 const formRef = ref<FormInstance>()
@@ -145,12 +144,7 @@ async function signUpNewUser() {
 <template>
   <m-img-box>
     <m-img-item>
-      <el-icon
-        style="cursor: pointer"
-        :color="props.site.theme.PRIMARY_COLOR"
-        :size="props.size"
-        @click="visible = !visible"
-      >
+      <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" :size="props.size" @click="visible = !visible">
         <UserFilled />
       </el-icon>
       <el-drawer

@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import { computed, reactive, ref, watch } from 'vue'
 import $ from 'jquery'
-import { SiteAbstract } from '@/site/site-abstract'
-import { ElMessage, ElNotification } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { onKeyStroke, useActiveElement, useMagicKeys, useScroll, whenever } from '@vueuse/core'
-import { Location, Memo } from '@element-plus/icons-vue'
+import { Location, Memo, VideoPause, VideoPlay } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
 import { useConfigStore } from '@/store/config-store'
@@ -12,17 +11,17 @@ import { sites } from '@/dictionary'
 import { logicAnd } from '@vueuse/math'
 import { useReactStore } from '@/store/react-store'
 import { useSisterStore } from '@/store/sister-store'
+import { useTaskStore } from '@/store/task-store.ts'
+import { useSiteStore } from '@/store/site-store.ts'
 
 const sister = useSisterStore()
 
-const props = defineProps<{
-  site: SiteAbstract
-}>()
+const site = useSiteStore().getSite
 
 const showImage = ref(false)
 
 const loadAll = reactive({
-  color: props.site.theme.WARNING_COLOR
+  color: site.theme.WARNING_COLOR
 })
 
 const configStore = useConfigStore()
@@ -30,7 +29,7 @@ const configStore = useConfigStore()
 const { x, y } = useScroll(window, {
   onStop: () => {
     // console.log('滚动结束')
-    props.site.waterfall.onScrollEvent()
+    site.waterfall.onScrollEvent()
   },
   behavior: configStore.currentConfig.smooth ? 'smooth' : 'auto'
 })
@@ -109,7 +108,7 @@ function close() {
 function previous(event: KeyboardEvent) {
   event.preventDefault()
   sister.previous()
-  props.site.scrollToCurrent(x, y)
+  site.scrollToCurrent(x, y)
 }
 
 async function download(event: KeyboardEvent) {
@@ -118,13 +117,13 @@ async function download(event: KeyboardEvent) {
   if (event.altKey) {
     checkArchive = false
   }
-  props.site.download(checkArchive)
+  site.download(checkArchive)
 }
 
 function nextStep(event: KeyboardEvent) {
   event.preventDefault()
   sister.nextStep()
-  props.site.scrollToCurrent(x, y)
+  site.scrollToCurrent(x, y)
 }
 
 function scroll(event: KeyboardEvent, reverse = false) {
@@ -146,7 +145,7 @@ watch(
   (key) => {
     // console.log('监听到key变化');
     if (!key) return
-    props.site.save(key)
+    site.save(key)
   },
   {
     immediate: true
@@ -161,7 +160,7 @@ watch(
     const unreadNumber = sisterNumber - sister.haveReadNumber
     if (unreadNumber < useConfigStore().currentConfig.lazyLimit) {
       console.log('加载下一页')
-      props.site.loadNext()
+      site.loadNext()
     }
     const info = sister.currentSister
     if (!info) return
@@ -176,9 +175,9 @@ watch(
 )
 
 watch(
-  () => props.site.waterfall.page.isEnd,
+  () => site.waterfall.page.isEnd,
   (isEnd) => {
-    loadAll.color = isEnd ? 'green' : props.site.theme.WARNING_COLOR
+    loadAll.color = isEnd ? 'green' : site.theme.WARNING_COLOR
   },
   { immediate: true }
 )
@@ -234,6 +233,12 @@ function location() {
     <m-img-item v-if="false">
       <el-icon size="60" class="icon-button" @click="viewOrClose" :color="site.theme.PRIMARY_COLOR">
         <so-fullscreen />
+      </el-icon>
+    </m-img-item>
+    <m-img-item>
+      <el-icon size="60" class="icon-button" @click="useTaskStore().reverseActive" :color="site.theme.PRIMARY_COLOR">
+        <VideoPause v-if="useTaskStore().isActive" />
+        <VideoPlay v-else />
       </el-icon>
     </m-img-item>
     <m-img-item>

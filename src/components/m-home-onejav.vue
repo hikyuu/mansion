@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { Onejav } from '@/site/onejav/onejav'
-import { computed, defineProps, toRefs } from 'vue'
+import { computed, defineProps } from 'vue'
 import { FORMAT } from '@/dictionary'
 import { DocumentCopy, Right } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
@@ -13,21 +13,24 @@ import 'dayjs/locale/zh-cn'
 import MOnejavCalendar from '@/components/m-onejav-calendar.vue'
 import { useReactStore } from '@/store/react-store'
 import { useSisterStore } from '@/store/sister-store'
+import { useSiteStore } from '@/store/site-store.ts'
 
 const sister = useSisterStore()
 
-const props = defineProps({
-  onejav: {
-    type: Object as () => Onejav,
-    required: true
-  },
+defineProps({
   size: {
     type: Number,
     default: 60
   }
 })
 
-const onejav = toRefs<Onejav>(props.onejav)
+function getOnejav() {
+  const site = useSiteStore().getSite
+  if (site instanceof Onejav) {
+    return site
+  }
+  throw new Error('当前站点不是onejav')
+}
 
 function openNextDay(self: boolean) {
   const date = dayjs(location.pathname, FORMAT.PATH_DATE, true)
@@ -45,6 +48,9 @@ function openNextDay(self: boolean) {
     ElLoading.service({ lock: true, fullscreen: true, text: `跳转到${nextDay}` })
   }
 }
+
+const onejav = getOnejav()
+
 const keys = useMagicKeys()
 
 const activeElement = useActiveElement()
@@ -58,7 +64,7 @@ whenever(logicAnd(keys.Ctrl_Enter, notUsingInput), () => {
 })
 
 const isLoadAll = computed(() => {
-  return sister.size >= sister.sisterNumber * 0.9 && props.onejav.waterfall.page.isEnd
+  return sister.size >= sister.sisterNumber * 0.9 && onejav.waterfall.page.isEnd
 })
 
 const isDatePage = computed(() => {
@@ -75,18 +81,18 @@ const repeat = computed(() => {
 <template>
   <m-img-box>
     <m-img-item v-if="isLoadAll && isDatePage">
-      <el-icon style="cursor: pointer" :color="onejav.theme.value.PRIMARY_COLOR" :size="60" @click="openNextDay(false)">
+      <el-icon style="cursor: pointer" :color="onejav.theme.PRIMARY_COLOR" :size="60" @click="openNextDay(false)">
         <Right />
       </el-icon>
     </m-img-item>
     <div style="display: flex; justify-content: center">
       <m-img-item v-if="repeat > 0">
-        <el-icon style="" :color="onejav.theme.value.WARNING_COLOR" :size="60">
+        <el-icon style="" :color="onejav.theme.WARNING_COLOR" :size="60">
           <DocumentCopy v-if="repeat === 1" />
           <so-javdb v-if="repeat === 2" />
         </el-icon>
       </m-img-item>
-      <m-onejav-calendar v-if="useReactStore().wgt1670" :onejav="props.onejav" :size="size" />
+      <m-onejav-calendar v-if="useReactStore().wgt1670" :onejav="onejav" :size="size" />
     </div>
   </m-img-box>
 </template>
