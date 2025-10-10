@@ -14,12 +14,17 @@ export async function downloadFromOnejav(detailUrl: string, retry: number = 3) {
 
   return request(fullUrl, baseUrl).then(async (res: GmResponseEvent<'document'>) => {
     console.log('请求详情页', fullUrl, res.finalUrl)
+    if (!isSupported) {
+      ElNotification({ title: 'onejav', message: '您的浏览器不支持剪贴板API，请手动点击下载', type: 'error' })
+      return Promise.reject('您的浏览器不支持剪贴板API')
+    }
     if (res.finalUrl === fullUrl) {
-      if (!isSupported) {
-        ElNotification({ title: 'onejav', message: '您的浏览器不支持剪贴板API', type: 'error' })
-        return Promise.reject('您的浏览器不支持剪贴板API')
-      }
       const result = await copyUrl(fullUrl)
+      if (result) return Promise.resolve()
+    }
+
+    if (res.finalUrl.includes('file.onejav.com')) {
+      const result = await copyUrl(res.finalUrl)
       if (result) return Promise.resolve()
     }
 
