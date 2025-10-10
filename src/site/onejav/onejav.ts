@@ -12,13 +12,14 @@ import { uploadDaily } from '@/dao/onejav-daily-dao'
 import { loadDailyHistory, loadLatestHistory, uploadHistory } from '@/dao/browse-history'
 import type { Info } from '@/store/sister-store'
 import { useTaskStore } from '@/store/task-store.ts'
+import { downloadFromOnejav } from '@/site/onejav/onejav-api.ts'
 
 export function clickMagnet(magnet: string) {
   const $a = $('<a>', {
     href: magnet,
     style: 'display:none;' // 隐藏 a 标签
   }).appendTo('body')
-  $a[0].click()
+  $a[0]!.click()
   ElNotification({ title: 'javdb', message: '已经开始下载', type: 'success' })
 }
 
@@ -50,6 +51,8 @@ export async function downloadFromJavDB(serialNumber: string): Promise<boolean> 
       return false
     })
 }
+
+export const ONEJAV_DOWNLOAD = "a[title='Download .torrent']"
 
 export class Onejav extends SiteAbstract {
   public name = 'onejav'
@@ -133,7 +136,7 @@ export class Onejav extends SiteAbstract {
       return
     }
     const $id = $('#' + currentKey)
-    const $download = $id.find("a[title='Download .torrent']")
+    const $download = $id.find(ONEJAV_DOWNLOAD)
     const info = this.sister.currentSister
     if (!info) return
     const serialNumber = info.serialNumber
@@ -143,19 +146,22 @@ export class Onejav extends SiteAbstract {
     }
     this.downloadList.set(serialNumber, 10)
     downloadFromJavDB(serialNumber)
-      .then((success) => {
+      .then(async (success) => {
         if (success) return
         if ($download.length === 0) {
           ElNotification({ title: '下载地址', message: '没有找到下载地址', type: 'error' })
           return
         }
-        $download[0].click()
-        ElNotification({ title: 'onejav', message: '已经开始下载', type: 'success' })
+        const href = $download.first()
+        if (!href) return
+        const url = href.attr('href')
+        if (!url) return
+        await downloadFromOnejav(url)
       })
       .finally(() => {
         upsertArchive(serialNumber)
         this.downloadList.delete(serialNumber)
-        this.closeDetailPage()
+        // this.closeDetailPage()
       })
   }
 
@@ -209,48 +215,11 @@ export class Onejav extends SiteAbstract {
       }
     })
   }
-
-  private adObserve() {
-    $('body')
-      .children('div')
-      .each((index, element) => {
-        if ($(element).css('position') === 'fixed' && $(element).css('inset') === '0px') {
-          console.log('发现广告!!!', element)
-          $(element).off('click')
-          console.log('屏蔽广告!!!')
-        }
-      })
-    const overview = document.querySelector('body')
-    if (overview === null) return
-    //获取网页地址中的路径'
-    const mutationObserver = new MutationObserver((mutationsList) => {
-      for (const mutationRecord of mutationsList) {
-        mutationRecord.addedNodes.forEach((element, number, parentNode) => {
-          if (element.nodeName !== 'DIV') return
-          if ($(element).css('position') === 'fixed' && $(element).css('inset') === '0px') {
-            console.log('监听到广告!!!', element)
-            $(element).off('click')
-            console.log('屏蔽广告!!!')
-          }
-        })
-      }
-    })
-    mutationObserver.observe(overview, {
-      attributes: false, // 属性的变动。
-      characterData: true, //节点内容或节点文本的变动。
-      childList: true, //子节点的变动（指新增，删除或者更改）。
-      subtree: false, //布尔值，表示是否将该观察器应用于该节点的所有后代节点。
-      attributeOldValue: false, //布尔值，表示观察attributes变动时，是否需要记录变动前的属性值。
-      characterDataOldValue: false //布尔值，表示观察characterData变动时，是否需要记录变动前的值。
-      //attributeFilter：数组，表示需要观察的特定属性（比如[‘class’,‘src’]）。
-    })
-  }
-
   private enableWaterfall($onejav: JQuery) {
     if (!$onejav.length) {
       return
     }
-    if ($onejav[0].parentElement === null) {
+    if (!$onejav[0] || $onejav[0].parentElement === null) {
       console.log('当前页面有变动,通知开发者')
       return
     }

@@ -1,4 +1,4 @@
-import { GM_xmlhttpRequest } from 'vite-plugin-monkey/dist/client'
+import { GM_xmlhttpRequest, type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
 import { error } from 'jquery'
 
 export function getAvCode(serialNumber: string): string {
@@ -33,7 +33,8 @@ export function getThumbnailElement(serialNumber: string, targetImgUrl: string[]
   const $thumbnail = $('<div>', { id: THUMBNAIL_ID })
 
   for (let i = 0; i < targetImgUrl.length; i++) {
-    const url = targetImgUrl[i]
+    const url = targetImgUrl[i]!
+
     const $img = $('<img>', {
       id: `IMG_${i + 1}_${serialNumber}`,
       src: url,
@@ -75,7 +76,7 @@ export async function getJavstoreUrl(serialNumber: string, retry = 1): Promise<s
       for (let i = 0; i < a_array.length; i++) {
         // 筛选匹配的番号数据  FC2-PPV-9999999 => 正则/FC2.*PPV.*9999999/gi
         const reg = RegExp(serialNumber.replace(/-/g, '.*'), 'gi')
-        if (a_array[i].title.search(reg) > 0) {
+        if (a_array[i]!.title.search(reg) > 0) {
           if (!a) {
             a = a_array[i]
             break
@@ -126,7 +127,7 @@ export function request(url: string, referer: string = '', timeoutInt: number = 
   if (url.match(/(pixhost)/gi)) {
     cookie = 'pixhostads=1'
   }
-  return new Promise<any>((resolve, reject) => {
+  return new Promise<GmResponseEvent<'document'>>((resolve, reject) => {
     // console.log(`发起网址请求：${url}`)
     GM_xmlhttpRequest({
       url,
@@ -137,13 +138,14 @@ export function request(url: string, referer: string = '', timeoutInt: number = 
         Cookie: cookie
       },
       timeout: timeoutInt > 0 ? timeoutInt : 30000,
-      onload: (response) => {
+      onload: (response: GmResponseEvent<'document'>) => {
         //console.log(url + " reqTime:" + (new Date() - time1));
         resolve(response)
       },
       onabort: () => {
         reject('请求中止')
       },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       onerror: (reason) => {
         console.log(url + ' error')
         reject('请求出错')
@@ -155,11 +157,43 @@ export function request(url: string, referer: string = '', timeoutInt: number = 
   })
 }
 
+export function testRequest() {
+  const url = 'https://onejav.com/torrent/abf274/download/94029137/onejav.com_abf274.torrent'
+  let cookie = ''
+  if (url.match(/(pixhost)/gi)) {
+    cookie = 'pixhostads=1'
+  }
+  GM_xmlhttpRequest({
+    url,
+    method: 'GET',
+    headers: {
+      'Cache-Control': 'no-cache',
+      Referer: 'https://onejav.com',
+      Cookie: cookie
+    },
+    timeout: 30000,
+    onload: (response) => {
+      //console.log(url + " reqTime:" + (new Date() - time1));
+      console.log('response', response)
+    },
+    onabort: () => {
+      console.error('请求中止')
+    },
+    onerror: (reason) => {
+      console.error('error', reason)
+    },
+    ontimeout: () => {
+      console.log('timeout')
+    }
+  })
+}
+
 export function parseText(text: string): Document {
   try {
     const doc = document.implementation.createHTMLDocument('')
     doc.documentElement.innerHTML = text
     return doc
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {
     alert('parse error')
     throw Error('parse error')
@@ -171,7 +205,7 @@ function alphaNumber(originalId: string) {
   const numberArray = Array.from(cuttingNumber)
   // console.dir(numberArray)
   if (numberArray.length === 0) return originalId
-  return numberArray[0][1] + '-' + numberArray[0][2]
+  return numberArray[0]![1] + '-' + numberArray[0]![2]
 }
 
 function fc2_ppv(originalId: string) {
@@ -181,9 +215,9 @@ function fc2_ppv(originalId: string) {
   if (numberArray.length > 0) {
     const reg = /(FC2PPV)(\d+)/gi
     if (reg.test(originalId)) {
-      return 'FC2-PPV-' + numberArray[0][2]
+      return 'FC2-PPV-' + numberArray[0]![2]
     }
-    return numberArray[0][1] + '-' + numberArray[0][2]
+    return numberArray[0]![1] + '-' + numberArray[0]![2]
   }
   return originalId
 }
@@ -201,7 +235,7 @@ function numberBegin(originalId: string) {
   console.log('numberArray', numberArray)
   if (numberArray.length === 0) return originalId
 
-  return numberArray[0][2] + '-' + numberArray[0][3]
+  return numberArray[0]![2] + '-' + numberArray[0]![3]
 }
 
 export function getSortId(originalId: string, type: number): string | undefined {

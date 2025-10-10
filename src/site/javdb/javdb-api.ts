@@ -1,30 +1,39 @@
 import { javdb_selector } from '@/site/javdb/javdb'
 import { request, sortId } from '@/common/common'
+import type { GmResponseEvent } from 'vite-plugin-monkey/dist/client'
 
 const baseUrl = 'https://javdb.com'
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function searchHtml(serialNumber: string, retry: number = 3) {
-  return request(`https://javdb.com/search?q=${serialNumber}`, 'https://javdb.com/').then((res) => {
-    const html = jQuery.parseHTML(res.responseText)
-    const doc = jQuery(html)
-    const container = doc.find(javdb_selector.container)
-    if (container.length === 0) {
-      if (doc.text().includes(`The owner of this website has banned your access based on your browser's behaving`)) {
-        return Promise.reject('IP被ban了')
-      } else {
-        return Promise.reject('没有找到容器')
+  return request(`https://javdb.com/search?q=${serialNumber}`, 'https://javdb.com/').then(
+    (res: GmResponseEvent<'document'>) => {
+      if (!res.responseXML) {
+        return Promise.reject('没有返回HTML')
       }
+
+      const doc = jQuery(res.responseXML)
+
+      const container = doc.find(javdb_selector.container)
+      if (container.length === 0) {
+        if (doc.text().includes(`The owner of this website has banned your access based on your browser's behaving`)) {
+          return Promise.reject('IP被ban了')
+        } else {
+          return Promise.reject('没有找到容器')
+        }
+      }
+      const items = container.find(javdb_selector.item)
+      if (items.length === 0) {
+        return Promise.reject('没有搜索结果')
+      }
+      return items.first()
     }
-    const items = container.find(javdb_selector.item)
-    if (items.length === 0) {
-      return Promise.reject('没有搜索结果')
-    }
-    return items.first()
-  })
+  )
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function magnetHtml(detailUrl: string, retry: number = 3): Promise<HighestScore> {
-  return request(baseUrl + detailUrl, baseUrl).then((res) => {
+  return request(baseUrl + detailUrl, baseUrl).then((res: GmResponseEvent<'document'>) => {
     console.log('获取磁力链接', detailUrl)
     const html = jQuery.parseHTML(res.responseText)
     const doc = jQuery(html)
@@ -60,7 +69,6 @@ async function magnetHtml(detailUrl: string, retry: number = 3): Promise<Highest
         highestScore.magnet = link
       }
     })
-
     return highestScore
   })
 }

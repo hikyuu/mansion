@@ -65,6 +65,7 @@ export class Javdb extends SiteAbstract {
     if (!item.length) {
       return
     }
+    if (!item[0]) return
     if (item[0].parentElement === null) {
       console.log('当前页面有变动,通知开发者')
       return
@@ -135,8 +136,6 @@ export class Javdb extends SiteAbstract {
         this.downloadList.delete(serialNumber)
       })
   }
-
-  allRead() {}
 
   // save(serialNumber: string): void {
   //   const info = this.sister.getInfo(serialNumber)

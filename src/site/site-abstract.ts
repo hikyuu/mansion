@@ -81,6 +81,7 @@ export abstract class SiteAbstract implements SiteInterface {
     serialNumber: string,
     elem: JQuery,
     javstoreUrl: null | string = null,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     cover: boolean = true
   ) {
     const javstore_key = `${KEY.JAVSTORE_KEY}${serialNumber}`

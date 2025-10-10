@@ -10,10 +10,13 @@ import MHomeUser from '@/components/m-home-user.vue'
 import MsHomeInfo from '@/components/ms-home-info.vue'
 import { useReactStore } from '@/store/react-store'
 import { useSiteStore } from '@/store/site-store.ts'
+import { testRequest } from '@/common/common.ts'
 
 const configStore = useConfigStore()
 
 const exactSite = getSite()
+
+testRequest()
 
 if (exactSite === undefined) {
   ElNotification({ title: 'mansion', message: `不支持当前网站!`, type: 'error' })
