@@ -13,7 +13,7 @@ export async function downloadFromOnejav(detailUrl: string, retry: number = 3) {
   const fullUrl = baseUrl + detailUrl
 
   return request(fullUrl, baseUrl).then(async (res: GmResponseEvent<'document'>) => {
-    console.log('请求详情页', fullUrl, res.finalUrl)
+    // console.log('请求详情页', fullUrl, res.finalUrl)
     if (!isSupported) {
       ElNotification({ title: 'onejav', message: '您的浏览器不支持剪贴板API，请手动点击下载', type: 'error' })
       return Promise.reject('您的浏览器不支持剪贴板API')
@@ -40,7 +40,7 @@ export async function downloadFromOnejav(detailUrl: string, retry: number = 3) {
       return Promise.reject('没有找到下载链接')
     }
     const link = href.first().attr('href')
-    console.log('下载链接', link)
+    // console.log('下载链接', link)
     if (!link) {
       ElNotification({ title: 'onejav', message: '下载链接无效', type: 'error' })
       return Promise.reject('下载链接无效')

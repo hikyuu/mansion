@@ -49,9 +49,8 @@ export async function getThumbnailUrlFromDetail(detail: Document, serialNumber: 
       // console.log('图片列表', urls)
     } else {
       //原方法
-      // @ts-ignore
-      let imgUrl = img_array[img_array.length - 1].src
-      imgUrl = imgUrl ? imgUrl : img_array[0].dataset.src
+      let imgUrl = img_array[img_array.length - 1]!.dataset.src
+      imgUrl = imgUrl ? imgUrl : img_array[0]!.dataset.src
       if (imgUrl === undefined) return urls
 
       imgUrl = imgUrl

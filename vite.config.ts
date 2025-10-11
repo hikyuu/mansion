@@ -65,6 +65,8 @@ export default defineConfig({
         connect: ['javstore.net', 'pixhost.to', 'javdb.com', 'onejav.com'],
         author: 'gaki',
         homepage: 'https://github.com/hikyuu/mansion',
+        website: 'https://github.com/hikyuu/mansion',
+        license: 'GPL3',
         updateURL: updateURL(),
         downloadURL: downloadURL(),
         version: version()
