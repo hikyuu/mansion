@@ -11,7 +11,6 @@ import { FileSystemIconLoader } from 'unplugin-icons/loaders'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
-import tailwindcss from '@tailwindcss/vite'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -65,6 +64,7 @@ export default defineConfig({
         match: ['*://*onejav.com/*', '*://*javdb.com/*'],
         connect: ['javstore.net', 'pixhost.to', 'javdb.com', 'onejav.com'],
         author: 'gaki',
+        homepage: 'https://github.com/hikyuu/mansion',
         updateURL: updateURL(),
         downloadURL: downloadURL(),
         version: version()
