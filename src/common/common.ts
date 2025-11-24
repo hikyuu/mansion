@@ -1,5 +1,5 @@
 import { GM_xmlhttpRequest, type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
-import { error } from 'jquery'
+import jquery from 'jquery'
 
 export function getAvCode(serialNumber: string): string {
   // 带-的番号不处理，除了-0 如：DSVR-01167
@@ -19,7 +19,7 @@ export function getAvCode(serialNumber: string): string {
     }
   }
   if (letter === null) {
-    throw error('没匹配到番号')
+    throw Error('没匹配到番号')
   }
   return letter.toString().replace(/,/g, '-') + '-' + num
 }
@@ -30,12 +30,12 @@ export function getThumbnailElement(serialNumber: string, targetImgUrl: string[]
   // console.log('显示的图片地址:' + targetImgUrl)
   //创建img元素,加载目标图片地址
   //创建新img元素
-  const $thumbnail = $('<div>', { id: THUMBNAIL_ID })
+  const $thumbnail = jquery('<div>', { id: THUMBNAIL_ID })
 
   for (let i = 0; i < targetImgUrl.length; i++) {
     const url = targetImgUrl[i]!
 
-    const $img = $('<img>', {
+    const $img = jquery('<img>', {
       id: `IMG_${i + 1}_${serialNumber}`,
       src: url,
       retry: 0,
@@ -44,7 +44,7 @@ export function getThumbnailElement(serialNumber: string, targetImgUrl: string[]
     })
     //加载失败重试
     $img.on('error', function () {
-      const $this = $(this)
+      const $this = jquery(this)
       const retry = $this.attr('retry')
       if (retry === undefined) {
         $this.attr('retry', 1)
@@ -69,7 +69,7 @@ export async function getJavstoreUrl(serialNumber: string, retry = 1): Promise<s
     .then((result) => {
       const overview = parseText(result.responseText)
       // 查找包含番号的a标签数组,忽略大小写
-      const a_array = $(overview).find(`.news_1n ul li h3 span a`)
+      const a_array = jquery(overview).find(`.news_1n ul li h3 span a`)
       // console.log(a_array)
       let a = a_array[0]
       //如果找到全高清大图优先获取全高清的
@@ -110,7 +110,7 @@ function containsHTML(text: string) {
 export async function getImgUrlFromPixhost(javUrl: string, retry: number = 3): Promise<string | undefined> {
   try {
     const response = await request(javUrl, 'https://javstore.net/')
-    return $(response.responseText).find('#image').attr('src')
+    return jquery(response.responseText).find('#image').attr('src')
   } catch (reason) {
     console.error(reason)
     if (retry > 0) {

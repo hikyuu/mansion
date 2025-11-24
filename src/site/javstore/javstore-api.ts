@@ -1,4 +1,5 @@
 import { getImgUrlFromPixhost, parseText, request } from '@/common/common'
+import jquery from 'jquery'
 
 export async function getDetailFromJavStore(javstore: string, retry = 3): Promise<Document | undefined> {
   try {
@@ -16,7 +17,7 @@ export async function getDetailFromJavStore(javstore: string, retry = 3): Promis
 
 export function getTitleFromDetail(detail: Document) {
   try {
-    const array = $(detail).find('.news .first_des')
+    const array = jquery(detail).find('.news .first_des')
     if (array.length <= 0) return undefined
     return array.text()
   } catch (reason) {
@@ -27,11 +28,11 @@ export function getTitleFromDetail(detail: Document) {
 
 export async function getThumbnailUrlFromDetail(detail: Document, serialNumber: string): Promise<Array<string>> {
   try {
-    let img_array = $(detail).find('.news a img[alt*=".th"]')
+    let img_array = jquery(detail).find('.news a img[alt*=".th"]')
     const urls: string[] = []
     //新方法
     if (img_array.length <= 0) {
-      img_array = $(detail).find('.news > a:contains("CLICK HERE!")')
+      img_array = jquery(detail).find('.news > a:contains("CLICK HERE!")')
       // console.log(`新方法找到`, img_array.length)
       if (img_array.length <= 0) return urls
 

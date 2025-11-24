@@ -2,7 +2,7 @@ import { SiteAbstract } from '@/site/site-abstract'
 import type { Selector } from '@/waterfall/waterfall'
 import Waterfall from '@/waterfall/waterfall'
 import type { Info } from '@/store/sister-store'
-import $ from 'jquery'
+import jquery from 'jquery'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { useConfigStore } from '@/store/config-store'
 import { FORMAT, WaterfallStatus } from '@/dictionary'
@@ -61,7 +61,7 @@ export class Javdb extends SiteAbstract {
   }
 
   private enableWaterfall() {
-    const item = $(this.selector.container).find(this.selector.item)
+    const item = jquery(this.selector.container).find(this.selector.item)
     if (!item.length) {
       return
     }
@@ -107,7 +107,7 @@ export class Javdb extends SiteAbstract {
       return
     }
 
-    const detailHref = getDetailHref($('#' + serialNumber))
+    const detailHref = getDetailHref(jquery('#' + serialNumber))
     if (detailHref === undefined) {
       ElNotification({ title: '提示', message: '没有找到详情页', type: 'info' })
       return
@@ -158,6 +158,6 @@ export class Javdb extends SiteAbstract {
   // }
 
   showControlPanel(): boolean {
-    return $(this.selector.container).length > 0
+    return jquery(this.selector.container).length > 0
   }
 }

@@ -68,7 +68,8 @@ export default defineConfig({
         license: 'GPL3',
         updateURL: updateURL(),
         downloadURL: downloadURL(),
-        version: version()
+        version: version(),
+        require: ['https://open.thunderurl.com/thunder-link.js']
       },
       build: {
         metaFileName: true,

@@ -1,5 +1,5 @@
 import { SiteAbstract } from '@/site/site-abstract'
-import $ from 'jquery'
+import jquery from 'jquery'
 import { Pagination } from './pagination'
 import { ElNotification } from 'element-plus'
 import { useConfigStore } from '@/store/config-store'
@@ -23,14 +23,14 @@ export default class {
     this.site = site
     this.selector = selector
     this.page = reactive(new Pagination(this.getDetail(document)))
-    const $pageNation = $(this.selector.pagination)
+    const $pageNation = jquery(this.selector.pagination)
     if ($pageNation.length > 0) {
       this.anchor = $pageNation[0]
     }
   }
 
   async flow(waterfallScrollStatus: number | null = null) {
-    if ($(this.selector.item).length <= 0) {
+    if (jquery(this.selector.item).length <= 0) {
       console.info(`没有妹妹`)
       return
     }
@@ -78,13 +78,13 @@ export default class {
 
   async onScrollEvent() {
     //窗口高度
-    const windowHeight = $(window).height()
+    const windowHeight = jquery(window).height()
     if (windowHeight === undefined) {
       console.log('获取不到窗口高度')
       return false
     }
     //滚动高度
-    const scrollTop = $(window).scrollTop()
+    const scrollTop = jquery(window).scrollTop()
     if (scrollTop === undefined) {
       console.log('获取不到滚动高度')
       return false
@@ -116,7 +116,7 @@ export default class {
       this.allReadedPage++
     } else {
       this.allReadedPage = 0
-      $(this.selector.container).append(items)
+      jquery(this.selector.container).append(items)
       this.setSisterNumber()
     }
     if (this.allReadedPage >= allReadPageLimit) {
@@ -190,7 +190,7 @@ export default class {
   }
 
   getDetail(doc: Document): JQuery {
-    const details = $(doc).find(this.selector.item)
+    const details = jquery(doc).find(this.selector.item)
     for (const elem of details) {
       const links = elem.getElementsByTagName('a')
       for (let i = 0; i < links.length; i++) {
@@ -201,7 +201,7 @@ export default class {
   }
 
   getNextUrl(doc: Document) {
-    const href = $(doc).find(this.selector.next).attr('href')
+    const href = jquery(doc).find(this.selector.next).attr('href')
     const a = document.createElement('a')
     if (href === undefined || href === null) return null
     a.href = href
@@ -211,12 +211,12 @@ export default class {
   end() {
     // $(window).off('scroll');
     if (this.anchor === null) return
-    const $end = $(`<h1>The End</h1>`)
-    $(this.anchor).replaceWith($end)
+    const $end = jquery(`<h1>The End</h1>`)
+    jquery(this.anchor).replaceWith($end)
   }
 
   setSisterNumber() {
-    const sisterNumber = $(this.selector.item).length
+    const sisterNumber = jquery(this.selector.item).length
     if (sisterNumber === 0) {
       console.error('没有找到妹妹！')
     }

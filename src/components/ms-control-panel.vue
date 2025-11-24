@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { computed, reactive, ref, watch } from 'vue'
-import $ from 'jquery'
+import jquery from 'jquery'
 import { ElMessage } from 'element-plus'
 import { onKeyStroke, useActiveElement, useMagicKeys, useScroll, whenever } from '@vueuse/core'
 import { Location, Memo, VideoPause, VideoPlay } from '@element-plus/icons-vue'
@@ -97,12 +97,12 @@ function viewOrClose() {
 
 function view() {
   showImage.value = true
-  $('html').css('overflow', 'hidden')
+  jquery('html').css('overflow', 'hidden')
 }
 
 function close() {
   showImage.value = false
-  $(`html`).css('overflow', 'auto')
+  jquery(`html`).css('overflow', 'auto')
 }
 
 function previous(event: KeyboardEvent) {
@@ -128,7 +128,7 @@ function nextStep(event: KeyboardEvent) {
 
 function scroll(event: KeyboardEvent, reverse = false) {
   event.preventDefault()
-  const windowHeight = $(window).height()
+  const windowHeight = jquery(window).height()
   if (windowHeight === undefined) {
     console.log('获取不到窗口高度')
     return false

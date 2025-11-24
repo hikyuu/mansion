@@ -2,7 +2,7 @@ import type { Selector } from '@/waterfall/waterfall'
 import Waterfall from '@/waterfall/waterfall'
 import { getSortId, isFC2 } from '@/common/common'
 import { SiteAbstract } from '../site-abstract'
-import $ from 'jquery'
+import jquery from 'jquery'
 import { WaterfallStatus } from '@/dictionary'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { ElNotification } from 'element-plus'
@@ -127,7 +127,7 @@ export class Onejav extends SiteAbstract {
       ElNotification({ title: '提示', message: '已经归档', type: 'info' })
       return
     }
-    const $id = $('#' + currentKey)
+    const $id = jquery('#' + currentKey)
     const $download = $id.find(ONEJAV_DOWNLOAD)
     const info = this.sister.currentSister
     if (!info) return
@@ -164,7 +164,7 @@ export class Onejav extends SiteAbstract {
   }
 
   showControlPanel(): boolean {
-    return !!$('body').has(this.selector.item).length
+    return !!jquery('body').has(this.selector.item).length
   }
 
   allLoadCompleted(): void {
@@ -178,16 +178,16 @@ export class Onejav extends SiteAbstract {
 
   private homeContainer() {
     // 插入自己创建的div
-    $('div.container nav.pagination.is-centered').before("<div id='card' ></div>")
+    jquery('div.container nav.pagination.is-centered').before("<div id='card' ></div>")
     // 将所有番号内容移到新建的div里
-    const $onejav = $('div.container div.card.mb-3')
-    $('div#card').append($onejav)
+    const $onejav = jquery('div.container div.card.mb-3')
+    jquery('div#card').append($onejav)
     return $onejav
   }
 
   private homeVisible() {
     console.log(`监听页面切换状态`, document.visibilityState)
-    $(document).on('visibilitychange', () => {
+    jquery(document).on('visibilitychange', () => {
       if (document.visibilityState == 'visible') {
         loadLatestHistory().then((histories) => {
           const pathDateSet = new Set<string>()
