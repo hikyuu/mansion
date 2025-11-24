@@ -1,24 +1,32 @@
-import $ from 'jquery'
 import { ElNotification } from 'element-plus'
 import { useSiteStore } from '@/store/site-store.ts'
 
-function generateThunderLink(originalUrl: string) {
-  // 迅雷协议的编码格式为：在原URL前后加上特定字符后再进行Base64编码
-  const prefix = 'AA'
-  const suffix = 'ZZ'
-  const encodedUrl = btoa(prefix + originalUrl + suffix)
-  return 'thunder://' + encodedUrl
-}
+let onload = false
 
-function clickMagnet(magnet: string) {
-  const $a = $('<a>', {
-    href: magnet,
-    style: 'display:none;' // 隐藏 a 标签
-  }).appendTo('body')
-  $a[0]!.click()
-  ElNotification({ title: useSiteStore().getSite.name, message: '迅雷下载已开始', type: 'success' })
-}
+loadScript()
 
 export function thunderDownload(originalUrl: string) {
-  clickMagnet(generateThunderLink(originalUrl))
+  if (!onload) {
+    ElNotification({ title: useSiteStore().getSite.name, message: '正在加载迅雷下载组件，请稍后再试', type: 'info' })
+  }
+  // clickMagnet(generateThunderLink(originalUrl))
+  window.thunderLink.newTask({
+    tasks: [{ url: originalUrl }]
+  })
+}
+function loadScript() {
+  return new Promise(() => {
+    if (onload) {
+      return resolve()
+    }
+    const script = document.createElement('script')
+    script.src = '//open.thunderurl.com/thunder-link.js'
+    script.onload = () => resolve()
+    document.head.appendChild(script)
+  })
+}
+
+function resolve() {
+  onload = true
+  ElNotification({ title: useSiteStore().getSite.name, message: '迅雷组件加载成功', type: 'success' })
 }
