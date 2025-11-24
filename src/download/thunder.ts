@@ -8,6 +8,7 @@ loadScript()
 export function thunderDownload(originalUrl: string) {
   if (!onload) {
     ElNotification({ title: useSiteStore().getSite.name, message: '正在加载迅雷下载组件，请稍后再试', type: 'info' })
+    return
   }
   // clickMagnet(generateThunderLink(originalUrl))
   window.thunderLink.newTask({
