@@ -1,12 +1,10 @@
 import { request } from '@/common/common'
 import { type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
-import { useClipboard } from '@vueuse/core'
 import { ElNotification } from 'element-plus'
 import { ONEJAV_DOWNLOAD } from '@/site/onejav/onejav.ts'
+import { download } from '@/download'
 
 const baseUrl = 'https://onejav.com'
-
-const { copy, copied, isSupported } = useClipboard()
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function downloadFromOnejav(detailUrl: string, retry: number = 3) {
@@ -14,18 +12,14 @@ export async function downloadFromOnejav(detailUrl: string, retry: number = 3) {
 
   return request(fullUrl, baseUrl).then(async (res: GmResponseEvent<'document'>) => {
     // console.log('请求详情页', fullUrl, res.finalUrl)
-    if (!isSupported) {
-      ElNotification({ title: 'onejav', message: '您的浏览器不支持剪贴板API，请手动点击下载', type: 'error' })
-      return Promise.reject('您的浏览器不支持剪贴板API')
-    }
     if (res.finalUrl === fullUrl) {
-      const result = await copyUrl(fullUrl)
-      if (result) return Promise.resolve()
+      download(fullUrl)
+      return
     }
 
     if (res.finalUrl.includes('file.onejav.com')) {
-      const result = await copyUrl(res.finalUrl)
-      if (result) return Promise.resolve()
+      download(res.finalUrl)
+      return
     }
 
     if (!res.responseXML) {
@@ -45,23 +39,6 @@ export async function downloadFromOnejav(detailUrl: string, retry: number = 3) {
       ElNotification({ title: 'onejav', message: '下载链接无效', type: 'error' })
       return Promise.reject('下载链接无效')
     }
-
-    const result = await copyUrl(baseUrl + link)
-    if (result) {
-      return Promise.resolve()
-    } else {
-      return Promise.reject('复制下载链接失败，请手动复制')
-    }
+    download(baseUrl + link)
   })
-}
-
-async function copyUrl(text: string) {
-  await copy(text)
-  if (copied.value) {
-    ElNotification({ title: 'onejav', message: '已经复制详情页链接到剪贴板', type: 'success' })
-    return true
-  } else {
-    ElNotification({ title: 'onejav', message: '复制详情页链接到剪贴板失败，请手动复制', type: 'warning' })
-    return false
-  }
 }

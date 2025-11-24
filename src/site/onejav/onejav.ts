@@ -13,15 +13,7 @@ import { loadDailyHistory, loadLatestHistory, uploadHistory } from '@/dao/browse
 import type { Info } from '@/store/sister-store'
 import { useTaskStore } from '@/store/task-store.ts'
 import { downloadFromOnejav } from '@/site/onejav/onejav-api.ts'
-
-export function clickMagnet(magnet: string) {
-  const $a = $('<a>', {
-    href: magnet,
-    style: 'display:none;' // 隐藏 a 标签
-  }).appendTo('body')
-  $a[0]!.click()
-  ElNotification({ title: 'javdb', message: '已经开始下载', type: 'success' })
-}
+import { download } from '@/download'
 
 export async function downloadFromJavDB(serialNumber: string): Promise<boolean> {
   if (isFC2(serialNumber)) {
@@ -41,7 +33,7 @@ export async function downloadFromJavDB(serialNumber: string): Promise<boolean> 
           ElNotification({ title: 'javdb', message: '没有找到磁力链接', type: 'error' })
           return false
         }
-        clickMagnet(magnet)
+        download(magnet)
         return true
       }
       return false

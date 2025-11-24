@@ -17,6 +17,9 @@ export const useSiteStore = defineStore('site', {
         throw new Error('site is undefined')
       }
       return <SiteAbstract>this.site
+    },
+    isValid(): boolean {
+      return this.site !== undefined
     }
   },
   actions: {

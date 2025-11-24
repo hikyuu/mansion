@@ -93,6 +93,7 @@ function getDefaultWaterfall() {
     loadThumbnailSwitch: true,
     scrollStatus: 1,
     smooth: 1,
+    downloadMethod: 0,
     navigationPoint: 0,
     skipRead: false,
     keyword: {
@@ -115,6 +116,7 @@ export interface Waterfall {
   loadThumbnailSwitch: boolean
   scrollStatus: number
   smooth: number
+  downloadMethod: number
   navigationPoint: number
   skipRead: boolean
   keyword: {

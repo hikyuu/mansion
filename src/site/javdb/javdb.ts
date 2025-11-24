@@ -8,11 +8,11 @@ import { useConfigStore } from '@/store/config-store'
 import { FORMAT, WaterfallStatus } from '@/dictionary'
 import { ElNotification } from 'element-plus'
 import { haveArchived, upsertArchive } from '@/dao/archive'
-import { clickMagnet } from '@/site/onejav/onejav'
 import { downloadFromLocal, getDetailHref } from '@/site/javdb/javdb-api'
 import dayjs from 'dayjs'
 import { useSisterStore } from '@/store/sister-store'
 import { useTaskStore } from '@/store/task-store.ts'
+import { download } from '@/download'
 
 export const javdb_selector: Selector = {
   next: 'a.pagination-next',
@@ -125,7 +125,7 @@ export class Javdb extends SiteAbstract {
             ElNotification({ title: 'javdb', message: '没有找到磁力链接', type: 'error' })
             return
           }
-          clickMagnet(magnet)
+          download(magnet)
         }
       })
       .catch((e) => {

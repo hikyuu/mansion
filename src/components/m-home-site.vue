@@ -10,6 +10,7 @@ import MHomeUser from '@/components/m-home-user.vue'
 import MsHomeInfo from '@/components/ms-home-info.vue'
 import { useReactStore } from '@/store/react-store'
 import { useSiteStore } from '@/store/site-store.ts'
+import MsDebugPanel from '@/components/ms-debug-panel.vue'
 
 const configStore = useConfigStore()
 
@@ -19,7 +20,7 @@ if (exactSite === undefined) {
   ElNotification({ title: 'mansion', message: `不支持当前网站!`, type: 'error' })
 } else {
   useSiteStore().setSite(exactSite)
-
+  console.log(`当前站点: ${exactSite.name}`)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   configStore.$subscribe((mutation, state) => {
     configStore.saveLocal()
@@ -33,6 +34,8 @@ if (exactSite === undefined) {
 }
 
 const site = useSiteStore().getSite
+
+const isDevMode = import.meta.env.DEV
 </script>
 
 <template>
@@ -45,6 +48,7 @@ const site = useSiteStore().getSite
       <home-onejav v-if="site instanceof Onejav" />
       <control-panel v-if="site.showControlPanel()" />
       <mansion-setting v-if="useReactStore().wgt1670" />
+      <ms-debug-panel v-if="isDevMode" />
     </div>
   </template>
 </template>
