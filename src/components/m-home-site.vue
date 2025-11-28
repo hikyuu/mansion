@@ -23,6 +23,7 @@ if (exactSite === undefined) {
   console.log(`当前站点: ${exactSite.name}`)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   configStore.$subscribe((mutation, state) => {
+    console.log(mutation)
     configStore.saveLocal()
   })
 

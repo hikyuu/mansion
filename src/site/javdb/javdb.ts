@@ -14,6 +14,8 @@ import { useSisterStore } from '@/store/sister-store'
 import { useTaskStore } from '@/store/task-store.ts'
 import { download } from '@/download'
 
+export const JAVDB_NAME = 'javdb'
+
 export const javdb_selector: Selector = {
   next: 'a.pagination-next',
   container: 'div.movie-list.h.cols-4',
@@ -26,7 +28,7 @@ export const javdb_selector: Selector = {
 }
 
 export class Javdb extends SiteAbstract {
-  public name = 'javdb'
+  public name = JAVDB_NAME
   public siteId = 2
   public waterfall: Waterfall
   constructor() {

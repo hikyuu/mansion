@@ -12,6 +12,10 @@ export const useConfigStore = defineStore('config', {
   },
   getters: {},
   actions: {
+    updateSessionId(site: string, id: string) {
+      this.currentConfig.sessionId.push({ site, id })
+    },
+
     loadLocalConfig(name: string) {
       const state = GM_getValue('config', this.$state as LocalState)
       console.log('读取配置文件', name, state)
@@ -100,10 +104,14 @@ function getDefaultWaterfall() {
       like: [],
       unlike: []
     },
+    sessionId: [],
     lazyLimit: 200
   } as Waterfall
 }
-
+interface Msession {
+  site: string
+  id: string
+}
 interface State {
   waterfall: Map<string, Waterfall>
   currentConfig: Waterfall
@@ -119,6 +127,7 @@ export interface Waterfall {
   downloadMethod: number
   navigationPoint: number
   skipRead: boolean
+  sessionId: Msession[]
   keyword: {
     like: string[]
     unlike: string[]

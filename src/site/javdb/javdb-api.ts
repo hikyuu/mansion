@@ -1,8 +1,13 @@
-import { javdb_selector } from '@/site/javdb/javdb'
+import { JAVDB_NAME, javdb_selector } from '@/site/javdb/javdb'
 import { request, sortId } from '@/common/common'
-import type { GmResponseEvent } from 'vite-plugin-monkey/dist/client'
+import { createSession, getFromFlareSolverr, type GmCallbackCookie } from '@/common/flare-solverr.ts'
+import { GM_cookie, type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
+import { useConfigStore } from '@/store/config-store.ts'
+import $ from 'jquery'
 
 const baseUrl = 'https://javdb.com'
+
+let bypassSuccess = false
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function searchHtml(serialNumber: string, retry: number = 3) {
@@ -12,7 +17,9 @@ async function searchHtml(serialNumber: string, retry: number = 3) {
         return Promise.reject('没有返回HTML')
       }
 
-      const doc = jQuery(res.responseXML)
+      const doc = jQuery(res.responseText)
+
+      console.log(doc.html())
 
       const container = doc.find(javdb_selector.container)
       if (container.length === 0) {
@@ -31,46 +38,88 @@ async function searchHtml(serialNumber: string, retry: number = 3) {
   )
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function magnetHtml(detailUrl: string, retry: number = 3): Promise<HighestScore> {
-  return request(baseUrl + detailUrl, baseUrl).then((res: GmResponseEvent<'document'>) => {
-    console.log('获取磁力链接', detailUrl)
-    const html = jQuery.parseHTML(res.responseText)
-    const doc = jQuery(html)
-    const magnetsContent = doc.find('#magnets-content')
+function handleMagnet(doc: JQuery) {
+  const magnetsContent = doc.find('#magnets-content')
+  if (magnetsContent.length === 0) {
+    return Promise.reject('没有找到磁力链接容器')
+  }
 
-    if (magnetsContent.length === 0) {
-      return Promise.reject('没有找到磁力链接容器')
+  const magnets = magnetsContent.find('div.item.columns.is-desktop')
+  if (magnets.length === 0) {
+    return Promise.reject('没有找到磁力链接')
+  }
+
+  const highestScore = {
+    score: 0,
+    magnet: magnets.first().find('a').first()
+  }
+
+  magnets.each((index, element) => {
+    let score = 0
+    const magnet = jQuery(element)
+    const link = magnet.find('a').first()
+    const name = link.find('span.name').first().text()
+    if (name.match(/\S+[-|_]c/gi)) {
+      score++
     }
-
-    const magnets = magnetsContent.find('div.item.columns.is-desktop')
-    if (magnets.length === 0) {
-      return Promise.reject('没有找到磁力链接')
+    if (name.match(/\S+[-|_]uc/gi)) {
+      score += 2
     }
-
-    const highestScore = {
-      score: 0,
-      magnet: magnets.first().find('a').first()
+    if (score > highestScore.score) {
+      highestScore.score = score
+      highestScore.magnet = link
     }
-
-    magnets.each((index, element) => {
-      let score = 0
-      const magnet = jQuery(element)
-      const link = magnet.find('a').first()
-      const name = link.find('span.name').first().text()
-      if (name.match(/\S+[-|_]c/gi)) {
-        score++
-      }
-      if (name.match(/\S+[-|_]uc/gi)) {
-        score += 2
-      }
-      if (score > highestScore.score) {
-        highestScore.score = score
-        highestScore.magnet = link
-      }
-    })
-    return highestScore
   })
+  return highestScore
+}
+
+async function flareGet(fullUrl: string): Promise<string> {
+  const siteCookies = await getCookies()
+  const sessionId = await getSessionId()
+  const solution = await getFromFlareSolverr(fullUrl, sessionId, siteCookies)
+  if (!solution.response) {
+    throw new Error('FlareSolverr 未返回有效响应')
+  }
+  return solution.response
+}
+
+async function magnetHtml(detailUrl: string, retry: number = 2): Promise<HighestScore> {
+  if (retry === 0) {
+    throw new Error('多次重试仍无法获取磁力链接，可能是网站结构变化或IP被封，请检查。')
+  }
+  const fullUrl = baseUrl + detailUrl
+  if (bypassSuccess) {
+    console.log('请求详情页（已绕过Cloudflare）', fullUrl)
+    const response = await flareGet(fullUrl)
+    const flareDoc = $(response)
+    // 使用类型守卫过滤出 HTMLElement
+    return handleMagnet(flareDoc)
+  }
+  console.log('请求详情页', fullUrl)
+  const res: GmResponseEvent<'document'> = await request(fullUrl, 'https://javdb.com/', -1)
+  const doc = $(res.responseText)
+  if (res.status !== 200 || doc.text().includes('Just a moment...')) {
+    console.log('被Cloudflare拦截')
+    if (!bypassSuccess) {
+      console.log('使用 FlareSolverr 绕过 Cloudflare')
+      const response = await flareGet(fullUrl)
+      bypassSuccess = true
+      const flareDoc = $(response)
+      return handleMagnet(flareDoc)
+    }
+  }
+  return handleMagnet(doc)
+}
+
+async function getSessionId() {
+  const session = useConfigStore().currentConfig.sessionId.find((s) => s.site == JAVDB_NAME)
+  if (!session) {
+    console.log('Javdb 获取新的 FlareSolverr 会话 ID')
+    const sessionId = await createSession()
+    useConfigStore().updateSessionId(JAVDB_NAME, sessionId)
+    return sessionId
+  }
+  return session.id
 }
 
 declare interface HighestScore {
@@ -117,5 +166,14 @@ export async function magnet(serialNumber: string): Promise<string | undefined> 
       return doc.find('a').prop('href')
     }
     return undefined
+  })
+}
+
+function getCookies(): Promise<GmCallbackCookie[]> {
+  return new Promise((resolve, reject) => {
+    GM_cookie.list({ domain: 'javdb.com' }, (cookies) => {
+      if (cookies) resolve(cookies)
+      else reject('Failed to get cookies')
+    })
   })
 }

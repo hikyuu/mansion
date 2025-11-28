@@ -65,7 +65,7 @@ export function getThumbnailElement(serialNumber: string, targetImgUrl: string[]
 
 export async function getJavstoreUrl(serialNumber: string, retry = 1): Promise<string | null> {
   //异步请求搜索JavStore的番号
-  return request(`https://javstore.net/search/${serialNumber}.html`)
+  return request(`https://javstore.net/search/${serialNumber}.html`, 'https://javstore.net/')
     .then((result) => {
       const overview = parseText(result.responseText)
       // 查找包含番号的a标签数组,忽略大小写
@@ -122,36 +122,41 @@ export async function getImgUrlFromPixhost(javUrl: string, retry: number = 3): P
   }
 }
 
-export function request(url: string, referer: string = '', timeoutInt: number = -1) {
-  let cookie = ''
+export function request(
+  url: string,
+  referer: string = '',
+  timeoutInt: number = -1
+): Promise<GmResponseEvent<'document'>> {
+  let cookies = ''
   if (url.match(/(pixhost)/gi)) {
-    cookie = 'pixhostads=1'
+    if (cookies != '') cookies += '; '
+    cookies += 'pixhostads=1'
   }
+
   return new Promise<GmResponseEvent<'document'>>((resolve, reject) => {
     // console.log(`发起网址请求：${url}`)
     GM_xmlhttpRequest({
       url,
       method: 'GET',
+      cookie: cookies,
       headers: {
-        'Cache-Control': 'no-cache',
-        Referer: referer,
-        Cookie: cookie
+        Referer: referer
       },
       timeout: timeoutInt > 0 ? timeoutInt : 30000,
+
       onload: (response: GmResponseEvent<'document'>) => {
         //console.log(url + " reqTime:" + (new Date() - time1));
+        // console.log('请求cookie' + cookies)
         resolve(response)
       },
       onabort: () => {
-        reject('请求中止')
+        reject(new Error('请求中止'))
       },
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       onerror: (reason) => {
-        console.log(url + ' error')
-        reject('请求出错')
+        reject(new Error('请求出错' + reason.error))
       },
       ontimeout: () => {
-        reject(`${timeoutInt > 0 ? timeoutInt : 30000}ms timeout`)
+        reject(new Error(`${timeoutInt > 0 ? timeoutInt : 30000}ms timeout`))
       }
     })
   })

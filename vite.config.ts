@@ -62,7 +62,7 @@ export default defineConfig({
         icon: 'https://github.com/hikyuu/gallery/raw/main/picx/mansion.svg',
         namespace: 'npm/mansion',
         match: ['*://*onejav.com/*', '*://*javdb.com/*'],
-        connect: ['javstore.net', 'pixhost.to', 'javdb.com', 'onejav.com'],
+        connect: ['javstore.net', 'pixhost.to', 'javdb.com', 'onejav.com', '*'],
         author: 'gaki',
         homepage: 'https://github.com/hikyuu/mansion',
         license: 'GPL3',
@@ -86,7 +86,7 @@ export default defineConfig({
           //     })
           //   ),
           // jquery: cdn.jsdelivr('jQuery', 'dist/jquery.min.js')
-          // pinia: cdn.jsdelivr('Pinia', 'dist/pinia.iife.prod.js'),
+          // pinia: cdn.jsdelivr('Pinia', 'dist/pinia.iife.prod.js')
           // 'element-plus': cdn.jsdelivr('ElementPlus', 'dist/index.full.min.js'),
           // '@element-plus/icons-vue': cdn.jsdelivr('ElementPlusIconsVue', 'dist/index.iife.min.js')
         },

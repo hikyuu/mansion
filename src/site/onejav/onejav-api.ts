@@ -10,7 +10,7 @@ const baseUrl = 'https://onejav.com'
 export async function downloadFromOnejav(detailUrl: string, retry: number = 3) {
   const fullUrl = baseUrl + detailUrl
 
-  return request(fullUrl, baseUrl).then(async (res: GmResponseEvent<'document'>) => {
+  return request(fullUrl, 'https://onejav.com/').then(async (res: GmResponseEvent<'document'>) => {
     // console.log('请求详情页', fullUrl, res.finalUrl)
     if (res.finalUrl === fullUrl) {
       download(fullUrl)
