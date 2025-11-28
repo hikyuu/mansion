@@ -6,13 +6,13 @@ import { onKeyStroke, useActiveElement, useMagicKeys, useScroll, whenever } from
 import { Location, Memo, VideoPause, VideoPlay } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
-import { useConfigStore } from '@/store/config-store'
 import { sites } from '@/dictionary'
 import { logicAnd } from '@vueuse/math'
 import { useReactStore } from '@/store/react-store'
 import { useSisterStore } from '@/store/sister-store'
 import { useTaskStore } from '@/store/task-store.ts'
 import { useSiteStore } from '@/store/site-store.ts'
+import { useConfigStore } from '@/store/config-store.ts'
 
 const sister = useSisterStore()
 
@@ -23,15 +23,12 @@ const showImage = ref(false)
 const loadAll = reactive({
   color: site.theme.WARNING_COLOR
 })
-
-const configStore = useConfigStore()
-
 const { x, y } = useScroll(window, {
   onStop: () => {
     // console.log('滚动结束')
     site.waterfall.onScrollEvent()
   },
-  behavior: configStore.currentConfig.smooth ? 'smooth' : 'auto'
+  behavior: useConfigStore().getSiteConfig.smooth ? 'smooth' : 'auto'
 })
 
 onKeyStroke('ArrowLeft', (event: KeyboardEvent) => previous(event), { dedupe: true })
@@ -158,7 +155,7 @@ watch(
     if (index === undefined) return
     const sisterNumber = sister.sisterNumber
     const unreadNumber = sisterNumber - sister.haveReadNumber
-    if (unreadNumber < useConfigStore().currentConfig.lazyLimit) {
+    if (unreadNumber < useConfigStore().getSiteConfig.lazyLimit) {
       console.log('加载下一页')
       site.loadNext()
     }

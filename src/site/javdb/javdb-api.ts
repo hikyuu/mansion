@@ -2,40 +2,48 @@ import { JAVDB_NAME, javdb_selector } from '@/site/javdb/javdb'
 import { request, sortId } from '@/common/common'
 import { createSession, getFromFlareSolverr, type GmCallbackCookie } from '@/common/flare-solverr.ts'
 import { GM_cookie, type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
-import { useConfigStore } from '@/store/config-store.ts'
 import $ from 'jquery'
+import { useConfigStore } from '@/store/config-store.ts'
 
 const baseUrl = 'https://javdb.com'
 
 let bypassSuccess = false
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function searchHtml(serialNumber: string, retry: number = 3) {
-  return request(`https://javdb.com/search?q=${serialNumber}`, 'https://javdb.com/').then(
-    (res: GmResponseEvent<'document'>) => {
-      if (!res.responseXML) {
-        return Promise.reject('没有返回HTML')
-      }
-
-      const doc = jQuery(res.responseText)
-
-      console.log(doc.html())
-
-      const container = doc.find(javdb_selector.container)
-      if (container.length === 0) {
-        if (doc.text().includes(`The owner of this website has banned your access based on your browser's behaving`)) {
-          return Promise.reject('IP被ban了')
-        } else {
-          return Promise.reject('没有找到容器')
-        }
-      }
-      const items = container.find(javdb_selector.item)
-      if (items.length === 0) {
-        return Promise.reject('没有搜索结果')
-      }
-      return items.first()
+function handleSearch(doc: JQuery<HTMLElement>) {
+  const container = doc.find(javdb_selector.container)
+  if (container.length === 0) {
+    if (doc.text().includes(`The owner of this website has banned your access based on your browser's behaving`)) {
+      return Promise.reject('IP被ban了')
+    } else {
+      return Promise.reject('没有找到容器')
     }
-  )
+  }
+  const items = container.find(javdb_selector.item)
+  if (items.length === 0) {
+    return Promise.reject('没有搜索结果')
+  }
+  return items.first()
+}
+
+async function searchHtml(serialNumber: string, retry: number = 3) {
+  const fullUrl = `https://javdb.com/search?q=${serialNumber}`
+  if (bypassSuccess) {
+    console.log('请求搜索页（已绕过Cloudflare）', fullUrl)
+    const response = await flareGet(fullUrl)
+    const flareDoc = $(response)
+    // 使用类型守卫过滤出 HTMLElement
+    return handleSearch(flareDoc)
+  }
+  const res = await request(`fullUrl`, 'https://javdb.com/')
+  const doc = jQuery(res.responseText)
+  if (res.status !== 200 || doc.text().includes('Just a moment...')) {
+    console.log('被Cloudflare拦截')
+    if (!bypassSuccess) {
+      bypassSuccess = true
+      return searchHtml(serialNumber, retry)
+    }
+  }
+  return handleSearch(doc)
 }
 
 function handleMagnet(doc: JQuery) {
@@ -89,7 +97,7 @@ async function magnetHtml(detailUrl: string, retry: number = 2): Promise<Highest
   }
   const fullUrl = baseUrl + detailUrl
   if (bypassSuccess) {
-    console.log('请求详情页（已绕过Cloudflare）', fullUrl)
+    console.log('请求详情页(绕过Cloudflare）', fullUrl)
     const response = await flareGet(fullUrl)
     const flareDoc = $(response)
     // 使用类型守卫过滤出 HTMLElement
@@ -102,17 +110,15 @@ async function magnetHtml(detailUrl: string, retry: number = 2): Promise<Highest
     console.log('被Cloudflare拦截')
     if (!bypassSuccess) {
       console.log('使用 FlareSolverr 绕过 Cloudflare')
-      const response = await flareGet(fullUrl)
       bypassSuccess = true
-      const flareDoc = $(response)
-      return handleMagnet(flareDoc)
+      return magnetHtml(detailUrl, retry - 1)
     }
   }
   return handleMagnet(doc)
 }
 
 async function getSessionId() {
-  const session = useConfigStore().currentConfig.sessionId.find((s) => s.site == JAVDB_NAME)
+  const session = useConfigStore().common.sessionId.find((s) => s.site == JAVDB_NAME)
   if (!session) {
     console.log('Javdb 获取新的 FlareSolverr 会话 ID')
     const sessionId = await createSession()

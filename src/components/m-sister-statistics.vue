@@ -4,8 +4,8 @@ import MImgItem from '@/components/m-img-item.vue'
 import { computed, defineProps } from 'vue'
 import type { SiteAbstract } from '@/site/site-abstract'
 import { useScroll } from '@vueuse/core'
-import { useConfigStore } from '@/store/config-store'
 import { useSisterStore } from '@/store/sister-store'
+import { useConfigStore } from '@/store/config-store.ts'
 
 const sister = useSisterStore()
 
@@ -40,7 +40,7 @@ const { x, y } = useScroll(window, {
   onStop: () => {
     props.site.waterfall.onScrollEvent()
   },
-  behavior: useConfigStore().currentConfig.smooth ? 'smooth' : 'auto'
+  behavior: useConfigStore().getSiteConfig.smooth ? 'smooth' : 'auto'
 })
 
 function lastUnRead() {

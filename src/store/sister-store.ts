@@ -53,8 +53,13 @@ export const useSisterStore = defineStore('sister', {
         const scrollTop = this.getScrollTop(index)
         console.log('坐标：', scrollTop)
         y.value = scrollTop
-      } catch (reason: any) {
-        ElNotification({ title: '提示', message: reason, type: 'info' })
+      } catch (reason: unknown) {
+        if (reason instanceof Error) {
+          ElNotification({ title: '提示', message: reason.message, type: 'error' })
+        } else {
+          ElNotification({ title: '提示', message: '未知错误', type: 'error' })
+          console.error('未知错误:', reason)
+        }
       }
     },
     previous() {

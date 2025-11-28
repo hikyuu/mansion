@@ -7,12 +7,12 @@ import type { Ref } from 'vue'
 import { KEY, picx } from '@/dictionary'
 import $ from 'jquery'
 import { getJavstoreUrl, getThumbnailElement, getSortId, THUMBNAIL_ID } from '@/common/common'
-import { useConfigStore } from '@/store/config-store'
 import { getHistories, type HistoryDto, uploadHistory } from '@/dao/browse-history'
 import { getThumbnailUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
 import { ProjectError } from '@/common/errors'
 import { type Info, useSisterStore } from '@/store/sister-store'
 import { ElNotification } from 'element-plus'
+import { useConfigStore } from '@/store/config-store.ts'
 
 export abstract class SiteAbstract implements SiteInterface {
   hasLoadCompleted = false
@@ -111,7 +111,7 @@ export abstract class SiteAbstract implements SiteInterface {
 
   scrollToCurrent(x: Ref<number>, y: Ref<number>): void {
     let prev = $('#' + useSisterStore().current_key)
-    switch (useConfigStore().currentConfig.navigationPoint) {
+    switch (useConfigStore().getSiteConfig.navigationPoint) {
       case 1:
         prev = prev.find(`#${THUMBNAIL_ID}`)
         break
@@ -215,7 +215,7 @@ export abstract class SiteAbstract implements SiteInterface {
   }
 
   DeleteReadedNode(item: JQuery, info: Info) {
-    if (useConfigStore().currentConfig.skipRead && info.haveRead) {
+    if (useConfigStore().getSiteConfig.skipRead && info.haveRead) {
       item.remove()
       console.log('删除已读', info.serialNumber)
       this.waterfall.setSisterNumber()
@@ -228,7 +228,7 @@ export abstract class SiteAbstract implements SiteInterface {
   }
 
   async filterReaded(elems: JQuery): Promise<JQuery[]> {
-    if (!useConfigStore().currentConfig.skipRead) {
+    if (!useConfigStore().getSiteConfig.skipRead) {
       const items = new Array<JQuery>()
       elems.each((index, elem) => {
         items.push($(elem))
@@ -288,7 +288,7 @@ export abstract class SiteAbstract implements SiteInterface {
     if (type > 0) {
       this.addLink('智能搜索中', el_link, serialNumber, item)
     }
-    if (useConfigStore().currentConfig.skipRead && info.haveRead) {
+    if (useConfigStore().getSiteConfig.skipRead && info.haveRead) {
       this.addLink('跳过已读', el_link, serialNumber, item)
       throw new ProjectError({
         name: 'GET_PROJECT_ERROR',
@@ -344,10 +344,10 @@ export abstract class SiteAbstract implements SiteInterface {
     const title = getTitleFromDetail(javstoreDetail)
     if (title) {
       if (title === '') return
-      const likeWords = useConfigStore().currentConfig.keyword.like.filter((item) => {
+      const likeWords = useConfigStore().common.keyword.like.filter((item) => {
         return title.includes(item)
       })
-      const unlikeWords = useConfigStore().currentConfig.keyword.unlike.filter((item) => {
+      const unlikeWords = useConfigStore().common.keyword.unlike.filter((item) => {
         return title.includes(item)
       })
       useSisterStore().updateInfo({ serialNumber, likeWords, unlikeWords })

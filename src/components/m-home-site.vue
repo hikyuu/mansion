@@ -4,16 +4,13 @@ import { Onejav } from '@/site/onejav/onejav'
 import ControlPanel from './ms-control-panel.vue'
 import HomeOnejav from '@/components/m-home-onejav.vue'
 import MansionSetting from '@/components/m-setting.vue'
-import { useConfigStore } from '@/store/config-store'
 import { ElNotification } from 'element-plus'
 import MHomeUser from '@/components/m-home-user.vue'
 import MsHomeInfo from '@/components/ms-home-info.vue'
 import { useReactStore } from '@/store/react-store'
 import { useSiteStore } from '@/store/site-store.ts'
 import MsDebugPanel from '@/components/ms-debug-panel.vue'
-
-const configStore = useConfigStore()
-
+import { useConfigStore } from '@/store/config-store.ts'
 const exactSite = getSite()
 
 if (exactSite === undefined) {
@@ -21,13 +18,11 @@ if (exactSite === undefined) {
 } else {
   useSiteStore().setSite(exactSite)
   console.log(`当前站点: ${exactSite.name}`)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  configStore.$subscribe((mutation, state) => {
-    console.log(mutation)
-    configStore.saveLocal()
-  })
 
-  configStore.loadLocalConfig(exactSite.name)
+  useConfigStore().$subscribe((mutation, state) => {
+    useConfigStore().saveConfig()
+  })
+  useConfigStore().loadConfig()
 
   useReactStore().listen()
 

@@ -3,10 +3,8 @@ import { Setting } from '@element-plus/icons-vue'
 import { ElNotification } from 'element-plus'
 import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
-import { useConfigStore } from '@/store/config-store'
-import { storeToRefs } from 'pinia'
-import { watch } from 'vue'
 import { useSiteStore } from '@/store/site-store.ts'
+import { useConfigStore } from '@/store/config-store.ts'
 
 const props = defineProps({
   size: {
@@ -16,9 +14,7 @@ const props = defineProps({
 })
 
 const site = useSiteStore().getSite
-
-const configStore = useConfigStore()
-const { currentConfig } = storeToRefs(configStore)
+const currentConfig = useConfigStore().getSiteConfig
 
 function scrollStatusChange(value: number) {
   const status = Object.values(WaterfallStatus).find((item) => {
@@ -62,13 +58,13 @@ function loadThumbnailSwitchChange(value: boolean) {
   }
 }
 
-watch(
-  () => currentConfig,
-  (value) => {
-    configStore.waterfall.set(site.name, value.value)
-  },
-  { deep: true }
-)
+// watch(
+//   () => currentConfig,
+//   (value) => {
+//     configStore.config.set(site.name, value.value)
+//   },
+//   { deep: true }
+// )
 
 function reload() {
   window.location.reload()

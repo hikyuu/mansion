@@ -4,7 +4,6 @@ import Waterfall from '@/waterfall/waterfall'
 import type { Info } from '@/store/sister-store'
 import jquery from 'jquery'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
-import { useConfigStore } from '@/store/config-store'
 import { FORMAT, WaterfallStatus } from '@/dictionary'
 import { ElNotification } from 'element-plus'
 import { haveArchived, upsertArchive } from '@/dao/archive'
@@ -13,6 +12,7 @@ import dayjs from 'dayjs'
 import { useSisterStore } from '@/store/sister-store'
 import { useTaskStore } from '@/store/task-store.ts'
 import { download } from '@/download'
+import { useConfigStore } from '@/store/config-store.ts'
 
 export const JAVDB_NAME = 'javdb'
 
@@ -54,7 +54,7 @@ export class Javdb extends SiteAbstract {
   }
 
   private addStyle() {
-    if (!useConfigStore().currentConfig.loadThumbnailSwitch) {
+    if (!useConfigStore().getSiteConfig.loadThumbnailSwitch) {
       return
     }
     GM_addStyle(`.movie-list{display: flex;flex-direction: column;} .max{width:100%} .min{width:100%} 

@@ -1,98 +1,35 @@
 import { defineStore } from 'pinia'
 import { GM_getValue, GM_setValue } from 'vite-plugin-monkey/dist/client'
+import { useSiteStore } from '@/store/site-store.ts'
+import { LIKE } from '@/store/like.ts'
+import { UNLIKE } from '@/store/unlike.ts'
+
 // 你可以任意命名 `defineStore()` 的返回值，但最好使用 store 的名字，同时以 `use` 开头且以 `Store` 结尾。
 // (比如 `useUserStore`，`useCartStore`，`useProductStore`)
 // 第一个参数是你的应用中 Store 的唯一 ID。
-export const useConfigStore = defineStore('config', {
-  state: (): State => {
-    return {
-      waterfall: new Map(),
-      currentConfig: getDefaultWaterfall()
-    }
-  },
-  getters: {},
-  actions: {
-    updateSessionId(site: string, id: string) {
-      this.currentConfig.sessionId.push({ site, id })
-    },
 
-    loadLocalConfig(name: string) {
-      const state = GM_getValue('config', this.$state as LocalState)
-      console.log('读取配置文件', name, state)
-      state.waterfall = new Map()
-      const defaultWaterfall = getDefaultWaterfall()
-      if (!state.waterfallJsonObject) {
-        state.waterfall.set(name, defaultWaterfall)
-      } else {
-        state.waterfall = new Map(Object.entries(state.waterfallJsonObject))
-      }
-      if (!state.waterfall.has(name)) {
-        state.waterfall.set(name, defaultWaterfall)
-      }
-      const config = state.waterfall.get(name)
-      state.currentConfig = config ? config : defaultWaterfall
-      for (const key in defaultWaterfall) {
-        if (!(key in state.currentConfig)) {
-          state.currentConfig[key] = defaultWaterfall[key]
-        }
-      }
-      state.currentConfig.keyword.like = [
-        '初体験',
-        '涼森れむ',
-        '宮下玲奈',
-        '素人',
-        '清楚系',
-        '小悪魔',
-        '美少女',
-        '同棲',
-        '美人',
-        '未亡人',
-        '逆NTR',
-        'ASMR',
-        '童貞'
-      ]
-      state.currentConfig.keyword.unlike = [
-        '開発',
-        '覚醒',
-        'NTR',
-        '嫌',
-        '屈服',
-        '義父',
-        '解禁',
-        '拷問',
-        '性欲処理',
-        '捜査官',
-        '肉便器',
-        '妻',
-        '病院',
-        '叔母',
-        '息子',
-        '妊娠',
-        '義母',
-        '軽蔑',
-        '緊縛',
-        '輪姦',
-        '輪',
-        'SM',
-        '性玩',
-        '変態'
-      ]
-      this.$patch(state)
-      console.log('当前配置', this.$state)
-    },
-
-    saveLocal() {
-      const localSate = {
-        ...this.$state,
-        waterfallJsonObject: Object.fromEntries(this.waterfall)
-      } as LocalState
-      GM_setValue('config', localSate)
-      console.log('保存配置文件', localSate)
+interface Config {
+  common: {
+    test: string
+    sessionId: Msession[]
+    keyword: {
+      like: string[]
+      unlike: string[]
     }
   }
-})
+  sites: Map<string, SiteConfig>
+}
 
-function getDefaultWaterfall() {
+interface SiteConfig {
+  loadThumbnailSwitch: boolean
+  scrollStatus: number
+  smooth: number
+  downloadMethod: number
+  navigationPoint: number
+  skipRead: boolean
+  lazyLimit: number
+}
+function getDefaultSiteConfig(): SiteConfig {
   return {
     loadThumbnailSwitch: true,
     scrollStatus: 1,
@@ -100,38 +37,95 @@ function getDefaultWaterfall() {
     downloadMethod: 0,
     navigationPoint: 0,
     skipRead: false,
-    keyword: {
-      like: [],
-      unlike: []
-    },
-    sessionId: [],
     lazyLimit: 200
-  } as Waterfall
+  }
 }
+export const useConfigStore = defineStore('config', {
+  state: (): Config => {
+    return {
+      common: {
+        test: 'test',
+        sessionId: [],
+        keyword: {
+          like: [],
+          unlike: []
+        }
+      },
+      sites: new Map<string, SiteConfig>()
+    }
+  },
+  getters: {
+    getSiteConfig(): SiteConfig {
+      const name = useSiteStore().getSite.name
+      if (!this.sites.has(name) || !this.sites.get(name)) {
+        throw new Error('没有找到站点配置')
+      }
+      return this.sites.get(name)!
+    }
+  },
+  actions: {
+    loadConfig() {
+      // GM_deleteValue('mansion-config')
+      const json = GM_getValue('mansion-config')
+      // console.log('加载配置文件', json)
+      const name = useSiteStore().getSite.name
+      const siteConfig = getDefaultSiteConfig()
+      if (json) {
+        const config: Config = JSON.parse(json, reviver)
+        console.log('读取配置文件', config)
+        if (config.sites.has(name)) {
+          const userSiteConfig = config.sites.get(name)!
+          // 合并配置，添加新字段
+          Object.assign(siteConfig, userSiteConfig)
+          config.sites.set(name, siteConfig)
+          config.common.keyword.like = LIKE
+          config.common.keyword.unlike = UNLIKE
+        }
+        this.$patch(config)
+      } else {
+        this.sites.set(name, siteConfig)
+      }
+    },
+    saveConfig() {
+      const config = JSON.stringify(this.$state, replacer)
+      GM_setValue('mansion-config', config)
+      console.log('保存配置文件', config)
+    },
+    updateSessionId(site: string, id: string) {
+      this.common.sessionId.push({ site, id })
+    }
+  }
+})
 interface Msession {
   site: string
   id: string
 }
-interface State {
-  waterfall: Map<string, Waterfall>
-  currentConfig: Waterfall
-}
-interface LocalState extends State {
-  waterfallJsonObject: object
+function replacer(key: string, value: unknown): unknown {
+  // console.log('Processing key:', key, 'value type:', typeof value, 'value:', value)
+
+  // 如果当前的值是一个 Map，则将其转换为普通对象
+  // console.log('Raw value:', rawValue, 'is Map:', rawValue instanceof Map)
+  if (value instanceof Map) {
+    const entries = Object.fromEntries(value)
+    return { dataType: 'Map', value: entries } as MapValue // 添加标识属性
+    // 否则返回原值
+  }
+  return value
 }
 
-export interface Waterfall {
-  loadThumbnailSwitch: boolean
-  scrollStatus: number
-  smooth: number
-  downloadMethod: number
-  navigationPoint: number
-  skipRead: boolean
-  sessionId: Msession[]
-  keyword: {
-    like: string[]
-    unlike: string[]
+function reviver(key: string, value: unknown): unknown {
+  // 检查当前值是否为一个对象，并且包含我们约定的标识属性
+  // 如果该对象的 dataType 标识为 'Map'，则将其 value 属性（键值对数组）转换为 Map
+  if (value !== null && typeof value === 'object' && 'dataType' in value && value.dataType === 'Map') {
+    return new Map(Object.entries((value as MapValue).value))
+    // 可以在此处扩展，用于识别和恢复其他特殊类型，如 Set, Date 等
+    // else if (value.dataType === 'Set') { ... }
+    // 如果不是我们约定的特殊标记对象，则直接返回值
   }
-  lazyLimit: number
-  [key: string]: any
+  return value
+}
+
+interface MapValue {
+  dataType: string
+  value: object
 }

@@ -2,10 +2,10 @@ import { SiteAbstract } from '@/site/site-abstract'
 import jquery from 'jquery'
 import { Pagination } from './pagination'
 import { ElNotification } from 'element-plus'
-import { useConfigStore } from '@/store/config-store'
 import { WaterfallStatus } from '@/dictionary'
 import { reactive } from 'vue'
 import { useSisterStore } from '@/store/sister-store'
+import { useConfigStore } from '@/store/config-store.ts'
 
 const allReadPageLimit = 5
 
@@ -16,7 +16,6 @@ export default class {
   private selector: Selector
   private readonly anchor: HTMLElement | null = null
   private site: SiteAbstract
-  private configStore = useConfigStore()
   private allReadedPage: number = 0
 
   constructor(site: SiteAbstract, selector: Selector) {
@@ -38,7 +37,7 @@ export default class {
     this.setSisterNumber()
 
     if (waterfallScrollStatus == null) {
-      waterfallScrollStatus = this.configStore.currentConfig.scrollStatus
+      waterfallScrollStatus = useConfigStore().getSiteConfig.scrollStatus
     }
 
     switch (waterfallScrollStatus) {
@@ -148,7 +147,7 @@ export default class {
       await this.appendNextLocal()
       if (!oneStep) {
         const sisterNumber = useSisterStore().sisterNumber
-        const lazyLimit = useConfigStore().currentConfig.lazyLimit
+        const lazyLimit = useConfigStore().getSiteConfig.lazyLimit
         if (sisterNumber - useSisterStore().haveReadNumber > lazyLimit) {
           return
         }
@@ -225,7 +224,7 @@ export default class {
   }
 
   private async loadThumbnail(detail: JQuery) {
-    if (this.configStore.currentConfig.loadThumbnailSwitch) {
+    if (useConfigStore().getSiteConfig.loadThumbnailSwitch) {
       return await this.site.resolveElements(detail)
     }
     return []
