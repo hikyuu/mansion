@@ -74,13 +74,13 @@ export const useConfigStore = defineStore('config', {
         const config: Config = JSON.parse(json, reviver)
         console.log('读取配置文件', config)
         if (config.sites.has(name)) {
-          const userSiteConfig = config.sites.get(name)!
+          const userSiteConfig = config.sites.get(name)
           // 合并配置，添加新字段
           Object.assign(siteConfig, userSiteConfig)
-          config.sites.set(name, siteConfig)
-          config.common.keyword.like = LIKE
-          config.common.keyword.unlike = UNLIKE
         }
+        config.sites.set(name, siteConfig)
+        config.common.keyword.like = LIKE
+        config.common.keyword.unlike = UNLIKE
         this.$patch(config)
       } else {
         this.sites.set(name, siteConfig)
