@@ -1,5 +1,6 @@
 import { GM_xmlhttpRequest, type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
 import jquery from 'jquery'
+import { capitalize } from 'vue'
 
 export function getAvCode(serialNumber: string): string {
   // 带-的番号不处理，除了-0 如：DSVR-01167
@@ -210,7 +211,8 @@ function alphaNumber(originalId: string) {
   const numberArray = Array.from(cuttingNumber)
   // console.dir(numberArray)
   if (numberArray.length === 0) return originalId
-  return numberArray[0]![1] + '-' + numberArray[0]![2]
+  const alphaNumber = numberArray[0]![1] + '-' + numberArray[0]![2]
+  return capitalize(alphaNumber.toLowerCase())
 }
 
 function fc2_ppv(originalId: string) {
