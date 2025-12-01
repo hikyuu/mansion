@@ -2,12 +2,22 @@
 import { fetchRecentDaily, getDailyByPathDate, recentHistories } from '@/dao/onejav-daily-dao'
 import MImgItem from '@/components/m-img-item.vue'
 import { Calendar } from '@element-plus/icons-vue'
-import { defineProps, ref, toRefs, watch } from 'vue'
+import { defineProps, ref, toRefs, watch, computed } from 'vue'
 import { Onejav } from '@/site/onejav/onejav'
 import dayjs from 'dayjs'
 import { FORMAT } from '@/dictionary'
 import { type CalendarDateType, type CalendarInstance, ElNotification } from 'element-plus'
 import { dailyNumberRef } from '@/dao/browse-history'
+import updateLocale from 'dayjs/plugin/updateLocale'
+import 'dayjs/locale/zh-cn' // 引入中文语言包
+
+dayjs.extend(updateLocale)
+// 应用中文本地化配置，并明确设置一周从周一开始
+dayjs.locale('zh-cn')
+// 可选的强化配置，确保万无一失
+dayjs.updateLocale('zh-cn', {
+  weekStart: 0 // 设置一周的第一天为周日（0），如果需要周一则设置为1
+})
 
 const props = defineProps({
   onejav: {
@@ -41,6 +51,26 @@ const getCurrentDate = () => {
   return date.toDate()
 }
 const calendarDate = ref(getCurrentDate())
+
+// 计算日历显示范围，将当前日期固定在中间
+const calendarRange = computed(() => {
+  const currentDate = dayjs(calendarDate.value)
+  const endDate = currentDate.endOf('week')
+  const firstDayOfMonth = endDate.subtract(1, 'month').startOf('month')
+
+  // 2. 获取第一天是星期几 (Day.js 中周日为0，周六为6)
+  const firstDayOfWeek = firstDayOfMonth.day() // [3,8](@ref)
+
+  // 3. 计算到第一个周日需要增加的天数
+  // 如果第一天是周日(0)，则增加0天；否则，需要补足到下一个周日
+  const daysToAdd = firstDayOfWeek === 0 ? 0 : 7 - firstDayOfWeek // [3](@ref)
+
+  // 4. 得到第一个周日的日期
+  const startDate = firstDayOfMonth.add(daysToAdd, 'day') // [1,5](@ref)
+
+  return [startDate.toDate(), endDate.toDate()]
+})
+
 const selectDate = (val: CalendarDateType) => {
   if (!calendar.value) return
   calendar.value.selectDate(val)
@@ -121,7 +151,7 @@ function solveLink(date: Date) {
       <template #default>
         <el-card>
           <el-date-picker v-model="calendarDate" type="date" placeholder="选择日期" size="large" />
-          <el-calendar ref="calendar" v-model="calendarDate">
+          <el-calendar ref="calendar" v-model="calendarDate" :range="calendarRange">
             <template #header="{ date }">
               <span> <el-button size="small" @click="selectCurrent"> 当前 </el-button> </span>
               <span>{{ date }}</span>

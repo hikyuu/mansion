@@ -10,7 +10,7 @@ import { UNLIKE } from '@/store/unlike.ts'
 
 interface Config {
   common: {
-    sessionId: Msession[]
+    sessionId: MsSession[]
     keyword: {
       like: string[]
       unlike: string[]
@@ -94,7 +94,7 @@ export const useConfigStore = defineStore('config', {
     }
   }
 })
-interface Msession {
+interface MsSession {
   site: string
   id: string
 }
