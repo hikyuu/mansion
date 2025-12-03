@@ -19,13 +19,13 @@ export async function downloadFromJavDB(serialNumber: string): Promise<boolean> 
   if (isFC2(serialNumber)) {
     return Promise.resolve(false)
   }
-  const sortId = getSortId(serialNumber, 1)
+  const sortId = getSortId(serialNumber, 0)
   console.log('sortId:', sortId)
   if (sortId === undefined) {
     ElNotification({ title: 'javdb', message: '番号解析失败', type: 'error' })
     return Promise.resolve(false)
   }
-  return highScoreMagnet(sortId)
+  return highScoreMagnet(serialNumber)
     .then((r) => {
       if (r) {
         const magnet = r.attr('href')

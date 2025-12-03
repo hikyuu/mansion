@@ -274,7 +274,7 @@ function alphaNumber(originalId: string, type: number): string {
   if (!alpha) throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'alphaNumber番号格式错误' + originalId })
   switch (type) {
     case 0:
-      return originalId
+      return alpha + '-' + cuttingNumber[2]
     case 1:
       return AaBb(alpha) + '-' + cuttingNumber[2]
     case 2:
@@ -293,13 +293,17 @@ export function isFC2(serialNumber: string): boolean {
 const NUMBERBEGINREG = /(^\d+)([a-z].*[a-z])(\d+)/i
 function numberBegin(originalId: string, type: number): string {
   const cuttingNumber = originalId.match(NUMBERBEGINREG)
-  if (!cuttingNumber)
+  if (!cuttingNumber || cuttingNumber.length === 0) {
     throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'numberBegin番号格式错误' + originalId })
+  }
   const alpha = cuttingNumber[2]
-  if (!alpha) throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'numberBegin番号格式错误' + originalId })
+
+  if (!alpha) {
+    throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'numberBegin番号格式错误' + originalId })
+  }
   switch (type) {
     case 0:
-      return originalId
+      return cuttingNumber[1] + alpha + '-' + cuttingNumber[3]
     case 1:
       return cuttingNumber[1] + AaBb(alpha) + '-' + cuttingNumber[3]
     case 2:
@@ -364,9 +368,7 @@ function getSeriesFactory(originalId: string) {
     return SeriesFactory.ALPHANUMBER
   }
   if (ALPHANUMBERREG.test(originalId)) {
-    console.log('ALPHANUMBERREG', originalId)
   }
-  console.log(ALPHANUMBERREG.test(originalId), originalId)
   throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: '番号格式未找到' + originalId })
 }
 
@@ -378,9 +380,9 @@ enum SeriesFactory {
 }
 
 export function sortId(originalId: string): string {
-  let sortId = alphaNumber(originalId, 0)
+  let sortId = numberBegin(originalId, 0)
   if (sortId !== originalId) return sortId
-  sortId = numberBegin(originalId, 0)
+  sortId = alphaNumber(originalId, 0)
   if (sortId !== originalId) return sortId
   return originalId
 }

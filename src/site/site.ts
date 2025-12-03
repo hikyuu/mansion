@@ -1,6 +1,7 @@
 import { Javdb } from '@/site/javdb/javdb'
 import type { SiteAbstract } from '@/site/site-abstract'
 import { Onejav } from '@/site/onejav/onejav'
+import { Javstore } from '@/site/javstore/javstore.ts'
 
 export function getSite(): SiteAbstract | undefined {
   if (/(onejav)/g.test(location.href)) {
@@ -8,6 +9,9 @@ export function getSite(): SiteAbstract | undefined {
   }
   if (/(javdb)/g.test(location.href)) {
     return new Javdb()
+  }
+  if (/(javstore)/g.test(location.href)) {
+    return new Javstore()
   }
   return undefined
 }

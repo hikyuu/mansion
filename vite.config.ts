@@ -61,7 +61,7 @@ export default defineConfig({
         description: { zh: '别墅' },
         icon: 'https://github.com/hikyuu/gallery/raw/main/picx/mansion.svg',
         namespace: 'npm/mansion',
-        match: ['*://*onejav.com/*', '*://*javdb.com/*'],
+        match: ['*://*onejav.com/*', '*://*javdb.com/*', '*://*javstore.net/*'],
         connect: ['javstore.net', 'pixhost.to', 'javdb.com', 'onejav.com', '*'],
         author: 'gaki',
         homepage: 'https://github.com/hikyuu/mansion',

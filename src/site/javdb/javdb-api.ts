@@ -164,17 +164,6 @@ export async function detailUrl(serialNumber: string) {
     return url
   })
 }
-
-export async function magnet(serialNumber: string): Promise<string | undefined> {
-  const sortedId = sortId(serialNumber)
-  return highScoreMagnet(sortedId).then((doc) => {
-    if (doc) {
-      return doc.find('a').prop('href')
-    }
-    return undefined
-  })
-}
-
 function getCookies(): Promise<GmCallbackCookie[]> {
   return new Promise((resolve, reject) => {
     GM_cookie.list({ domain: 'javdb.com' }, (cookies) => {
