@@ -6,7 +6,7 @@ import { getDetailFromJavStore } from '@/site/site'
 import type { Ref } from 'vue'
 import { KEY, picx } from '@/dictionary'
 import $ from 'jquery'
-import { getJavstoreUrl, getThumbnailElement, getSortId, THUMBNAIL_ID } from '@/common/common'
+import { getJavstoreUrl, getSortId, getThumbnailElement, THUMBNAIL_ID } from '@/common/common'
 import { getHistories, type HistoryDto, uploadHistory } from '@/dao/browse-history'
 import { getThumbnailUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
 import { ProjectError } from '@/common/errors'
@@ -155,7 +155,7 @@ export abstract class SiteAbstract implements SiteInterface {
     }
   }
 
-  private buildInfo(item: JQuery, serialNumber: any) {
+  private buildInfo(item: JQuery, serialNumber: string) {
     item.attr('id', serialNumber)
     const sisters = $(this.selector.container).find(`#${serialNumber}`)
     if (sisters.length > 1) {
@@ -254,19 +254,22 @@ export abstract class SiteAbstract implements SiteInterface {
   }
 
   private handleSortId(serialNumber: string, type: number, el_link: JQuery, item: JQuery, thumbnail: JQuery) {
-    const sortId = getSortId(serialNumber, type)
-    console.log('sortId:', sortId)
-    if (sortId === undefined) {
+    try {
+      return getSortId(serialNumber, type)
+    } catch (error) {
       this.addLink('没找到', el_link, serialNumber, item)
       const failedUrl = [picx('/failed.svg')]
       this.updateThumbnail(serialNumber, thumbnail, failedUrl)
       useSisterStore().updateInfo({ serialNumber, src: failedUrl, status: 500 })
+      if (error instanceof ProjectError) {
+        throw error
+      }
       throw new ProjectError({
         name: 'GET_PROJECT_ERROR',
-        message: 'sortId is undefined'
+        message: 'getSortId 出错',
+        cause: error
       })
     }
-    return sortId
   }
 
   private creatThumbnail(serialNumber: string, item: JQuery) {
@@ -404,7 +407,8 @@ export abstract class SiteAbstract implements SiteInterface {
       .find(this.selector.serialNumber)
       .first()
       .text()
-      .replace(/[-_]/g, '')
+      .replace(/-/g, '')
+      .replace(/_/g, '')
       .replace(/[\r\n]/g, '') //去掉空格//去掉回车换行
       .replace(/ /g, '')
   }

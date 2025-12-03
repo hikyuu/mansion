@@ -3,9 +3,9 @@ type ErrorName = 'GET_PROJECT_ERROR' | 'CREATE_PROJECT_ERROR' | 'PROJECT_LIMIT_R
 export class ProjectError extends Error {
   name: ErrorName
   message: string
-  cause: any
+  cause: unknown
 
-  constructor({ name, message, cause }: { name: ErrorName; message: string; cause?: any }) {
+  constructor({ name, message, cause }: { name: ErrorName; message: string; cause?: unknown }) {
     super()
     this.name = name
     this.message = message

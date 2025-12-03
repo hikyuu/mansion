@@ -1,6 +1,6 @@
 import { GM_xmlhttpRequest, type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
 import jquery from 'jquery'
-import { capitalize } from 'vue'
+import { ProjectError } from '@/common/errors.ts'
 
 export function getAvCode(serialNumber: string): string {
   // 带-的番号不处理，除了-0 如：DSVR-01167
@@ -206,70 +206,181 @@ export function parseText(text: string): Document {
   }
 }
 
-function alphaNumber(originalId: string) {
-  const cuttingNumber = originalId.matchAll(/(^[a-z].*[a-z])(\d+)/gi)
-  const numberArray = Array.from(cuttingNumber)
-  // console.dir(numberArray)
-  if (numberArray.length === 0) return originalId
-  const alphaNumber = numberArray[0]![1] + '-' + numberArray[0]![2]
-  return capitalize(alphaNumber.toLowerCase())
+export function getSortId(originalId: string, type: number): string {
+  const factory = getSeriesFactory(originalId)
+  switch (factory) {
+    case SeriesFactory.FC2PPV: {
+      return fc2_ppv(originalId, type)
+    }
+    case SeriesFactory.ALLDIGIT: {
+      return allDigit(originalId, type)
+    }
+    case SeriesFactory.NUMBERBEGIN: {
+      return numberBegin(originalId, type)
+    }
+    case SeriesFactory.ALPHANUMBER: {
+      return alphaNumber(originalId, type)
+    }
+    default:
+      throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: '番号所有格式未找到' + originalId })
+  }
 }
 
-function fc2_ppv(originalId: string) {
-  const cuttingNumber = originalId.matchAll(/(heyzo|FC2PPV)(\d+)/gi)
-  const numberArray = Array.from(cuttingNumber)
-  // console.log('numberArray', numberArray)
-  if (numberArray.length > 0) {
-    const reg = /(FC2PPV)(\d+)/gi
-    if (reg.test(originalId)) {
-      return 'FC2-PPV-' + numberArray[0]![2]
-    }
-    return numberArray[0]![1] + '-' + numberArray[0]![2]
+function allDigit(originalId: string, type: number): string {
+  const matchResult = originalId.match(/^(\d{6})(\d*)$/)
+  if (!matchResult) {
+    throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'allDigit番号格式错误' + originalId })
   }
-  return originalId
+  const firstSix = matchResult[1] // 前六个数字
+  const theRest = matchResult[2] // 剩余的数字
+  switch (type) {
+    case 0:
+      return firstSix + '-' + theRest
+    case 1:
+      return firstSix + '_' + theRest
+    case 2:
+      return originalId
+    default:
+      throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'allDigit番号所有格式未找到' + originalId })
+  }
+}
+
+const FC2REG = /(FC2PPV)(\d+)/i
+function fc2_ppv(originalId: string, type: number): string {
+  const cuttingNumber = originalId.match(FC2REG)
+  if (!cuttingNumber) throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'FC2番号格式错误' + originalId })
+  // console.log('cuttingNumber:', cuttingNumber)
+  switch (type) {
+    case 0:
+      return 'Fc2-PpV-' + cuttingNumber[2]
+    case 1:
+      return 'fC2-pPv-' + cuttingNumber[2]
+    case 2:
+      const fc2 = cuttingNumber[1] + '-' + cuttingNumber[2]
+      console.log('fc2:', fc2)
+      return fc2
+    default:
+      throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'FC2番号所有格式未找到' + originalId })
+  }
+}
+
+const ALPHANUMBERREG = /(^[a-z].*[a-z])(\d+)/i
+function alphaNumber(originalId: string, type: number): string {
+  const cuttingNumber = originalId.match(ALPHANUMBERREG)
+  // console.dir(numberArray)
+  if (!cuttingNumber)
+    throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'alphaNumber番号格式错误' + originalId })
+  const alpha = cuttingNumber[1]
+  if (!alpha) throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'alphaNumber番号格式错误' + originalId })
+  switch (type) {
+    case 0:
+      return originalId
+    case 1:
+      return AaBb(alpha) + '-' + cuttingNumber[2]
+    case 2:
+      return aAbB(alpha) + '-' + cuttingNumber[2]
+    default:
+      throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'alphaNumber番号所有格式未找到' + originalId })
+  }
 }
 
 export function isFC2(serialNumber: string): boolean {
-  const cuttingNumber = serialNumber.matchAll(/(FC2)(\S*)(ppv)/gi)
-  const numberArray = Array.from(cuttingNumber)
-  console.log('isFC2', serialNumber, numberArray)
-  return numberArray.length > 0
+  const cuttingNumber = serialNumber.match(/(FC2)(\S*)(ppv)/i)
+
+  return cuttingNumber !== null && cuttingNumber.length > 0
 }
 
-function numberBegin(originalId: string) {
-  const cuttingNumber = originalId.matchAll(/(^\d+)([a-z].*[a-z])(\d+)/gi)
-  const numberArray = Array.from(cuttingNumber)
-  console.log('numberArray', numberArray)
-  if (numberArray.length === 0) return originalId
-
-  return numberArray[0]![2] + '-' + numberArray[0]![3]
-}
-
-export function getSortId(originalId: string, type: number): string | undefined {
+const NUMBERBEGINREG = /(^\d+)([a-z].*[a-z])(\d+)/i
+function numberBegin(originalId: string, type: number): string {
+  const cuttingNumber = originalId.match(NUMBERBEGINREG)
+  if (!cuttingNumber)
+    throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'numberBegin番号格式错误' + originalId })
+  const alpha = cuttingNumber[2]
+  if (!alpha) throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'numberBegin番号格式错误' + originalId })
   switch (type) {
-    case 0: {
-      return fc2_ppv(originalId)
-    }
-    case 1: {
-      return alphaNumber(originalId)
-    }
-    case 2: {
-      // 123ssis123
-      return numberBegin(originalId)
-    }
+    case 0:
+      return originalId
+    case 1:
+      return cuttingNumber[1] + AaBb(alpha) + '-' + cuttingNumber[3]
+    case 2:
+      return cuttingNumber[1] + aAbB(alpha) + '-' + cuttingNumber[3]
+    case 3:
+      return AaBb(alpha) + '-' + cuttingNumber[3]
+    case 4:
+      return aAbB(alpha) + '-' + cuttingNumber[3]
     default:
-      return undefined
+      throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'numberBegin番号所有格式未找到' + originalId })
   }
 }
 
-export function sortId(originalId: string): string {
-  let sortId = alphaNumber(originalId)
-  if (sortId !== originalId) return sortId
-  sortId = numberBegin(originalId)
-  if (sortId !== originalId) return sortId
-  return originalId
+function AaBb(str: string) {
+  let result = ''
+  for (let i = 0; i < str.length; i++) {
+    const s = str[i]
+    if (!s) {
+      continue
+    }
+    if (i % 2 === 0) {
+      result += s.toUpperCase()
+    } else {
+      result += s.toLowerCase()
+    }
+  }
+  return result
 }
 
-export function getId() {
-  return Math.random().toString(36).substring(3)
+function aAbB(str: string) {
+  let result = ''
+  for (let i = 0; i < str.length; i++) {
+    const s = str[i]
+    if (!s) {
+      continue
+    }
+    if (i % 2 === 0) {
+      result += s.toLowerCase()
+    } else {
+      result += s.toUpperCase()
+    }
+  }
+  return result
+}
+
+const ALLDIGITREG = /^\d+$/
+
+function getSeriesFactory(originalId: string) {
+  if (FC2REG.test(originalId)) {
+    return SeriesFactory.FC2PPV
+  }
+
+  if (ALLDIGITREG.test(originalId)) {
+    return SeriesFactory.ALLDIGIT
+  }
+
+  if (NUMBERBEGINREG.test(originalId)) {
+    return SeriesFactory.NUMBERBEGIN
+  }
+
+  if (ALPHANUMBERREG.test(originalId)) {
+    return SeriesFactory.ALPHANUMBER
+  }
+  if (ALPHANUMBERREG.test(originalId)) {
+    console.log('ALPHANUMBERREG', originalId)
+  }
+  console.log(ALPHANUMBERREG.test(originalId), originalId)
+  throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: '番号格式未找到' + originalId })
+}
+
+enum SeriesFactory {
+  FC2PPV,
+  ALPHANUMBER,
+  NUMBERBEGIN,
+  ALLDIGIT
+}
+
+export function sortId(originalId: string): string {
+  let sortId = alphaNumber(originalId, 0)
+  if (sortId !== originalId) return sortId
+  sortId = numberBegin(originalId, 0)
+  if (sortId !== originalId) return sortId
+  return originalId
 }
