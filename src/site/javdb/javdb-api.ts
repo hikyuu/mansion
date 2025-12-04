@@ -2,7 +2,7 @@ import { JAVDB_NAME, javdb_selector } from '@/site/javdb/javdb'
 import { request, sortId } from '@/common/common'
 import { createSession, getFromFlareSolverr, type GmCallbackCookie } from '@/common/flare-solverr.ts'
 import { GM_cookie, type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
-import $ from 'jquery'
+import jquery from 'jquery'
 import { useConfigStore } from '@/store/config-store.ts'
 
 const baseUrl = 'https://javdb.com'
@@ -30,7 +30,7 @@ async function searchHtml(serialNumber: string, retry: number = 3) {
   if (bypassSuccess) {
     console.log('请求搜索页（已绕过Cloudflare）', fullUrl)
     const response = await flareGet(fullUrl)
-    const flareDoc = $(response)
+    const flareDoc = jquery(response)
     // 使用类型守卫过滤出 HTMLElement
     return handleSearch(flareDoc)
   }
@@ -99,13 +99,13 @@ async function magnetHtml(detailUrl: string, retry: number = 2): Promise<Highest
   if (bypassSuccess) {
     console.log('请求详情页(绕过Cloudflare）', fullUrl)
     const response = await flareGet(fullUrl)
-    const flareDoc = $(response)
+    const flareDoc = jquery(response)
     // 使用类型守卫过滤出 HTMLElement
     return handleMagnet(flareDoc)
   }
   console.log('请求详情页', fullUrl)
   const res: GmResponseEvent<'document'> = await request(fullUrl, 'https://javdb.com/', -1)
-  const doc = $(res.responseText)
+  const doc = jquery(res.responseText)
   if (res.status !== 200 || doc.text().includes('Just a moment...')) {
     console.log('被Cloudflare拦截')
     if (!bypassSuccess) {

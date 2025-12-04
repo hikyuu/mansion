@@ -5,7 +5,7 @@ import type { Theme } from '@/site/site'
 import { getDetailFromJavStore } from '@/site/site'
 import type { Ref } from 'vue'
 import { KEY, picx } from '@/dictionary'
-import $ from 'jquery'
+import jquery from 'jquery'
 import { getJavstoreUrl, getSortId, getThumbnailElement, THUMBNAIL_ID } from '@/common/common'
 import { getHistories, type HistoryDto, uploadHistory } from '@/dao/browse-history'
 import { getThumbnailUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
@@ -42,6 +42,8 @@ export abstract class SiteAbstract implements SiteInterface {
   abstract allLoadCompleted(): void
 
   abstract checkSite(): boolean
+
+  abstract updateInfo(item: JQuery, info: Info): void
 
   infoLoadCompleted(serialNumber: string) {
     useSisterStore().updateInfo({ serialNumber, loadCompleted: true })
@@ -110,7 +112,7 @@ export abstract class SiteAbstract implements SiteInterface {
   }
 
   scrollToCurrent(x: Ref<number>, y: Ref<number>): void {
-    let prev = $('#' + useSisterStore().current_key)
+    let prev = jquery('#' + useSisterStore().current_key)
     switch (useConfigStore().getSiteConfig.navigationPoint) {
       case 1:
         prev = prev.find(`#${THUMBNAIL_ID}`)
@@ -145,19 +147,19 @@ export abstract class SiteAbstract implements SiteInterface {
 
   onScrollEvent(windowHeight: number, scrollTop: number) {
     // console.log('===触发判断当前窗口元素===');
-    const details = $(this.selector.container).find(this.selector.item)
+    const details = jquery(this.selector.container).find(this.selector.item)
     if (details.length === 0) {
       console.error('滚动事件：没有找到妹妹')
       return
     }
     for (const detail of details) {
-      this.getCurrentWindowElement($(detail), scrollTop)
+      this.getCurrentWindowElement(jquery(detail), scrollTop)
     }
   }
 
   private buildInfo(item: JQuery, serialNumber: string) {
     item.attr('id', serialNumber)
-    const sisters = $(this.selector.container).find(`#${serialNumber}`)
+    const sisters = jquery(this.selector.container).find(`#${serialNumber}`)
     if (sisters.length > 1) {
       sisters.last().remove()
       throw new ProjectError({
@@ -214,30 +216,17 @@ export abstract class SiteAbstract implements SiteInterface {
     await this.updateImgUrl(javstoreDetail, serialNumber, thumbnail, el_link, item, javstoreUrl)
   }
 
-  DeleteReadedNode(item: JQuery, info: Info) {
-    if (useConfigStore().getSiteConfig.skipRead && info.haveRead) {
-      item.remove()
-      console.log('删除已读', info.serialNumber)
-      this.waterfall.setSisterNumber()
-      useSisterStore().deleteInfo(info.serialNumber)
-      throw new ProjectError({
-        name: 'GET_PROJECT_ERROR',
-        message: '删除已读'
-      })
-    }
-  }
-
   async filterReaded(elems: JQuery): Promise<JQuery[]> {
     if (!useConfigStore().getSiteConfig.skipRead) {
       const items = new Array<JQuery>()
       elems.each((index, elem) => {
-        items.push($(elem))
+        items.push(jquery(elem))
       })
       return items
     }
     const items = new Map<string, JQuery>()
     elems.each((index, elem) => {
-      const item = $(elem)
+      const item = jquery(elem)
       const serialNumber = this.sortSerialNumber(item)
       items.set(serialNumber, item)
     })
@@ -342,7 +331,6 @@ export abstract class SiteAbstract implements SiteInterface {
     }
     return javstoreUrl
   }
-
   private resolveTitle(javstoreDetail: Document, serialNumber: string) {
     const title = getTitleFromDetail(javstoreDetail)
     if (title) {
@@ -356,9 +344,7 @@ export abstract class SiteAbstract implements SiteInterface {
       useSisterStore().updateInfo({ serialNumber, likeWords, unlikeWords })
     }
   }
-  async sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms))
-  }
+
   private async updateImgUrl(
     javstoreDetail: Document,
     serialNumber: string,
@@ -376,6 +362,9 @@ export abstract class SiteAbstract implements SiteInterface {
     } else {
       useSisterStore().updateInfo({ serialNumber, src: imgUrl, status: 202 })
       this.updateThumbnail(serialNumber, thumbnail, imgUrl)
+      if (useSisterStore().current_key === serialNumber) {
+        this.save(serialNumber)
+      }
     }
   }
 
@@ -401,7 +390,6 @@ export abstract class SiteAbstract implements SiteInterface {
       }
     }
   }
-
   sortSerialNumber(item: JQuery) {
     return item
       .find(this.selector.serialNumber)
@@ -412,6 +400,4 @@ export abstract class SiteAbstract implements SiteInterface {
       .replace(/[\r\n]/g, '') //去掉空格//去掉回车换行
       .replace(/ /g, '')
   }
-
-  abstract updateInfo(item: JQuery, info: Info): void
 }
