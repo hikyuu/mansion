@@ -274,10 +274,8 @@ function alphaNumber(originalId: string, type: number): string {
   if (!alpha) throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'alphaNumber番号格式错误' + originalId })
   switch (type) {
     case 0:
-      return alpha + '-' + cuttingNumber[2]
-    case 1:
       return AaBb(alpha) + '-' + cuttingNumber[2]
-    case 2:
+    case 1:
       return aAbB(alpha) + '-' + cuttingNumber[2]
     default:
       throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'alphaNumber番号所有格式未找到' + originalId })
@@ -303,14 +301,12 @@ function numberBegin(originalId: string, type: number): string {
   }
   switch (type) {
     case 0:
-      return cuttingNumber[1] + alpha + '-' + cuttingNumber[3]
-    case 1:
       return cuttingNumber[1] + AaBb(alpha) + '-' + cuttingNumber[3]
-    case 2:
+    case 1:
       return cuttingNumber[1] + aAbB(alpha) + '-' + cuttingNumber[3]
-    case 3:
+    case 2:
       return AaBb(alpha) + '-' + cuttingNumber[3]
-    case 4:
+    case 3:
       return aAbB(alpha) + '-' + cuttingNumber[3]
     default:
       throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: 'numberBegin番号所有格式未找到' + originalId })
