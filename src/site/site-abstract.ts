@@ -106,7 +106,9 @@ export abstract class SiteAbstract implements SiteInterface {
     $titleInfo.on('click', () => {
       $titleInfo.css('color', 'blue').text(`\u00A0\u00A0${text}重试中`)
       console.log(`重试`)
-      const serialNumber = this.sortSerialNumber(elem)
+      const originalId = this.getOriginalId(elem)
+      if (!originalId) return
+      const serialNumber = this.sortSerialNumber(originalId)
       this.processThumbnail(serialNumber, elem).then()
     })
   }
@@ -157,7 +159,7 @@ export abstract class SiteAbstract implements SiteInterface {
     }
   }
 
-  private buildInfo(item: JQuery, serialNumber: string) {
+  protected buildInfo(item: JQuery, serialNumber: string) {
     item.attr('id', serialNumber)
     const sisters = jquery(this.selector.container).find(`#${serialNumber}`)
     if (sisters.length > 1) {
@@ -227,7 +229,9 @@ export abstract class SiteAbstract implements SiteInterface {
     const items = new Map<string, JQuery>()
     elems.each((index, elem) => {
       const item = jquery(elem)
-      const serialNumber = this.sortSerialNumber(item)
+      const originalId = this.getOriginalId(item)
+      if (!originalId) return
+      const serialNumber = this.sortSerialNumber(originalId)
       items.set(serialNumber, item)
     })
     const keys = Array.from(items.keys())
@@ -242,7 +246,7 @@ export abstract class SiteAbstract implements SiteInterface {
     return Array.from(items.values())
   }
 
-  private handleSortId(serialNumber: string, type: number, el_link: JQuery, item: JQuery, thumbnail: JQuery) {
+  protected handleSortId(serialNumber: string, type: number, el_link: JQuery, item: JQuery, thumbnail: JQuery) {
     try {
       return getSortId(serialNumber, type)
     } catch (error) {
@@ -261,19 +265,19 @@ export abstract class SiteAbstract implements SiteInterface {
     }
   }
 
-  private creatThumbnail(serialNumber: string, item: JQuery) {
+  protected creatThumbnail(serialNumber: string, item: JQuery) {
     const thumbnail = getThumbnailElement(serialNumber, [picx('/load.svg')])
     item.find(`#${THUMBNAIL_ID}`).remove()
     item.append(thumbnail)
     return thumbnail
   }
 
-  private updateThumbnail(serialNumber: string, thumbnail: JQuery, urls: string[]) {
+  protected updateThumbnail(serialNumber: string, thumbnail: JQuery, urls: string[]) {
     const element = getThumbnailElement(serialNumber, urls)
     thumbnail.replaceWith(element)
   }
 
-  private handleLink(item: JQuery, serialNumber: string, type: number, info: Info) {
+  protected handleLink(item: JQuery, serialNumber: string, type: number, info: Info) {
     const el_link = item.find(this.selector.link).first()
 
     this.addLink('搜索中', el_link, serialNumber, item)
@@ -290,7 +294,7 @@ export abstract class SiteAbstract implements SiteInterface {
     return el_link
   }
 
-  private async handleDetail(
+  protected async handleDetail(
     javstoreUrl: string,
     serialNumber: string,
     thumbnail: JQuery,
@@ -331,7 +335,8 @@ export abstract class SiteAbstract implements SiteInterface {
     }
     return javstoreUrl
   }
-  private resolveTitle(javstoreDetail: Document, serialNumber: string) {
+
+  protected resolveTitle(javstoreDetail: Document, serialNumber: string) {
     const title = getTitleFromDetail(javstoreDetail)
     if (title) {
       if (title === '') return
@@ -345,7 +350,7 @@ export abstract class SiteAbstract implements SiteInterface {
     }
   }
 
-  private async updateImgUrl(
+  protected async updateImgUrl(
     javstoreDetail: Document,
     serialNumber: string,
     thumbnail: JQuery,
@@ -368,7 +373,7 @@ export abstract class SiteAbstract implements SiteInterface {
     }
   }
 
-  private async updateRepeat(serialNumber: string, info: Info) {
+  protected async updateRepeat(serialNumber: string, info: Info) {
     const histories = await getHistories([serialNumber])
     const haveRead = histories.length > 0
     useSisterStore().updateInfo({ serialNumber, haveRead })
@@ -385,19 +390,29 @@ export abstract class SiteAbstract implements SiteInterface {
           useSisterStore().updateInfo({ serialNumber, repeatSite: otherSite.site })
         }
       }
-      if (histories.find((item) => item.path_date === info.pathDate && item.site === info.site) === undefined) {
-        uploadHistory(serialNumber, info).then()
+
+      if (info.pathDate !== undefined) {
+        const items = histories.find((item) => item.path_date === info.pathDate && item.site === info.site)
+        if (items === undefined) {
+          uploadHistory(serialNumber, info).then()
+        }
       }
     }
   }
-  sortSerialNumber(item: JQuery) {
-    return item
-      .find(this.selector.serialNumber)
-      .first()
-      .text()
-      .replace(/-/g, '')
-      .replace(/_/g, '')
-      .replace(/[\r\n]/g, '') //去掉空格//去掉回车换行
-      .replace(/ /g, '')
+
+  getOriginalId(item: JQuery): string | undefined {
+    const text = item.find(this.selector.serialNumber).first().text()
+    if (!text || text.trim() === '') {
+      return undefined
+    }
+    return text
+  }
+
+  sortSerialNumber(originalId: string) {
+    return originalId
+      .replace(/-/i, '')
+      .replace(/_/i, '')
+      .replace(/[\r\n]/i, '') //去掉空格//去掉回车换行
+      .replace(/ /i, '')
   }
 }

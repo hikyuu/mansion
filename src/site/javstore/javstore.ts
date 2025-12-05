@@ -4,7 +4,7 @@ import Waterfall from '@/waterfall/waterfall'
 import type { Info } from '@/store/sister-store'
 import jquery from 'jquery'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
-import { FORMAT, WaterfallStatus } from '@/dictionary'
+import { FORMAT, picx, WaterfallStatus } from '@/dictionary'
 import { ElNotification } from 'element-plus'
 import { haveArchived, upsertArchive } from '@/dao/archive'
 import { downloadFromLocal, getDetailHref } from '@/site/javdb/javdb-api'
@@ -13,22 +13,23 @@ import { useSisterStore } from '@/store/sister-store'
 import { useTaskStore } from '@/store/task-store.ts'
 import { download } from '@/download'
 import { useConfigStore } from '@/store/config-store.ts'
+import { ProjectError } from '@/common/errors.ts'
 
-export const JAVDB_NAME = 'javstore'
+export const JAVSTORE_NAME = 'javstore'
 
 export const javstore_selector: Selector = {
-  next: 'a.pagination-next',
-  container: 'div.movie-list.h.cols-4',
-  item: 'div.item',
-  pagination: 'nav.pagination',
-  serialNumber: 'div.video-title strong',
+  next: '.phan_trang a[title="Next"]',
+  container: 'div.category_news.news_1n ul',
+  item: 'li',
+  pagination: 'div.phan_trang',
+  serialNumber: 'h3 span a',
   date: 'div.meta',
   pathDate: 'div.meta',
-  link: 'div.tags.has-addons'
+  link: 'h3'
 }
 
 export class Javstore extends SiteAbstract {
-  public name = JAVDB_NAME
+  public name = JAVSTORE_NAME
   public siteId = 3
   public waterfall: Waterfall
   constructor() {
@@ -50,18 +51,35 @@ export class Javstore extends SiteAbstract {
   }
 
   checkSite(): boolean {
-    return /(javstore)/g.test(document.URL)
+    return /(javstore)/i.test(document.URL)
   }
 
   private addStyle() {
     if (!useConfigStore().getSiteConfig.loadThumbnailSwitch) {
       return
     }
-    jquery('.boxoleft').remove()
-    jquery('.category_news_left_side').remove()
-
-    GM_addStyle(`.movie-list{display: flex;flex-direction: column;} .max{width:100%} .min{width:100%} 
-        .movie-list .item .cover { position: relative; padding-top: 15%; background: white;}`)
+    const currentPath = window.location.pathname
+    const isHomePage = currentPath === '/' || currentPath === '/index.html' // 根据你的实际首页路径调整
+    GM_addStyle(`
+      .mansion_javstore {
+        width: 100%;
+        display: flex;
+        justify-content: center; /* 水平居中 */
+      }
+      .category_news_main_right .news_1n > ul li {
+        width: 100%;
+      }
+    `)
+    if (!isHomePage) {
+      jquery('.boxoleft').remove()
+      jquery('.category_news_left_side').remove()
+      jquery('.all_page_javstore1').removeClass('all_page_javstore1').addClass('mansion_javstore')
+      jquery('.boxoright,.category_news_main_right').css('width', 'auto')
+      jquery('.boxoright').css({
+        width: '1344px',
+        margin: 'auto'
+      })
+    }
     console.log(`样式添加成功`)
   }
 
@@ -80,7 +98,7 @@ export class Javstore extends SiteAbstract {
   }
 
   async resolveElements(elems: JQuery): Promise<JQuery[]> {
-    if (/(javdb)/g.test(location.href) && elems) {
+    if (/(javstore)/i.test(location.href) && elems) {
       const items = await this.filterReaded(elems)
       useTaskStore().addTasks(items)
       return items
@@ -88,16 +106,101 @@ export class Javstore extends SiteAbstract {
     return []
   }
 
+  getOriginalId(item: JQuery): string | undefined {
+    console.log(item.find(this.selector.serialNumber))
+    const text = item.find(this.selector.serialNumber).text()
+    const regex = /([a-z0-9]+)-([a-z0-9-]+)/i
+    const match = text.match(regex)
+    console.log('提取原始ID', text, match)
+    if (!match) {
+      throw new ProjectError({
+        name: 'GET_PROJECT_ERROR',
+        message: `无法从番号中提取原始ID: ${text}`
+      })
+    }
+    return match[1] + '' + match[2]
+  }
+
+  /**
+   * 添加缩略图
+   * @param serialNumber
+   * @param item
+   * @param type
+   * @param onlyInfo
+   */
+  async processThumbnail(serialNumber: string, item: JQuery, type = 0, onlyInfo = false): Promise<void> {
+    const info = this.buildInfo(item, serialNumber)
+
+    await this.updateRepeat(serialNumber, info)
+
+    // this.DeleteReadedNode(item, info)
+
+    const thumbnail = this.creatThumbnail(serialNumber, item)
+
+    const el_link = this.handleLink(item, serialNumber, type, info)
+
+    if (onlyInfo) return
+
+    const javstoreUrl = this.handleJavStoreDetail(serialNumber, thumbnail, item, el_link)
+
+    const javstoreDetail = await this.handleDetail(javstoreUrl, serialNumber, thumbnail, el_link, item)
+
+    this.resolveDate(javstoreDetail, serialNumber)
+
+    this.resolveTitle(javstoreDetail, serialNumber)
+    // 番号缩略大图
+    await this.updateImgUrl(javstoreDetail, serialNumber, thumbnail, el_link, item, javstoreUrl)
+  }
+
+  private resolveDate(javstoreDetail: Document, serialNumber: string) {
+    const dateRegex = /\d{4}[-/]\d{2}[-/]\d{2}/g
+    const text = jquery(javstoreDetail).find('div.news').text()
+    console.log('解析发布日期文本', text)
+    const matches = text.match(dateRegex)
+    if (matches && matches.length > 0) {
+      console.log('解析发布日期结果', matches[0])
+      const date = dayjs(matches[0])
+      if (!date.isValid()) {
+        throw new ProjectError({
+          name: 'GET_PROJECT_ERROR',
+          message: `无法解析发布日期: ${serialNumber} 日期字符串: ${matches[0]}`
+        })
+      }
+      useSisterStore().updateInfo({
+        serialNumber,
+        date: matches[0],
+        pathDate: date.format(FORMAT.PATH_DATE)
+      })
+    }
+  }
+
+  private handleJavStoreDetail(serialNumber: string, thumbnail: JQuery, item: JQuery, el_link: JQuery) {
+    const javstoreUrl = item.find(this.selector.serialNumber).first().attr('href')
+    if (!javstoreUrl) {
+      const failed = [picx('/failed.svg')]
+      useSisterStore().updateInfo({ serialNumber, src: failed, status: 404 })
+      this.updateThumbnail(serialNumber, thumbnail, failed)
+      throw new ProjectError({
+        name: 'GET_PROJECT_ERROR',
+        message: `无法找到JavStore详情页链接: ${serialNumber}`
+      })
+    } else {
+      this.addLink('JavStore', el_link, serialNumber, item, javstoreUrl)
+      useSisterStore().updateInfo({ serialNumber, javStoreUrl: javstoreUrl })
+    }
+    return javstoreUrl
+  }
+
   allLoadCompleted(): void {
     this.hasLoadCompleted = true
   }
 
   updateInfo(item: JQuery, info: Info): void {
-    const parsedDate = dayjs(info.date)
-    if (parsedDate.isValid()) {
-      const pathDate = parsedDate.format(FORMAT.PATH_DATE)
-      useSisterStore().updateInfo({ serialNumber: info.serialNumber, pathDate })
-    }
+    // const parsedDate = dayjs(info.date)
+    // if (parsedDate.isValid()) {
+    //   const pathDate = parsedDate.format(FORMAT.PATH_DATE)
+    //   useSisterStore().updateInfo({ serialNumber: info.serialNumber, pathDate })
+    // }
   }
 
   async download(checkArchive: boolean) {
@@ -141,26 +244,6 @@ export class Javstore extends SiteAbstract {
         this.downloadList.delete(serialNumber)
       })
   }
-
-  // save(serialNumber: string): void {
-  //   const info = this.sister.getInfo(serialNumber)
-  //   if (!info) return
-  //   console.log(info.pathDate)
-  //   if (info.haveRead) {
-  //     console.log('已经记录', serialNumber)
-  //     return
-  //   }
-  //   const pathDate = info.pathDate
-  //   if (pathDate === undefined || pathDate === '') {
-  //     ElNotification({ title: '提示', message: `${serialNumber}日期格式有变动`, type: 'error' })
-  //     return
-  //   }
-  //
-  //   uploadHistory(serialNumber, info).then((history) => {
-  //     console.log('上传成功', history)
-  //     useSisterStore().updateInfo({ serialNumber, haveRead: true, status: 200 })
-  //   })
-  // }
 
   showControlPanel(): boolean {
     return jquery(this.selector.container).length > 0

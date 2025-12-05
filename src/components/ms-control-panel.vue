@@ -203,13 +203,13 @@ function location() {
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Memo />
         </el-icon>
-        <span :style="loadAll">{{ sister.sisterNumber }}</span>
+        <span :style="loadAll" class="number-font">{{ sister.sisterNumber }}</span>
       </div>
       <div class="count-group">
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Location />
         </el-icon>
-        <span style="color: green">{{ location() }}</span>
+        <span class="number-font">{{ location() }}</span>
       </div>
     </m-img-item>
     <m-img-item v-if="useReactStore().wgt1670" style="height: 60px">
@@ -217,13 +217,13 @@ function location() {
         <el-icon :color="site.theme.PRIMARY_COLOR" size="30">
           <Picture />
         </el-icon>
-        <span style="color: green">{{ sister.size }}</span>
+        <span class="number-font">{{ sister.size }}</span>
       </div>
       <div class="count-group" @click="lastUnRead">
         <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" size="30">
           <svg-readed />
         </el-icon>
-        <span style="color: green">{{ sister.haveReadNumber }}</span>
+        <span class="number-font">{{ sister.haveReadNumber }}</span>
       </div>
     </m-img-item>
 
@@ -311,5 +311,9 @@ function location() {
   justify-content: center;
   align-items: center;
   flex-direction: column;
+}
+.number-font {
+  font-size: 16px;
+  color: green;
 }
 </style>

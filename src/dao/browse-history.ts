@@ -138,5 +138,5 @@ export declare interface HistoryDto {
   release_date: string
   original_release_date: string
   watch_time: Date
-  site: number //0 unknown 1 onejav 2 javdb
+  site: number //0 unknown 1 onejav 2 javdb 3 javstore
 }

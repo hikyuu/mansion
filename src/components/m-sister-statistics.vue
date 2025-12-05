@@ -64,7 +64,7 @@ function location() {
           <Memo />
         </el-icon>
         <div style="min-width: 30px">
-          <span :style="loadAll">{{ sister.sisterNumber }}</span>
+          <span :style="loadAll" class="number-font">{{ sister.sisterNumber }}</span>
         </div>
       </div>
       <div class="count-group" :class="{ 'flex-direction-column': props.column }">
@@ -72,7 +72,7 @@ function location() {
           <Location />
         </el-icon>
         <div style="min-width: 30px">
-          <span style="color: green">{{ location() }}</span>
+          <span class="number-font">{{ location() }}</span>
         </div>
       </div>
     </el-row>
@@ -82,7 +82,7 @@ function location() {
           <Picture />
         </el-icon>
         <div style="min-width: 30px">
-          <span style="color: green">{{ sister.size }}</span>
+          <span class="number-font">{{ sister.size }}</span>
         </div>
       </div>
       <div class="count-group" :class="{ 'flex-direction-column': props.column }" @click="lastUnRead">
@@ -90,7 +90,7 @@ function location() {
           <svg-readed />
         </el-icon>
         <div style="min-width: 30px">
-          <span style="color: green">{{ sister.haveReadNumber }}</span>
+          <span class="number-font">{{ sister.haveReadNumber }}</span>
         </div>
       </div>
     </el-row>
@@ -105,5 +105,10 @@ function location() {
 }
 .flex-direction-column {
   flex-direction: column;
+}
+.number-font {
+  font-size: 1rem;
+  font-weight: bold;
+  color: green;
 }
 </style>

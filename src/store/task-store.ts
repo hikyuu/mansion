@@ -29,34 +29,38 @@ export const useTaskStore = defineStore('task', {
         this.run()
       }
     },
-    addTasks(elem: JQuery[]) {
+    addTasks(elems: JQuery[]) {
       console.debug('添加任务')
-      this.waitQueue.push(...elem)
+      this.waitQueue.push(...elems)
       this.run()
     },
-    run() {
+    async run() {
       if (this.workNumber >= this.limit) return
       if (this.waitQueue.length <= 0) return
       if (!this.isActive) return
       console.debug('开始工作')
       this.workNumber++
       const elem = this.waitQueue.shift()
+      let serialNumber: string | undefined = undefined
       if (elem) {
-        const serialNumber = this.site.sortSerialNumber(elem)
-        this.work(serialNumber, elem)
-          .then()
-          .catch((reason) => {
-            if (reason instanceof ProjectError) {
-              console.log('已知异常：', reason.message)
-            } else {
-              console.log('未知异常：', reason)
-            }
-          })
-          .finally(() => {
+        try {
+          const originalId = this.site.getOriginalId(elem) // 预先检查ID是否合法
+          if (!originalId) return
+          serialNumber = this.site.sortSerialNumber(originalId)
+          await this.work(serialNumber, elem)
+        } catch (reason) {
+          if (reason instanceof ProjectError) {
+            console.log('已知异常：', reason.message)
+          } else {
+            console.log('未知异常：', reason)
+          }
+        } finally {
+          if (serialNumber) {
             this.site.infoLoadCompleted(serialNumber)
-            this.workNumber--
-            this.run()
-          })
+          }
+          this.workNumber--
+          this.run()
+        }
       }
     },
     async work(serialNumber: string, elem: JQuery) {

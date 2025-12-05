@@ -13,4 +13,6 @@ export interface SiteInterface {
   save(serialNumber: string): void
 
   loadNext(): void
+
+  getOriginalId(item: JQuery): string | undefined
 }

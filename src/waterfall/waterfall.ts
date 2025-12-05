@@ -189,7 +189,7 @@ export default class {
   }
 
   getDetail(doc: Document): JQuery {
-    const details = jquery(doc).find(this.selector.item)
+    const details = jquery(doc).find(this.selector.container + ' ' + this.selector.item)
     for (const elem of details) {
       const links = elem.getElementsByTagName('a')
       for (let i = 0; i < links.length; i++) {
