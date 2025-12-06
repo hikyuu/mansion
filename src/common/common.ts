@@ -376,9 +376,18 @@ enum SeriesFactory {
 }
 
 export function sortId(originalId: string): string {
-  let sortId = numberBegin(originalId, 0)
-  if (sortId !== originalId) return sortId
-  sortId = alphaNumber(originalId, 0)
-  if (sortId !== originalId) return sortId
-  return originalId
+  const factory = getSeriesFactory(originalId)
+  switch (factory) {
+    case SeriesFactory.ALLDIGIT: {
+      return allDigit(originalId, 1)
+    }
+    case SeriesFactory.NUMBERBEGIN: {
+      return numberBegin(originalId, 0)
+    }
+    case SeriesFactory.ALPHANUMBER: {
+      return alphaNumber(originalId, 0)
+    }
+    default:
+      throw new ProjectError({ name: 'GET_PROJECT_ERROR', message: '番号所有格式未找到' + originalId })
+  }
 }
