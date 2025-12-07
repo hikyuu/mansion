@@ -39,6 +39,7 @@ export function getThumbnailElement(serialNumber: string, targetImgUrl: string[]
     const $img = jquery('<img>', {
       id: `IMG_${i + 1}_${serialNumber}`,
       src: url,
+      referrer: 'https://javstore.net/',
       retry: 0,
       alt: serialNumber,
       style: 'width:100%;'

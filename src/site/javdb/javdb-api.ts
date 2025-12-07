@@ -130,7 +130,7 @@ async function getSessionId() {
 
 declare interface HighestScore {
   score: number
-  magnet: JQuery<HTMLElement>
+  magnet: JQuery
 }
 
 export async function highScoreMagnet(serialNumber: string): Promise<JQuery<HTMLElement> | undefined> {
@@ -142,6 +142,18 @@ export async function highScoreMagnet(serialNumber: string): Promise<JQuery<HTML
       if (highestScore.score === 0) {
         return Promise.reject('没有找到高分磁力链接')
       }
+      return highestScore.magnet
+    })
+  })
+}
+
+export async function downloadFromJavdb(serialNumber: string): Promise<JQuery | undefined> {
+  const sortedId = sortId(serialNumber)
+  console.log('下载 JavDB 磁力链接', sortedId)
+  return searchHtml(sortedId).then(async (item): Promise<JQuery | undefined> => {
+    const url = item.find('a').attr('href')
+    if (!url) throw new Error('没有找到详情链接')
+    return magnetHtml(url).then((highestScore) => {
       return highestScore.magnet
     })
   })

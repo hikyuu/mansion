@@ -32,4 +32,4 @@ export const WaterfallStatus = {
   }
 }
 
-export const sites = ['unknown', 'onejav', 'javdb']
+export const sites = ['unknown', 'onejav', 'javdb', 'javstore']

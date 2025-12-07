@@ -226,24 +226,24 @@ export abstract class SiteAbstract implements SiteInterface {
       })
       return items
     }
-    const items = new Map<string, JQuery>()
+    const itemMap = new Map<string, JQuery>()
     elems.each((index, elem) => {
       const item = jquery(elem)
       const originalId = this.getOriginalId(item)
       if (!originalId) return
       const serialNumber = this.sortSerialNumber(originalId)
-      items.set(serialNumber, item)
+      itemMap.set(serialNumber, item)
     })
-    const keys = Array.from(items.keys())
+    const keys = Array.from(itemMap.keys())
     const historyDtos = await getHistories(keys)
     historyDtos.forEach((item) => {
-      const node = items.get(item.serial_number)
+      const node = itemMap.get(item.serial_number)
       if (node) {
         node.remove()
-        items.delete(item.serial_number)
+        itemMap.delete(item.serial_number)
       }
     })
-    return Array.from(items.values())
+    return Array.from(itemMap.values())
   }
 
   protected handleSortId(serialNumber: string, type: number, el_link: JQuery, item: JQuery, thumbnail: JQuery) {
@@ -413,6 +413,6 @@ export abstract class SiteAbstract implements SiteInterface {
       .replace(/-/i, '')
       .replace(/_/i, '')
       .replace(/[\r\n]/i, '') //去掉空格//去掉回车换行
-      .replace(/ /i, '')
+      .replace(/\s+/g, '')
   }
 }

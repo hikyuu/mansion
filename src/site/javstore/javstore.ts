@@ -7,7 +7,7 @@ import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { FORMAT, picx, WaterfallStatus } from '@/dictionary'
 import { ElNotification } from 'element-plus'
 import { haveArchived, upsertArchive } from '@/dao/archive'
-import { downloadFromLocal, getDetailHref } from '@/site/javdb/javdb-api'
+import { downloadFromJavdb } from '@/site/javdb/javdb-api'
 import dayjs from 'dayjs'
 import { useSisterStore } from '@/store/sister-store'
 import { useTaskStore } from '@/store/task-store.ts'
@@ -19,7 +19,7 @@ export const JAVSTORE_NAME = 'javstore'
 
 export const javstore_selector: Selector = {
   next: '.phan_trang a[title="Next"]',
-  container: 'div.category_news.news_1n ul',
+  container: 'div.category_news.news_1n>ul',
   item: 'li',
   pagination: 'div.phan_trang',
   serialNumber: 'h3 span a',
@@ -109,16 +109,21 @@ export class Javstore extends SiteAbstract {
   getOriginalId(item: JQuery): string | undefined {
     console.log(item.find(this.selector.serialNumber))
     const text = item.find(this.selector.serialNumber).text()
+
+    const fc2reg = /fc2[-_ ]?ppv[-_ ]?([0-9]+)/i
+    const matchFc2 = text.match(fc2reg)
+    if (matchFc2) {
+      return 'FC2PPV' + matchFc2[1]
+    }
+
     const regex = /([a-z0-9]+)-([a-z0-9-]+)/i
     const match = text.match(regex)
-    console.log('提取原始ID', text, match)
-    if (!match) {
-      throw new ProjectError({
-        name: 'GET_PROJECT_ERROR',
-        message: `无法从番号中提取原始ID: ${text}`
-      })
+    // console.log('提取原始ID', text, match)
+    if (match) {
+      return match[1] + '' + match[2]
     }
-    return match[1] + '' + match[2]
+
+    return undefined
   }
 
   /**
@@ -153,9 +158,9 @@ export class Javstore extends SiteAbstract {
   }
 
   private resolveDate(javstoreDetail: Document, serialNumber: string) {
-    const dateRegex = /\d{4}[-/]\d{2}[-/]\d{2}/g
+    const dateRegex = /\d{4}[-/]\d{1,2}[-/]\d{1,2}/i
     const text = jquery(javstoreDetail).find('div.news').text()
-    console.log('解析发布日期文本', text)
+    // console.log('解析发布日期文本', text)
     const matches = text.match(dateRegex)
     if (matches && matches.length > 0) {
       console.log('解析发布日期结果', matches[0])
@@ -215,32 +220,32 @@ export class Javstore extends SiteAbstract {
       return
     }
 
-    const detailHref = getDetailHref(jquery('#' + serialNumber))
-    if (detailHref === undefined) {
-      ElNotification({ title: '提示', message: '没有找到详情页', type: 'info' })
-      return
-    }
     if (this.downloadList.has(serialNumber)) {
       ElNotification({ title: '提示', message: '正在下载中', type: 'info' })
       return
     }
+
     this.downloadList.set(serialNumber, 1)
-    downloadFromLocal(detailHref)
+
+    return downloadFromJavdb(serialNumber)
       .then((r) => {
         if (r) {
           const magnet = r.attr('href')
           if (magnet === undefined) {
             ElNotification({ title: 'javdb', message: '没有找到磁力链接', type: 'error' })
-            return
+            return false
           }
           download(magnet)
+          upsertArchive(serialNumber)
+          return true
         }
+        return false
       })
       .catch((e) => {
         ElNotification.error({ title: 'javdb', message: e })
+        return false
       })
       .finally(() => {
-        upsertArchive(serialNumber)
         this.downloadList.delete(serialNumber)
       })
   }

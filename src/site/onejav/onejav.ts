@@ -53,7 +53,7 @@ export class Onejav extends SiteAbstract {
   selector: Selector = {
     next: 'a.pagination-next.button.is-primary',
     item: 'div.card.mb-3',
-    container: '#waterfall',
+    container: 'body>.container',
     pagination: '.pagination.is-centered',
     serialNumber: 'h5.title.is-4.is-spaced a',
     link: 'h5.title.is-4.is-spaced',
@@ -74,9 +74,9 @@ export class Onejav extends SiteAbstract {
 
     this.homeVisible()
 
-    const $onejav = this.homeContainer()
+    const $items = jquery(this.selector.container).find(this.selector.item)
     // 瀑布流脚本
-    this.enableWaterfall($onejav)
+    this.enableWaterfall($items)
   }
 
   async resolveElements(elems: JQuery): Promise<JQuery[]> {
@@ -113,7 +113,10 @@ export class Onejav extends SiteAbstract {
   // }
 
   checkSite(): boolean {
-    return /(onejav)/g.test(document.URL)
+    if (/(onejav)/g.test(document.URL)) {
+      return true
+    }
+    return false
   }
 
   async download(checkArchive: boolean) {
@@ -176,15 +179,6 @@ export class Onejav extends SiteAbstract {
     GM_addStyle(`.max{width:100%} .min{width:100%} `)
   }
 
-  private homeContainer() {
-    // 插入自己创建的div
-    jquery('div.container nav.pagination.is-centered').before("<div id='card' ></div>")
-    // 将所有番号内容移到新建的div里
-    const $onejav = jquery('div.container div.card.mb-3')
-    jquery('div#card').append($onejav)
-    return $onejav
-  }
-
   private homeVisible() {
     console.log(`监听页面切换状态`, document.visibilityState)
     jquery(document).on('visibilitychange', () => {
@@ -207,15 +201,15 @@ export class Onejav extends SiteAbstract {
       }
     })
   }
-  private enableWaterfall($onejav: JQuery) {
-    if (!$onejav.length) {
+  private enableWaterfall(items: JQuery) {
+    if (!items.length) {
       return
     }
-    if (!$onejav[0] || $onejav[0].parentElement === null) {
+    if (!items[0] || items[0].parentElement === null) {
       console.log('当前页面有变动,通知开发者')
       return
     }
-    $onejav[0].parentElement.id = 'waterfall'
+
     if (isNaN(Date.parse(location.pathname))) {
       ElNotification({ title: '瀑布流', message: `页数可能较多强制启用懒加载模式`, type: 'info' })
       this.waterfall.flow(WaterfallStatus.lazy.code).then()
