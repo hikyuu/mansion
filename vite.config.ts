@@ -112,7 +112,7 @@ function downloadURL() {
 
 function version() {
   if (isProduction()) {
-    return dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD_HH-mm')
+    return dayjs().tz('Asia/Shanghai').format('YYYY.MDD.') + dayjs().diff(dayjs().startOf('day'), 'second')
   }
   return '1.0.0'
 }
