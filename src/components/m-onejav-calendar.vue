@@ -2,7 +2,7 @@
 import { fetchRecentDaily, getDailyByPathDate, recentHistories } from '@/dao/onejav-daily-dao'
 import MImgItem from '@/components/m-img-item.vue'
 import { Calendar } from '@element-plus/icons-vue'
-import { defineProps, ref, toRefs, watch, computed } from 'vue'
+import { computed, defineProps, ref, toRefs, watch } from 'vue'
 import { Onejav } from '@/site/onejav/onejav'
 import dayjs from 'dayjs'
 import { FORMAT } from '@/dictionary'
@@ -52,10 +52,11 @@ const getCurrentDate = () => {
 }
 const calendarDate = ref(getCurrentDate())
 
+const markDate = ref(calendarDate.value)
+
 // 计算日历显示范围，将当前日期固定在中间
 const calendarRange = computed(() => {
-  const currentDate = dayjs(calendarDate.value)
-  const endDate = currentDate.endOf('week')
+  const endDate = dayjs(markDate.value).endOf('week')
   const firstDayOfMonth = endDate.subtract(1, 'month').startOf('month')
 
   // 2. 获取第一天是星期几 (Day.js 中周日为0，周六为6)
@@ -74,6 +75,7 @@ const calendarRange = computed(() => {
 const selectDate = (val: CalendarDateType) => {
   if (!calendar.value) return
   calendar.value.selectDate(val)
+  markDate.value = calendarDate.value
 }
 
 function selectCurrent() {
@@ -166,8 +168,8 @@ function solveLink(date: Date) {
             <template #date-cell="{ data }">
               <div :style="dateStyle(data.date)">
                 <el-link style="text-align: center" type="primary" :href="solveLink(data.date)" target="_self">
-                  {{ data.day.split('-').slice(1).join('-') }}<br />{{ readNumber(data.date) }}</el-link
-                >
+                  {{ data.day.split('-').slice(1).join('-') }}<br />{{ readNumber(data.date) }}
+                </el-link>
               </div>
             </template>
           </el-calendar>
