@@ -31,11 +31,20 @@ const { x, y } = useScroll(window, {
   behavior: useConfigStore().getSiteConfig.smooth ? 'smooth' : 'auto'
 })
 
+function isAltPressed(event: KeyboardEvent) {
+  return (
+    event.altKey ||
+    (typeof event.getModifierState === 'function' && event.getModifierState('AltGraph')) ||
+    event.code === 'AltRight' ||
+    event.location === 2
+  )
+}
+
 onKeyStroke('ArrowLeft', (event: KeyboardEvent) => previous(event), { dedupe: true })
 onKeyStroke(
   'ArrowRight',
   (event: KeyboardEvent) => {
-    if (event.ctrlKey || event.altKey || event.shiftKey) return
+    if (event.ctrlKey || isAltPressed(event) || event.shiftKey) return
     nextStep(event)
   },
   { dedupe: true }
@@ -51,7 +60,7 @@ onKeyStroke(
 onKeyStroke(
   'ArrowUp',
   (event: KeyboardEvent) => {
-    if (event.ctrlKey || event.altKey || event.shiftKey) return
+    if (event.ctrlKey || isAltPressed(event) || event.shiftKey) return
     scroll(event, true)
   },
   { dedupe: true }
@@ -59,7 +68,7 @@ onKeyStroke(
 onKeyStroke(
   'ArrowDown',
   (event: KeyboardEvent) => {
-    if (event.ctrlKey || event.altKey || event.shiftKey) return
+    if (event.ctrlKey || isAltPressed(event) || event.shiftKey) return
     scroll(event)
   },
   { dedupe: true }
@@ -111,7 +120,7 @@ function previous(event: KeyboardEvent) {
 async function download(event: KeyboardEvent) {
   event.preventDefault()
   let checkArchive = true
-  if (event.altKey) {
+  if (isAltPressed(event)) {
     checkArchive = false
   }
   site.download(checkArchive)
