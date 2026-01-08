@@ -26,14 +26,66 @@ export function getTitleFromDetail(detail: Document) {
   }
 }
 
+export async function getJavstoreUrl(serialNumber: string, retry = 1): Promise<string | null> {
+  //异步请求搜索JavStore的番号
+  return request(`https://javstore.net/search/?q=${serialNumber}`, 'https://javstore.net/')
+    .then((result) => {
+      const overview = parseText(result.responseText)
+      // 查找包含番号的a标签数组,忽略大小写
+      const a_array = jquery(overview).find(`div.grid.grid-cols-2 > a.group.block`)
+
+      console.debug('javstore搜索结果：', a_array.length);
+
+      let a = a_array[0]
+      //如果找到全高清大图优先获取全高清的
+      for (let i = 0; i < a_array.length; i++) {
+        // 筛选匹配的番号数据  FC2-PPV-9999999 => 正则/FC2.*PPV.*9999999/gi
+        const reg = RegExp(serialNumber.replace(/-/g, '.*'), 'gi')
+        if (a_array[i]!.title.search(reg) > 0) {
+          if (!a) {
+            a = a_array[i]
+            break
+          }
+        }
+      }
+      if (!a) return Promise.resolve(null)
+      const href = a.getAttribute('href')
+
+      if (href === null) {
+        return Promise.resolve(null)
+      }
+
+      // if (containsHTML(href)) {
+      //   return Promise.resolve(null)
+      // }
+
+      return Promise.resolve('https://javstore.net' + href)
+    })
+    .catch((reason) => {
+      console.error(reason)
+      if (retry > 0) {
+        console.log('重试获取搜索结果', serialNumber)
+        return getJavstoreUrl(serialNumber, --retry)
+      } else {
+        return Promise.resolve(null)
+      }
+    })
+}
+
+function containsHTML(text: string) {
+  const regex = /<\/?[a-z][\s\S]*>/i
+  return regex.test(text)
+}
+
 export async function getThumbnailUrlFromDetail(detail: Document, serialNumber: string): Promise<Array<string>> {
   try {
-    let img_array = jquery(detail).find('.news a img[alt*=".th"]')
+    let img_array = jquery(detail).find('div.p-6 a img[alt*=".th"]')
     const urls: string[] = []
     //新方法
     if (img_array.length <= 0) {
-      img_array = jquery(detail).find('.news > a:contains("CLICK HERE!")')
-      // console.log(`新方法找到`, img_array.length)
+
+      img_array = jquery(detail).find('div.p-6 >> a:contains("CLICK HERE!")')
+
       if (img_array.length <= 0) return urls
 
       for (const item of img_array) {

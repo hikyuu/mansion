@@ -65,50 +65,6 @@ export function getThumbnailElement(serialNumber: string, targetImgUrl: string[]
   return $thumbnail
 }
 
-export async function getJavstoreUrl(serialNumber: string, retry = 1): Promise<string | null> {
-  //异步请求搜索JavStore的番号
-  return request(`https://javstore.net/search/${serialNumber}.html`, 'https://javstore.net/')
-    .then((result) => {
-      const overview = parseText(result.responseText)
-      // 查找包含番号的a标签数组,忽略大小写
-      const a_array = jquery(overview).find(`.news_1n ul li h3 span a`)
-      // console.log(a_array)
-      let a = a_array[0]
-      //如果找到全高清大图优先获取全高清的
-      for (let i = 0; i < a_array.length; i++) {
-        // 筛选匹配的番号数据  FC2-PPV-9999999 => 正则/FC2.*PPV.*9999999/gi
-        const reg = RegExp(serialNumber.replace(/-/g, '.*'), 'gi')
-        if (a_array[i]!.title.search(reg) > 0) {
-          if (!a) {
-            a = a_array[i]
-            break
-          }
-        }
-      }
-      if (!a) return Promise.resolve(null)
-      const href = a.getAttribute('href')
-      if (href === null) {
-        return Promise.resolve(null)
-      }
-      if (containsHTML(href)) {
-        return Promise.resolve(null)
-      }
-      return Promise.resolve(href)
-    })
-    .catch((reason) => {
-      console.error(reason)
-      if (retry > 0) {
-        console.log('重试获取搜索结果', serialNumber)
-        return getJavstoreUrl(serialNumber, --retry)
-      } else {
-        return Promise.resolve(null)
-      }
-    })
-}
-function containsHTML(text: string) {
-  const regex = /<\/?[a-z][\s\S]*>/i
-  return regex.test(text)
-}
 export async function getImgUrlFromPixhost(javUrl: string, retry: number = 3): Promise<string | undefined> {
   try {
     const response = await request(javUrl, 'https://javstore.net/')
