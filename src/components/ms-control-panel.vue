@@ -82,7 +82,7 @@ const notUsingInput = computed(
 
 whenever(logicAnd(keys.Ctrl_right, notUsingInput), () => {
   console.log('Ctrl_right have been pressed')
-  sister.lastUnread(y)
+  sister.nextUnread(y)
 })
 
 const haveRead = computed(() => {
@@ -188,8 +188,8 @@ watch(
   { immediate: true }
 )
 
-function lastUnRead() {
-  sister.lastUnread(y)
+function nextUnread() {
+  sister.nextUnread(y)
 }
 function location() {
   const index = sister.current_index
@@ -228,7 +228,7 @@ function location() {
         </el-icon>
         <span class="number-font">{{ sister.size }}</span>
       </div>
-      <div class="count-group" @click="lastUnRead">
+      <div class="count-group" @click="nextUnread">
         <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" size="30">
           <svg-readed />
         </el-icon>

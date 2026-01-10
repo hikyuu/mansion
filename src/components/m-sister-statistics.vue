@@ -43,8 +43,8 @@ const { x, y } = useScroll(window, {
   behavior: useConfigStore().getSiteConfig.smooth ? 'smooth' : 'auto'
 })
 
-function lastUnRead() {
-  sister.lastUnread(y)
+function nextUnread() {
+  sister.nextUnread(y)
 }
 
 function location() {
@@ -85,7 +85,7 @@ function location() {
           <span class="number-font">{{ sister.size }}</span>
         </div>
       </div>
-      <div class="count-group" :class="{ 'flex-direction-column': props.column }" @click="lastUnRead">
+      <div class="count-group" :class="{ 'flex-direction-column': props.column }" @click="nextUnread">
         <el-icon style="cursor: pointer" :color="site.theme.PRIMARY_COLOR" :size="props.size">
           <svg-readed />
         </el-icon>

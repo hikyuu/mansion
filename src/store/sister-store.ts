@@ -39,9 +39,9 @@ export const useSisterStore = defineStore('sister', {
     getInfo(serialNumber: string): Info | undefined {
       return this._queueMap.get(serialNumber)
     },
-    lastUnread(y: WritableComputedRef<number, number>) {
+    nextUnread(y: WritableComputedRef<number, number>) {
       const index = this._queue.findIndex((sister) => {
-        if (!sister.haveRead) {
+        if (!sister.haveRead && sister.status === 200) {
           return true
         }
       })
@@ -70,7 +70,7 @@ export const useSisterStore = defineStore('sister', {
       const scrollTop = $image.scrollTop()
       if (info) info.scrollTop = scrollTop ? scrollTop : 0
       this.setCurrentIndex(this.current_index - 1)
-      this.current_key = this._queue[this.current_index].serialNumber
+      this.current_key = this._queue[this.current_index]!.serialNumber
     },
     nextStep() {
       if (!this.current_key || this.current_index === undefined) return
@@ -80,7 +80,7 @@ export const useSisterStore = defineStore('sister', {
       const scrollTop = $image.scrollTop()
       if (info) info.scrollTop = scrollTop ? scrollTop : 0
       this.setCurrentIndex(this.current_index + 1)
-      this.current_key = this._queue[this.current_index].serialNumber
+      this.current_key = this._queue[this.current_index]!.serialNumber
     },
     setCurrent(serialNumber: string) {
       const index = this._queue.findIndex((item) => item.serialNumber === serialNumber)
@@ -131,7 +131,7 @@ export const useSisterStore = defineStore('sister', {
           message: '当前页面还没有这么多内容'
         })
       }
-      const nextThumbnail = jquery('#' + this._queue[index].serialNumber).find(`#${THUMBNAIL_ID}`)
+      const nextThumbnail = jquery('#' + this._queue[index]!.serialNumber).find(`#${THUMBNAIL_ID}`)
       if (nextThumbnail.length === 0) {
         throw new ProjectError({
           name: 'GET_PROJECT_ERROR',
