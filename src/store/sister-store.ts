@@ -41,7 +41,7 @@ export const useSisterStore = defineStore('sister', {
     },
     nextUnread(y: WritableComputedRef<number, number>) {
       const index = this._queue.findIndex((sister) => {
-        if (!sister.haveRead && sister.status === 200) {
+        if (!sister.haveRead && sister.status === 202) {
           return true
         }
       })
@@ -172,6 +172,6 @@ export declare interface Info {
   pathDate?: string
   likeWords?: string[]
   unlikeWords?: string[]
-  status?: number //200：成功，404：不存在 405：图片地址获取失败 500:id格式错误 501：图片加载错误
+  status?: number //200：成功，202：，404：不存在 405：图片地址获取失败 500:id格式错误 501：图片加载错误
   site?: number // 0 unknown 1 onejav 2 javdb
 }
