@@ -215,18 +215,24 @@ export class Javstore extends SiteAbstract {
       ElNotification({ title: '提示', message: '没有选中', type: 'info' })
       return
     }
-    if (checkArchive && (await haveArchived(serialNumber))) {
-      ElNotification({ title: '提示', message: '已经归档', type: 'info' })
-      return
-    }
-
+    
     if (this.downloadList.has(serialNumber)) {
       ElNotification({ title: '提示', message: '正在下载中', type: 'info' })
       return
     }
 
-    this.downloadList.set(serialNumber, 1)
+    this.downloadList.add(serialNumber)
 
+    try {
+      if (checkArchive && (await haveArchived(serialNumber))) {
+        ElNotification({ title: '提示', message: '已经归档', type: 'info' })
+        throw new Error('已经归档')
+      }
+    } catch (e) {
+      this.downloadList.delete(serialNumber)
+      return
+    }
+    
     return downloadFromJavdb(serialNumber)
       .then((r) => {
         if (r) {

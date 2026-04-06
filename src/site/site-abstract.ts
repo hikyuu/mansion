@@ -17,7 +17,7 @@ import { useConfigStore } from '@/store/config-store.ts'
 export abstract class SiteAbstract implements SiteInterface {
   hasLoadCompleted = false
 
-  downloadList: Map<string, number> = new Map()
+  downloadList: Set<string> = new Set()
 
   protected sister = useSisterStore()
 

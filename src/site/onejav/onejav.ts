@@ -126,12 +126,6 @@ export class Onejav extends SiteAbstract {
       ElNotification({ title: '提示', message: '没有选中', type: 'info' })
       return
     }
-    if (checkArchive && (await haveArchived(currentKey))) {
-      ElNotification({ title: '提示', message: '已经归档', type: 'info' })
-      return
-    }
-    const $id = jquery('#' + currentKey)
-    const $download = $id.find(ONEJAV_DOWNLOAD)
     const info = this.sister.currentSister
     if (!info) return
     const serialNumber = info.serialNumber
@@ -139,7 +133,22 @@ export class Onejav extends SiteAbstract {
       ElNotification({ title: '提示', message: '正在下载中', type: 'info' })
       return
     }
-    this.downloadList.set(serialNumber, 10)
+
+    this.downloadList.add(serialNumber)
+
+    try {
+      if (checkArchive && (await haveArchived(currentKey))) {
+        ElNotification({ title: '提示', message: '已经归档', type: 'info' })
+        throw new Error('已经归档')
+      }
+    } catch (e) {
+      this.downloadList.delete(serialNumber)
+      return
+    }
+
+    const $id = jquery('#' + currentKey)
+    const $download = $id.find(ONEJAV_DOWNLOAD)
+
     downloadFromJavDB(serialNumber)
       .then(async (success) => {
         if (success) return

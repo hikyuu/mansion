@@ -104,22 +104,33 @@ export class Javdb extends SiteAbstract {
       ElNotification({ title: '提示', message: '没有选中', type: 'info' })
       return
     }
-    if (checkArchive && (await haveArchived(serialNumber))) {
-      ElNotification({ title: '提示', message: '已经归档', type: 'info' })
-      return
-    }
 
-    const detailHref = getDetailHref(jquery('#' + serialNumber))
-    if (detailHref === undefined) {
-      ElNotification({ title: '提示', message: '没有找到详情页', type: 'info' })
-      return
-    }
     if (this.downloadList.has(serialNumber)) {
       ElNotification({ title: '提示', message: '正在下载中', type: 'info' })
       return
     }
 
-    this.downloadList.set(serialNumber, 1)
+    this.downloadList.add(serialNumber)
+    const detailHref = getDetailHref(jquery('#' + serialNumber))
+
+    try {
+      if (checkArchive && (await haveArchived(serialNumber))) {
+        ElNotification({ title: '提示', message: '已经归档', type: 'info' })
+        throw new Error('已经归档')
+      }
+      if (detailHref === undefined) {
+        ElNotification({ title: '提示', message: '没有找到详情页', type: 'info' })
+        this.downloadList.delete(serialNumber)
+        throw new Error('没有找到详情页')
+      }
+    } catch (e) {
+      this.downloadList.delete(serialNumber)
+      return
+    }
+
+
+
+
 
     downloadFromLocal(detailHref)
       .then((r) => {

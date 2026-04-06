@@ -81,8 +81,8 @@ const haveUnlike = computed(() => {
     <el-row>
       <el-text v-if="site.downloadList.size > 0" style="font-size: 15px">
         [下载列表]
-        <li v-for="(entry, index) in Array.from(site.downloadList.entries())" :key="index">
-          {{ entry[0] }}
+        <li v-for="(entry, index) in Array.from(site.downloadList)" :key="index">
+          {{ entry }}
         </li>
       </el-text>
     </el-row>
@@ -118,8 +118,8 @@ const haveUnlike = computed(() => {
           </el-text>
           <el-text style="font-size: 15px" v-if="site.downloadList.size > 0">
             [下载列表]
-            <el-tag v-for="(entry, index) in Array.from(site.downloadList.entries())" :key="index">
-              {{ entry[0] }}
+            <el-tag v-for="(entry, index) in Array.from(site.downloadList)" :key="index">
+              {{ entry }}
             </el-tag>
           </el-text>
         </template>

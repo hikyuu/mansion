@@ -14,7 +14,7 @@ export default class {
   private lock: Lock = new Lock()
   private baseURI: string = this.getBaseURI()
   private selector: Selector
-  private readonly anchor: HTMLElement | null = null
+  private readonly anchor: HTMLElement | undefined = undefined
   private site: SiteAbstract
   private allReadedPage: number = 0
 
@@ -193,7 +193,7 @@ export default class {
     for (const elem of details) {
       const links = elem.getElementsByTagName('a')
       for (let i = 0; i < links.length; i++) {
-        links[i].target = '_blank'
+        links[i]!.target = '_blank'
       }
     }
     return details
@@ -209,7 +209,7 @@ export default class {
 
   end() {
     // $(window).off('scroll');
-    if (this.anchor === null) return
+    if (this.anchor === undefined) return
     const $end = jquery(`<h1>The End</h1>`)
     jquery(this.anchor).replaceWith($end)
   }
