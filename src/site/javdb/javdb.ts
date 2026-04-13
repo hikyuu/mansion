@@ -128,10 +128,6 @@ export class Javdb extends SiteAbstract {
       return
     }
 
-
-
-
-
     downloadFromLocal(detailHref)
       .then((r) => {
         if (r) {

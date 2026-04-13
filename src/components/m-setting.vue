@@ -14,7 +14,8 @@ const props = defineProps({
 })
 
 const site = useSiteStore().getSite
-const currentConfig = useConfigStore().getSiteConfig
+const configStore = useConfigStore()
+const currentConfig = configStore.getSiteConfig
 
 function scrollStatusChange(value: number) {
   const status = Object.values(WaterfallStatus).find((item) => {
@@ -67,6 +68,12 @@ function loadThumbnailSwitchChange(value: boolean) {
 // )
 
 function reload() {
+  // 先保存配置再刷新
+  try {
+    configStore.saveConfig()
+  } catch (e) {
+    // ignore
+  }
   window.location.reload()
 }
 function allRead() {}
@@ -125,6 +132,15 @@ function allRead() {}
                 <el-radio style="width: 100px" :value="0" border>标题</el-radio>
                 <el-radio style="width: 100px" :value="1" border>缩略</el-radio>
               </el-radio-group>
+            </el-form-item>
+            <el-form-item label="懒加载数量">
+              <el-input-number
+                v-model="currentConfig.lazyLimit"
+                :min="1"
+                :step="10"
+                size="large"
+                controls-position="right"
+              />
             </el-form-item>
             <el-row v-if="false" justify="center">
               <el-button type="primary" @click="allRead">全部已读</el-button>

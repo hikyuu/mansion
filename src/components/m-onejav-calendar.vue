@@ -2,7 +2,7 @@
 import { fetchRecentDaily, getDailyByPathDate, recentHistories } from '@/dao/onejav-daily-dao'
 import MImgItem from '@/components/m-img-item.vue'
 import { Calendar } from '@element-plus/icons-vue'
-import { computed, defineProps, ref, toRefs, watch } from 'vue'
+import { computed, ref, toRefs, watch } from 'vue'
 import { Onejav } from '@/site/onejav/onejav'
 import dayjs from 'dayjs'
 import { FORMAT } from '@/dictionary'
@@ -54,22 +54,45 @@ const calendarDate = ref(getCurrentDate())
 
 const markDate = ref(calendarDate.value)
 
-// 计算日历显示范围，将当前日期固定在中间
+// 计算日历显示范围：以当前日期为中心，范围不超过两个月，且最多显示 5 行（5 周）
 const calendarRange = computed(() => {
-  const endDate = dayjs(markDate.value).endOf('week')
-  const firstDayOfMonth = endDate.subtract(1, 'month').startOf('month')
+  const center = dayjs(markDate.value)
 
-  // 2. 获取第一天是星期几 (Day.js 中周日为0，周六为6)
-  const firstDayOfWeek = firstDayOfMonth.day() // [3,8](@ref)
+  // 两个月的上下界（约等于从 -1 月到 +1 月）
+  const twoMonthStart = center.subtract(1, 'month').startOf('day')
+  const twoMonthEnd = center.add(1, 'month').endOf('day')
 
-  // 3. 计算到第一个周日需要增加的天数
-  // 如果第一天是周日(0)，则增加0天；否则，需要补足到下一个周日
-  const daysToAdd = firstDayOfWeek === 0 ? 0 : 7 - firstDayOfWeek // [3](@ref)
+  // 目标最大天数（5 行 * 7 天）
+  const maxDaysFiveRows = 5 * 7
 
-  // 4. 得到第一个周日的日期
-  const startDate = firstDayOfMonth.add(daysToAdd, 'day') // [1,5](@ref)
+  // 两个月的实际天数
+  const twoMonthDays = twoMonthEnd.diff(twoMonthStart, 'day') + 1
 
-  return [startDate.toDate(), endDate.toDate()]
+  // 取较小的天数：最多 35 天，且不超过两个月
+  const desiredDays = Math.min(maxDaysFiveRows, twoMonthDays)
+
+  // 以 center 为中心，向两边扩展 desiredDays
+  const half = Math.floor(desiredDays / 2)
+  let start = center.subtract(half, 'day').startOf('week')
+  let end = start.add(Math.ceil(desiredDays / 7) * 7 - 1, 'day')
+
+  // 确保不超过 5 周
+  const weeks = Math.ceil((end.diff(start, 'day') + 1) / 7)
+  if (weeks > 5) {
+    end = start.add(5 * 7 - 1, 'day')
+  }
+
+  // 如果超出两个月范围，则把区间向内约束到 twoMonthStart/twoMonthEnd
+  if (start.isBefore(twoMonthStart)) {
+    start = twoMonthStart.startOf('week')
+    end = start.add(5 * 7 - 1, 'day')
+  }
+  if (end.isAfter(twoMonthEnd)) {
+    end = twoMonthEnd.endOf('week')
+    start = end.subtract(5 * 7 - 1, 'day')
+  }
+
+  return [start.toDate(), end.toDate()]
 })
 
 const selectDate = (val: CalendarDateType) => {
@@ -98,7 +121,8 @@ function dateStyle(date: Date) {
     alignItems: 'center',
     flexDirection: 'column',
     height: '100%',
-    backgroundColor: 'white'
+    backgroundColor: 'white',
+    position: 'relative'
   }
 
   const today = getDailyByPathDate(pathDate, onejav.siteId.value)
@@ -112,6 +136,9 @@ function dateStyle(date: Date) {
     style.backgroundColor = onejav.theme.value.WARNING_COLOR
     return style
   }
+}
+function isToday(date: Date) {
+  return dayjs(date).isSame(dayjs(), 'day')
 }
 function readNumber(date: Date) {
   // console.log('readNumber')
@@ -167,6 +194,7 @@ function solveLink(date: Date) {
             </template>
             <template #date-cell="{ data }">
               <div :style="dateStyle(data.date)">
+                <el-badge v-if="isToday(data.date)" value="今" type="danger" class="today-badge" />
                 <el-link style="text-align: center" type="primary" :href="solveLink(data.date)" target="_self">
                   {{ data.day.split('-').slice(1).join('-') }}<br />{{ readNumber(data.date) }}
                 </el-link>
@@ -190,4 +218,11 @@ function solveLink(date: Date) {
   </m-img-item>
 </template>
 
-<style scoped></style>
+<style scoped>
+.today-badge{
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 2;
+}
+</style>

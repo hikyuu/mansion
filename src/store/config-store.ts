@@ -36,7 +36,7 @@ function getDefaultSiteConfig(): SiteConfig {
     downloadMethod: 0,
     navigationPoint: 0,
     skipRead: false,
-    lazyLimit: 200
+    lazyLimit: 100
   }
 }
 export const useConfigStore = defineStore('config', {
