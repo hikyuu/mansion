@@ -5,6 +5,7 @@ import { FORMAT } from '@/dictionary'
 import { reactive } from 'vue'
 import { useUserStore } from '@/store/user-store'
 import type { Info } from '@/store/sister-store'
+import { SiteId } from '@/site/site-id'
 
 const refreshTime = new Date()
 
@@ -25,7 +26,7 @@ export async function getHistories(serialNumbers: string[]): Promise<HistoryDto[
   return data
 }
 
-export async function loadDailyHistory(pathDates: Set<string> = new Set(), siteId: number) {
+export async function loadDailyHistory(pathDates: Set<string> = new Set(), siteId: SiteId) {
   if (pathDates.size === 0) {
     return Promise.resolve([])
   }
@@ -47,7 +48,7 @@ export async function loadDailyHistory(pathDates: Set<string> = new Set(), siteI
   return data
 }
 
-export async function fetchDailyHistoryRange(monthStart: Dayjs, monthEnd: Dayjs, siteId: number) {
+export async function fetchDailyHistoryRange(monthStart: Dayjs, monthEnd: Dayjs, siteId: SiteId) {
   const supabase = await useUserStore().getAuthSupabase()
   console.log('siteId', siteId)
   const { data, error } = await supabase
@@ -138,5 +139,5 @@ export declare interface HistoryDto {
   release_date: string
   original_release_date: string
   watch_time: Date
-  site: number //0 unknown 1 onejav 2 javdb 3 javstore
+  site: SiteId //0 unknown 1 onejav 2 javdb 3 javstore
 }

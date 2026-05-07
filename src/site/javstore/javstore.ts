@@ -14,6 +14,7 @@ import { useTaskStore } from '@/store/task-store.ts'
 import { download } from '@/download'
 import { useConfigStore } from '@/store/config-store.ts'
 import { ProjectError } from '@/common/errors.ts'
+import { SiteId } from '@/site/site-id'
 
 export const JAVSTORE_NAME = 'javstore'
 
@@ -30,7 +31,7 @@ export const javstore_selector: Selector = {
 
 export class Javstore extends SiteAbstract {
   public name = JAVSTORE_NAME
-  public siteId = 3
+  public siteId = SiteId.JAVSTORE
   public waterfall: Waterfall
   constructor() {
     super()

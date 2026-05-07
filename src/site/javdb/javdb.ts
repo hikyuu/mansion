@@ -13,6 +13,7 @@ import { useSisterStore } from '@/store/sister-store'
 import { useTaskStore } from '@/store/task-store.ts'
 import { download } from '@/download'
 import { useConfigStore } from '@/store/config-store.ts'
+import { SiteId } from '@/site/site-id'
 
 export const JAVDB_NAME = 'javdb'
 
@@ -29,7 +30,7 @@ export const javdb_selector: Selector = {
 
 export class Javdb extends SiteAbstract {
   public name = JAVDB_NAME
-  public siteId = 2
+  public siteId = SiteId.JAVDB
   public waterfall: Waterfall
   constructor() {
     super()

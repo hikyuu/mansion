@@ -4,6 +4,7 @@ import { ProjectError } from '@/common/errors'
 import jquery from 'jquery'
 import { THUMBNAIL_ID } from '@/common/common'
 import type { WritableComputedRef } from 'vue'
+import { SiteId } from '@/site/site-id'
 
 export const useSisterStore = defineStore('sister', {
   state: (): {
@@ -166,12 +167,12 @@ export declare interface Info {
   haveRead?: boolean
   javStoreUrl?: string
   scrollTop?: number
-  repeatSite?: number
+  repeatSite?: SiteId
   src?: string[]
   date?: string
   pathDate?: string
   likeWords?: string[]
   unlikeWords?: string[]
   status?: number //200：成功，202：，404：不存在 405：图片地址获取失败 500:id格式错误 501：图片加载错误
-  site?: number // 0 unknown 1 onejav 2 javdb
+  site?: SiteId // 0 unknown 1 onejav 2 javdb
 }

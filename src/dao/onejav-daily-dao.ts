@@ -4,6 +4,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { FORMAT } from '@/dictionary'
 import { fetchDailyHistoryRange } from '@/dao/browse-history'
 import { useUserStore } from '@/store/user-store'
+import { SiteId } from '@/site/site-id'
 
 const lockPool = new LockPool()
 
@@ -46,7 +47,7 @@ export async function uploadDaily(path_date: string, sister_number: number, load
 const dailyLock = new LockPool()
 const loadedMonth = new Set<string>()
 
-export async function fetchDailyByPathDate(pathDate: string, siteId: number): Promise<onejav_daily_dto | undefined> {
+export async function fetchDailyByPathDate(pathDate: string, siteId: SiteId): Promise<onejav_daily_dto | undefined> {
   let daily = dailiesRef.value.get(pathDate)
   if (daily) {
     return daily
@@ -115,7 +116,7 @@ export async function fetchRecentDaily(numberOfDays: number): Promise<any[]> {
   return data
 }
 
-export function getDailyByPathDate(pathDate: string, siteId: number): onejav_daily_dto | undefined {
+export function getDailyByPathDate(pathDate: string, siteId: SiteId): onejav_daily_dto | undefined {
   const daily = dailiesRef.value.get(pathDate)
   if (!daily) {
     fetchDailyByPathDate(pathDate, siteId).then().catch()

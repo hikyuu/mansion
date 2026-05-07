@@ -14,6 +14,7 @@ import type { Info } from '@/store/sister-store'
 import { useTaskStore } from '@/store/task-store.ts'
 import { downloadFromOnejav } from '@/site/onejav/onejav-api.ts'
 import { download } from '@/download'
+import { SiteId } from '@/site/site-id'
 
 export async function downloadFromJavDB(serialNumber: string): Promise<boolean> {
   if (isFC2(serialNumber)) {
@@ -48,7 +49,7 @@ export const ONEJAV_DOWNLOAD = "a[title='Download .torrent']"
 
 export class Onejav extends SiteAbstract {
   public name = 'onejav'
-  public siteId = 1
+  public siteId = SiteId.ONEJAV
   public waterfall: Waterfall
   selector: Selector = {
     next: 'a.pagination-next.button.is-primary',

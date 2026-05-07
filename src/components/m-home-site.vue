@@ -11,6 +11,7 @@ import { useReactStore } from '@/store/react-store'
 import { useSiteStore } from '@/store/site-store.ts'
 import MsDebugPanel from '@/components/ms-debug-panel.vue'
 import { useConfigStore } from '@/store/config-store.ts'
+
 const exactSite = getSite()
 
 if (exactSite === undefined) {
@@ -32,6 +33,7 @@ if (exactSite === undefined) {
 const site = useSiteStore().getSite
 
 const isDevMode = import.meta.env.DEV
+
 </script>
 
 <template>

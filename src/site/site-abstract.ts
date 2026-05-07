@@ -11,6 +11,7 @@ import { getHistories, type HistoryDto, uploadHistory } from '@/dao/browse-histo
 import { getJavstoreUrl, getThumbnailUrlFromDetail, getTitleFromDetail } from '@/site/javstore/javstore-api'
 import { ProjectError } from '@/common/errors'
 import { type Info, useSisterStore } from '@/store/sister-store'
+import { SiteId } from '@/site/site-id'
 import { ElNotification } from 'element-plus'
 import { useConfigStore } from '@/store/config-store.ts'
 
@@ -23,7 +24,7 @@ export abstract class SiteAbstract implements SiteInterface {
 
   abstract name: string
 
-  abstract siteId: number
+  abstract siteId: SiteId
 
   abstract selector: Selector
 
@@ -177,7 +178,7 @@ export abstract class SiteAbstract implements SiteInterface {
       serialNumber,
       src: [loadUrl],
       date,
-      repeatSite: 0,
+      repeatSite: SiteId.UNKNOWN,
       site: this.siteId,
       status: 100
     })
