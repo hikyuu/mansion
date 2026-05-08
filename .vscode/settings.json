@@ -1,0 +1,35 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "prettier.requireConfig": true,
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[vue]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+    "github.copilot.chat.localeOverride": "zh-CN",
+    "github.copilot.chat.commitMessageGeneration.instructions": [
+    {
+      "text": "使用中文生成提交信息，主题行不超过50字符。"
+    },
+    {
+      "text": "使用Conventional Commits规范，有效类型：feat, fix, docs, style, refactor, test, chore, perf, build, ci, revert。"
+    },
+    {
+      "text": "主题行格式：<type>(<scope>): <subject>，使用祈使语气。"
+    },
+    {
+      "text": "主题行和正文之间必须空一行。"
+    },
+    {
+      "text": "正文每行不超过72字符，详细说明修改原因和影响。"
+    },
+    {
+      "text": "不要输出英文，不要输出解释，只输出最终的提交信息。"
+    }
+    ]
+}

@@ -7,7 +7,7 @@ import jquery from 'jquery'
 import { fetchFirstTorrentFromDownloadPage } from './exhentai-api'
 import { ElNotification } from 'element-plus'
 import { download } from '@/download'
-import { getHentaiArchivesByGids, upsertHentaiArchive } from '@/dao/hentai-archive'
+import { getHentaiArchivesByGids, upsertHentaiArchive, HentaiArchiveStatus } from '@/dao/hentai-archive'
 
 type ItemInfo = {
   index: number
@@ -127,20 +127,25 @@ export class Exhentai extends SiteAbstract {
         $download.css('cursor', 'pointer')
       }
 
-      // 如果已归档且日期一致，则隐藏下载按钮
       if (gid) {
         const gidNum = Number(gid)
         const archive = archivesMap[gidNum]
-        if (
-          archive &&
-          archive.date &&
-          date &&
-          archive.date.getTime &&
-          date.getTime &&
-          archive.date.getTime() === date.getTime()
-        ) {
-          $download.hide()
-          return
+        if (archive) {
+          const hasDates = archive.date && date && archive.date.getTime && date.getTime
+          if (hasDates && archive.date.getTime() === date.getTime()) {
+            // 日期相同：根据状态分别处理
+            if (archive.status === HentaiArchiveStatus.DownloadSuccess) {
+              $download.hide()
+              return
+            } else if (archive.status === HentaiArchiveStatus.NoNewerSeed) {
+              this.applyArchiveStyle($download, archive.status)
+              return
+            } else {
+              // 未知状态：不进行任何处理
+            }
+          } else {
+            // 日期不同或缺失：不进行任何处理
+          }
         }
       }
 
@@ -174,15 +179,33 @@ export class Exhentai extends SiteAbstract {
         }
         if (res.isOutdated) {
           ElNotification({ title: '提示', message: '没有最新的种子', type: 'info' })
+          // 上传归档，标记为没有最新的种子；将按钮图标变为黄色而不是隐藏
+          if (gid) {
+            try {
+              await upsertHentaiArchive(Number(gid), date, HentaiArchiveStatus.NoNewerSeed)
+              try {
+                this.applyArchiveStyle($download, HentaiArchiveStatus.NoNewerSeed)
+              } catch (errHide) {
+                // 忽略 DOM 操作错误
+              }
+            } catch (err) {
+              console.warn('exhentai: upsertHentaiArchive failed', err)
+            }
+          }
           return
         }
 
         // 使用统一下载入口处理跳转/下载
         download(res.href)
-        // 上传日期信息（如果有）用于归档记录
+        // 上传日期信息（如果有）用于归档记录；归档成功则隐藏下载按钮
         if (gid) {
           try {
-            await upsertHentaiArchive(Number(gid), date)
+            await upsertHentaiArchive(Number(gid), date, HentaiArchiveStatus.DownloadSuccess)
+            try {
+              $download.hide()
+            } catch (errHide) {
+              // 忽略 DOM 操作错误
+            }
           } catch (err) {
             console.warn('exhentai: upsertHentaiArchive failed', err)
           }
@@ -191,6 +214,23 @@ export class Exhentai extends SiteAbstract {
         console.error(err)
         ElNotification({ title: '提示', message: '请求下载页面失败', type: 'error' })
       }
+    }
+  }
+
+  private applyArchiveStyle($download: JQuery, status: HentaiArchiveStatus) {
+    // 更偏红的滤镜：增加饱和并稍微向红色偏移（使用负 hue-rotate），并将透明度设为 50%
+    const filterCss = 'sepia(1) saturate(8) hue-rotate(-10deg) brightness(1.05) contrast(1)'
+    const opacityVal = '0.5'
+    try {
+      const $img = $download.find('img').first()
+      if ($img.length) {
+        $img.css({ filter: filterCss, opacity: opacityVal })
+      } else {
+        $download.css({ filter: filterCss, opacity: opacityVal })
+      }
+      $download.addClass('archived-no-newer-seed')
+    } catch (err) {
+      // 忽略 DOM 操作错误
     }
   }
   resolveElements(elems: JQuery): Promise<JQuery[]> {
