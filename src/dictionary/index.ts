@@ -14,7 +14,9 @@ export function picx(url: string) {
 
 export enum FORMAT {
   PATH_DATE = '/YYYY/MM/DD',
-  ORIGINAL_RELEASE_DATE = 'MMM. D, YYYY'
+  ORIGINAL_RELEASE_DATE = 'MMM. D, YYYY',
+  DATE_TEXT = 'YYYY-MM-DD HH:mm',
+  DATE_SIMPLE = 'YYYY-MM-DD'
 }
 
 export const WaterfallStatus = {

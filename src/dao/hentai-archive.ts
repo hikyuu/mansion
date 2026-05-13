@@ -2,7 +2,7 @@ import { useUserStore } from '@/store/user-store'
 
 export enum HentaiArchiveStatus {
   DownloadSuccess = 200,
-  NoNewerSeed = 304
+  NoNewerSeed = 304 // 没有更新的种子即过时
 }
 
 export declare interface HentaiArchiveDto {
@@ -28,14 +28,21 @@ function normalizeArchive(item: any): HentaiArchiveDto {
   return item as HentaiArchiveDto
 }
 
-export async function upsertHentaiArchive(gid: number, date?: Date, status?: HentaiArchiveStatus): Promise<HentaiArchiveDto | null> {
+export async function upsertHentaiArchive(
+  gid: number,
+  date?: Date,
+  status?: HentaiArchiveStatus
+): Promise<HentaiArchiveDto | null> {
   const supabase = await useUserStore().getAuthSupabase()
   const record: Record<string, any> = {
     gid,
     date: date ? date.toISOString() : new Date().toISOString(),
     status: status !== undefined ? status : HentaiArchiveStatus.DownloadSuccess
   }
-  const { data, error } = await supabase.from('hentai_archive').upsert(record, { onConflict: 'gid' }).select()
+  const { data, error } = await supabase
+    .from('hentai_archive')
+    .upsert(record, { onConflict: 'gid,status,user_id' })
+    .select()
   if (error) {
     console.error(error)
     return Promise.reject(error)
@@ -46,22 +53,44 @@ export async function upsertHentaiArchive(gid: number, date?: Date, status?: Hen
   return null
 }
 
-export async function getHentaiArchivesByGids(gids: number[]): Promise<Record<number, HentaiArchiveDto>> {
+export async function getHentaiArchivesMap(
+  gids: number[],
+  status?: HentaiArchiveStatus
+): Promise<Record<number, HentaiArchiveDto[]>> {
   if (!gids || gids.length === 0) return {}
   const supabase = await useUserStore().getAuthSupabase()
-  const { data, error } = await supabase.from('hentai_archive').select('gid, date, status').in('gid', gids)
+
+  let query = supabase
+    .from('hentai_archive')
+    .select('gid, date, status')
+    .in('gid', gids)
+
+  if (status !== undefined) {
+    query = query.eq('status', status)
+  }
+
+  const { data, error } = await query
+
   if (error) {
     console.error(error)
     return Promise.reject(error)
   }
-  const map: Record<number, HentaiArchiveDto> = {}
+  const map: Record<number, HentaiArchiveDto[]> = {}
   if (Array.isArray(data)) {
     data.forEach((row: any) => {
       const normalized = normalizeArchive(row)
       if (normalized && normalized.gid !== undefined) {
-        map[Number(normalized.gid)] = normalized
+        const gid = Number(normalized.gid)
+        if (!map[gid]) {
+          map[gid] = []
+        }
+        map[gid].push(normalized)
       }
     })
   }
   return map
+}
+
+export async function getDownloadedArchivesMap(gids: number[]): Promise<Record<number, HentaiArchiveDto[]>> {
+  return getHentaiArchivesMap(gids, HentaiArchiveStatus.DownloadSuccess)
 }
