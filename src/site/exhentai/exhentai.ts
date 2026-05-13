@@ -5,7 +5,7 @@ import type { Info } from '@/store/sister-store'
 import waterfall from '@/waterfall/waterfall'
 import jquery from 'jquery'
 import dayjs, { type Dayjs } from 'dayjs'
-import { fetchFirstTorrentFromDownloadPage, type TorrentEntry } from './exhentai-api'
+import { fetchTorrentsFromDownloadPage, type TorrentEntry } from './exhentai-api'
 import { ElNotification } from 'element-plus'
 import { download } from '@/download'
 import { getHentaiArchivesMap, getDownloadedArchivesMap, upsertHentaiArchive, HentaiArchiveStatus, type HentaiArchiveDto } from '@/dao/hentai-archive'
@@ -170,7 +170,7 @@ export class Exhentai extends SiteAbstract {
       }
 
       try {
-        const res = await fetchFirstTorrentFromDownloadPage(downloadHref)
+        const res = await fetchTorrentsFromDownloadPage(downloadHref)
         if (res.error) {
           console.warn('exhentai fetch error', res.error)
           ElNotification({ title: '提示', message: '请求下载页面失败', type: 'error' })
@@ -230,7 +230,17 @@ export class Exhentai extends SiteAbstract {
       return
     }
 
-    // 对 outdated 数组按日期从新到旧排序
+    // 将outdated中的dateText全部转为dayjs,后续不用重复转换
+    outdated.forEach((entry) => {
+      if (!entry.parsedDate) {
+        const parsed = this.parseDateText(entry.dateText)
+        if (parsed) {
+          entry.parsedDate = parsed
+        }
+      }
+    })
+
+    // 对 outdated 数组按日期从新到旧排序（使用缓存的parsedDate）
     const sortedOutdated = this.sortOutdatedByDate(outdated)
 
     // 取最近的过时种子（数组第一个即最近）
@@ -251,7 +261,7 @@ export class Exhentai extends SiteAbstract {
         if (archive) {
           // 比较日期：如果最近的过时种子比归档记录更新，则下载
           const archiveDate = dayjs(archive.date)
-          const outdatedDate = this.parseDateText(mostRecentOutdated.dateText)
+          const outdatedDate = mostRecentOutdated.parsedDate
 
           if (outdatedDate && archiveDate.isValid() && outdatedDate.isAfter(archiveDate, 'day')) {
             // 过时种子比归档记录新，下载
@@ -284,8 +294,8 @@ export class Exhentai extends SiteAbstract {
     ElNotification({ title: '提示', message: '没有最新的种子', type: 'info' })
     if (gid) {
       try {
-        // 使用最近过时种子的日期进行归档
-        const outdatedDate = this.parseDateText(mostRecentOutdated.dateText)
+        // 使用最近过时种子的日期进行归档（使用缓存的parsedDate）
+        const outdatedDate = mostRecentOutdated.parsedDate
         await upsertHentaiArchive(Number(gid), outdatedDate?.toDate(), HentaiArchiveStatus.NoNewerSeed)
         try {
           this.applyArchiveStyle($download, HentaiArchiveStatus.NoNewerSeed)
@@ -299,12 +309,12 @@ export class Exhentai extends SiteAbstract {
   }
 
   /**
-   * 对过时种子数组按日期从新到旧排序
+   * 对过时种子数组按日期从新到旧排序（使用缓存的parsedDate）
    */
   private sortOutdatedByDate(outdated: TorrentEntry[]): TorrentEntry[] {
     return [...outdated].sort((a, b) => {
-      const dateA = this.parseDateText(a.dateText)
-      const dateB = this.parseDateText(b.dateText)
+      const dateA = a.parsedDate
+      const dateB = b.parsedDate
       // 如果日期无效，放到数组末尾
       if (!dateA) return 1
       if (!dateB) return -1

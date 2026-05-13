@@ -1,9 +1,11 @@
 import jquery from 'jquery'
 import { request } from '@/common/common'
+import type { Dayjs } from 'dayjs'
 
 export interface TorrentEntry {
   dateText: string
   href: string
+  parsedDate?: Dayjs
 }
 
 export interface FirstTorrentResult {
@@ -66,7 +68,7 @@ function isFormOutdated($form: JQuery<any>): boolean {
   return false
 }
 
-export async function fetchFirstTorrentFromDownloadPage(downloadPageUrl: string): Promise<FirstTorrentResult> {
+export async function fetchTorrentsFromDownloadPage(downloadPageUrl: string): Promise<FirstTorrentResult> {
   try {
     const res = await request(downloadPageUrl, 'https://exhentai.org/', -1)
     if (!res || (res.status && res.status !== 200)) {
