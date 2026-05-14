@@ -48,14 +48,14 @@ function normalizeArchive(item: Record<string, unknown> | null): HentaiArchiveDt
 
 export async function upsertHentaiArchive(
   gid: number,
-  date?: Date,
-  status?: HentaiArchiveStatus
+  date: Date,
+  status: HentaiArchiveStatus
 ): Promise<HentaiArchiveDto | null> {
   const supabase = await useUserStore().getAuthSupabase()
   const record: Record<string, string | number> = {
     gid,
-    date: date ? dayjs(date).toISOString() : dayjs().toISOString(),
-    status: status !== undefined ? status : HentaiArchiveStatus.DownloadSuccess
+    date: dayjs(date).toISOString(),
+    status: status
   }
   const { data, error } = await supabase
     .from('hentai_archive')
