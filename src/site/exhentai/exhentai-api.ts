@@ -1,5 +1,6 @@
 import jquery from 'jquery'
 import { request } from '@/common/common'
+import { type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
 import type { Dayjs } from 'dayjs'
 
 export interface TorrentEntry {
@@ -17,7 +18,7 @@ export interface FirstTorrentResult {
 /**
  * 解析 form 中的 torrent 信息，返回 { dateText, href } 或 null
  */
-function parseTorrentFromForm($form: JQuery<any>): TorrentEntry | null {
+function parseTorrentFromForm($form: JQuery<HTMLElement>): TorrentEntry | null {
   // 找到 Posted: 后面的日期 span
   let dateText = ''
   const $postedBold = $form
@@ -48,33 +49,13 @@ function parseTorrentFromForm($form: JQuery<any>): TorrentEntry | null {
   return { dateText, href }
 }
 
-/**
- * 判断 form 中的日期是否过时（style="color:red"）
- */
-function isFormOutdated($form: JQuery<any>): boolean {
-  const $postedBold = $form
-    .find('span')
-    .filter((_i, el) => {
-      return jquery(el).text().trim() === 'Posted:'
-    })
-    .first()
-  if ($postedBold.length > 0) {
-    const $dateSpan = $postedBold.next('span').first()
-    if ($dateSpan.length > 0) {
-      const styleAttr = $dateSpan.attr('style') || ''
-      return /color\s*:\s*red/i.test(styleAttr)
-    }
-  }
-  return false
-}
-
 export async function fetchTorrentsFromDownloadPage(downloadPageUrl: string): Promise<FirstTorrentResult> {
   try {
     const res = await request(downloadPageUrl, 'https://exhentai.org/', -1)
     if (!res || (res.status && res.status !== 200)) {
       return { latest: null, outdated: [], error: `HTTP ${res?.status ?? 'ERR'}` }
     }
-    const text = (res as any).responseText || ''
+    const text = (res as GmResponseEvent<'document'>).responseText || ''
     const $doc = jquery(text)
 
     // 优先找表单列表（每个 torrent 一项）
@@ -90,25 +71,43 @@ export async function fetchTorrentsFromDownloadPage(downloadPageUrl: string): Pr
       return { latest: { dateText: '', href }, outdated: [] }
     }
 
-    // 遍历所有 form，分类为 latest 和 outdated
+    // 找到 "Outdated Torrents:" 标题
+    const $outdatedHeader = $doc.find('p').filter((_i, el) => {
+      return jquery(el).text().trim() === 'Outdated Torrents:'
+    }).first()
+
     let latest: TorrentEntry | null = null
     const outdated: TorrentEntry[] = []
 
-    $forms.each((_i, formEl) => {
-      const $form = jquery(formEl)
-      const entry = parseTorrentFromForm($form)
-      if (!entry) return
+    if ($outdatedHeader.length === 0) {
+      // 没有找到标题，所有都是最新的（理论上不应该发生）
+      $forms.each((_i, formEl) => {
+        const entry = parseTorrentFromForm(jquery(formEl) as JQuery<HTMLElement>)
+        if (entry && !latest) {
+          latest = entry
+        }
+      })
+    } else {
+      const headerElement = $outdatedHeader[0] as HTMLElement
+      
+      $forms.each((_i, formEl) => {
+        const entry = parseTorrentFromForm(jquery(formEl) as JQuery<HTMLElement>)
+        if (!entry) return
 
-      if (isFormOutdated($form)) {
-        outdated.push(entry)
-      } else if (!latest) {
-        // 第一个非过时的作为 latest
-        latest = entry
-      }
-    })
+        const formElement = formEl as HTMLElement
+        // 检查 form 是否在标题之后
+        const isAfterHeader = headerElement.compareDocumentPosition(formElement) & Node.DOCUMENT_POSITION_FOLLOWING
+        
+        if (isAfterHeader) {
+          outdated.push(entry)
+        } else {
+          if (!latest) latest = entry
+        }
+      })
+    }
 
     return { latest, outdated }
-  } catch (e: any) {
-    return { latest: null, outdated: [], error: e?.message || String(e) }
+  } catch (e: unknown) {
+    return { latest: null, outdated: [], error: e instanceof Error ? e.message : String(e) }
   }
 }

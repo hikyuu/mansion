@@ -8,8 +8,6 @@ import { SiteId } from '@/site/site-id'
 
 const lockPool = new LockPool()
 
-let loadingTime = new Date()
-
 const ONEJAV_DAILY = 'onejav_daily'
 
 const dailiesRef = ref<Map<string, onejav_daily_dto>>(new Map())
@@ -67,7 +65,7 @@ export async function fetchDailyByPathDate(pathDate: string, siteId: SiteId): Pr
   dailyLock.lock(monthStart.toString())
   const monthEnd = day.endOf('month')
 
-  const result = await Promise.all([
+  await Promise.all([
     fetchDailyRange(monthStart, monthEnd),
     fetchDailyHistoryRange(monthStart, monthEnd, siteId)
   ])
@@ -99,7 +97,7 @@ async function fetchDailyRange(monthStart: Dayjs, monthEnd: Dayjs) {
   return data
 }
 
-export async function fetchRecentDaily(numberOfDays: number): Promise<any[]> {
+export async function fetchRecentDaily(numberOfDays: number): Promise<onejav_daily_dto[]> {
   const supabase = await useUserStore().getAuthSupabase()
   const { data, error } = await supabase
     .from(ONEJAV_DAILY)
@@ -142,7 +140,6 @@ async function updateRemoteDaily(daily: onejav_daily_dto, retry: number = 3) {
 }
 
 export async function loadDailies() {
-  loadingTime = new Date()
   const supabase = await useUserStore().getAuthSupabase()
   await supabase
     .from(ONEJAV_DAILY)
@@ -191,5 +188,5 @@ export declare interface onejav_daily_dto {
   release_date: string
   original_release_date: string
   watch_time: Date
-  [key: string]: any
+  [key: string]: unknown
 }

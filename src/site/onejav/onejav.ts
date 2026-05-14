@@ -142,7 +142,7 @@ export class Onejav extends SiteAbstract {
         ElNotification({ title: '提示', message: '已经归档', type: 'info' })
         throw new Error('已经归档')
       }
-    } catch (e) {
+    } catch {
       this.downloadList.delete(serialNumber)
       return
     }

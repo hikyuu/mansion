@@ -1,14 +1,19 @@
 import type { Selector } from '@/waterfall/waterfall'
 import { SiteId } from '@/site/site-id'
 import { SiteAbstract } from '../site-abstract'
-import type { Info } from '@/store/sister-store'
 import waterfall from '@/waterfall/waterfall'
 import jquery from 'jquery'
 import dayjs, { type Dayjs } from 'dayjs'
 import { fetchTorrentsFromDownloadPage, type TorrentEntry } from './exhentai-api'
 import { ElNotification } from 'element-plus'
 import { download } from '@/download'
-import { getHentaiArchivesMap, getDownloadedArchivesMap, upsertHentaiArchive, HentaiArchiveStatus, type HentaiArchiveDto } from '@/dao/hentai-archive'
+import {
+  getHentaiArchivesMap,
+  getDownloadedArchivesMap,
+  upsertHentaiArchive,
+  HentaiArchiveStatus,
+  type HentaiArchiveDto
+} from '@/dao/hentai-archive'
 import { FORMAT } from '@/dictionary'
 
 type ItemInfo = {
@@ -57,7 +62,7 @@ export class Exhentai extends SiteAbstract {
       const parts = u.pathname.split('/').filter(Boolean)
       const gIndex = parts.indexOf('g')
       if (gIndex >= 0 && parts.length > gIndex + 1) return parts[gIndex + 1]
-    } catch (e) {
+    } catch {
       // ignore
     }
     return undefined
@@ -109,7 +114,7 @@ export class Exhentai extends SiteAbstract {
     const archivesMap = gids.length > 0 ? await getHentaiArchivesMap(gids) : {}
 
     infos.forEach((info) => {
-      const { index, $item, gid, $download, date } = info
+      const { index, gid, $download, date } = info
       if (!$download) return
 
       // 将点击行为绑定到原始下载链接，移除克隆按钮的需要
@@ -128,11 +133,12 @@ export class Exhentai extends SiteAbstract {
         const gidNum = Number(gid)
         const archives = archivesMap[gidNum]
         // 取日期最新的存档记录
-        const archive = archives && archives.length > 0
-          ? archives.reduce((latest: HentaiArchiveDto, current: HentaiArchiveDto) =>
-              dayjs(current.date).isAfter(dayjs(latest.date)) ? current : latest
-            )
-          : null
+        const archive =
+          archives && archives.length > 0
+            ? archives.reduce((latest: HentaiArchiveDto, current: HentaiArchiveDto) =>
+                dayjs(current.date).isAfter(dayjs(latest.date)) ? current : latest
+              )
+            : null
         if (archive) {
           const archiveDate = dayjs(archive.date)
           if (archiveDate.isValid() && date && archiveDate.isSame(date)) {
@@ -141,7 +147,7 @@ export class Exhentai extends SiteAbstract {
               $download.hide()
               return
             } else if (archive.status === HentaiArchiveStatus.NoNewerSeed) {
-              this.applyArchiveStyle($download, archive.status)
+              this.applyArchiveStyle($download)
               // 仍然绑定点击事件，允许用户点击下载过时种子
             } else {
               // 未知状态：不进行任何处理
@@ -157,9 +163,7 @@ export class Exhentai extends SiteAbstract {
   }
 
   private createDownloadHandler($download: JQuery, index: number, gid?: string, date?: Dayjs) {
-    return async (e: any) => {
-      e.preventDefault()
-      e.stopPropagation()
+    return async () => {
       console.log('exhentai download clicked', index, gid)
 
       const downloadHref = $download.attr('data-orig-href') || $download.data('orig-href')
@@ -207,7 +211,7 @@ export class Exhentai extends SiteAbstract {
         await upsertHentaiArchive(Number(gid), date?.toDate(), HentaiArchiveStatus.DownloadSuccess)
         try {
           $download.hide()
-        } catch (errHide) {
+        } catch {
           // 忽略 DOM 操作错误
         }
       } catch (err) {
@@ -269,7 +273,7 @@ export class Exhentai extends SiteAbstract {
             await upsertHentaiArchive(Number(gid), date?.toDate(), HentaiArchiveStatus.DownloadSuccess)
             try {
               $download.hide()
-            } catch (errHide) {
+            } catch {
               // 忽略 DOM 操作错误
             }
             return
@@ -280,7 +284,7 @@ export class Exhentai extends SiteAbstract {
           await upsertHentaiArchive(Number(gid), date?.toDate(), HentaiArchiveStatus.DownloadSuccess)
           try {
             $download.hide()
-          } catch (errHide) {
+          } catch {
             // 忽略 DOM 操作错误
           }
           return
@@ -298,8 +302,8 @@ export class Exhentai extends SiteAbstract {
         const outdatedDate = mostRecentOutdated.parsedDate
         await upsertHentaiArchive(Number(gid), outdatedDate?.toDate(), HentaiArchiveStatus.NoNewerSeed)
         try {
-          this.applyArchiveStyle($download, HentaiArchiveStatus.NoNewerSeed)
-        } catch (errHide) {
+          this.applyArchiveStyle($download)
+        } catch {
           // 忽略 DOM 操作错误
         }
       } catch (err) {
@@ -344,7 +348,7 @@ export class Exhentai extends SiteAbstract {
     return null
   }
 
-  private applyArchiveStyle($download: JQuery, status: HentaiArchiveStatus) {
+  private applyArchiveStyle($download: JQuery): void {
     // 更偏红的滤镜：增加饱和并稍微向红色偏移（使用负 hue-rotate），并将透明度设为 50%
     const filterCss = 'sepia(1) saturate(8) hue-rotate(-10deg) brightness(1.05) contrast(1)'
     const opacityVal = '0.5'
@@ -356,14 +360,14 @@ export class Exhentai extends SiteAbstract {
         $download.css({ filter: filterCss, opacity: opacityVal })
       }
       $download.addClass('archived-no-newer-seed')
-    } catch (err) {
+    } catch {
       // 忽略 DOM 操作错误
     }
   }
-  resolveElements(elems: JQuery): Promise<JQuery[]> {
+  resolveElements(): Promise<JQuery[]> {
     throw new Error('Method not implemented.')
   }
-  download(checkArchive: boolean): void {
+  download(): void {
     // throw new Error('Method not implemented.')
   }
   showControlPanel(): boolean {
@@ -376,7 +380,7 @@ export class Exhentai extends SiteAbstract {
   checkSite(): boolean {
     return /(this.name)/i.test(document.URL)
   }
-  updateInfo(item: JQuery, info: Info): void {
+  updateInfo(): void {
     throw new Error('Method not implemented.')
   }
 }

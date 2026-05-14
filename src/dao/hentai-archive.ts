@@ -1,4 +1,5 @@
 import { useUserStore } from '@/store/user-store'
+import dayjs from 'dayjs'
 
 export enum HentaiArchiveStatus {
   DownloadSuccess = 200,
@@ -12,19 +13,36 @@ export declare interface HentaiArchiveDto {
   user_id: string
   created_time: Date
   status: HentaiArchiveStatus
-  [key: string]: any
+  [key: string]: unknown
 }
 
-function normalizeArchive(item: any): HentaiArchiveDto {
+function normalizeArchive(item: Record<string, unknown> | null): HentaiArchiveDto | null {
   if (!item) return item
-  item.date = item.date ? new Date(item.date) : new Date()
-  item.created_time = item.created_time ? new Date(item.created_time) : new Date()
-  const statusNum = Number(item.status)
+  
+  // 处理 date 字段 - 使用 dayjs
+  if (item.date !== undefined && item.date !== null) {
+    const dateObj = dayjs(item.date as string | number | Date)
+    item.date = dateObj.isValid() ? dateObj.toDate() : dayjs().toDate()
+  } else {
+    item.date = dayjs().toDate()
+  }
+  
+  // 处理 created_time 字段 - 使用 dayjs
+  if (item.created_time !== undefined && item.created_time !== null) {
+    const dateObj = dayjs(item.created_time as string | number | Date)
+    item.created_time = dateObj.isValid() ? dateObj.toDate() : dayjs().toDate()
+  } else {
+    item.created_time = dayjs().toDate()
+  }
+  
+  // 处理 status 字段
+  const statusNum = typeof item.status === 'number' ? item.status : Number(item.status)
   if (statusNum === HentaiArchiveStatus.NoNewerSeed) {
     item.status = HentaiArchiveStatus.NoNewerSeed
   } else {
     item.status = HentaiArchiveStatus.DownloadSuccess
   }
+  
   return item as HentaiArchiveDto
 }
 
@@ -34,9 +52,9 @@ export async function upsertHentaiArchive(
   status?: HentaiArchiveStatus
 ): Promise<HentaiArchiveDto | null> {
   const supabase = await useUserStore().getAuthSupabase()
-  const record: Record<string, any> = {
+  const record: Record<string, string | number> = {
     gid,
-    date: date ? date.toISOString() : new Date().toISOString(),
+    date: date ? dayjs(date).toISOString() : dayjs().toISOString(),
     status: status !== undefined ? status : HentaiArchiveStatus.DownloadSuccess
   }
   const { data, error } = await supabase
@@ -77,7 +95,7 @@ export async function getHentaiArchivesMap(
   }
   const map: Record<number, HentaiArchiveDto[]> = {}
   if (Array.isArray(data)) {
-    data.forEach((row: any) => {
+    data.forEach((row: Record<string, unknown>) => {
       const normalized = normalizeArchive(row)
       if (normalized && normalized.gid !== undefined) {
         const gid = Number(normalized.gid)
