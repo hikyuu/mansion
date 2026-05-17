@@ -76,6 +76,7 @@ export async function getHentaiArchivesMap(
   status?: HentaiArchiveStatus
 ): Promise<Record<number, HentaiArchiveDto[]>> {
   if (!gids || gids.length === 0) return {}
+  
   const supabase = await useUserStore().getAuthSupabase()
 
   let query = supabase

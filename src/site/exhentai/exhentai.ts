@@ -267,10 +267,10 @@ export class Exhentai extends SiteAbstract {
         const outdatedDate = mostRecentOutdated.parsedDate
 
         if (outdatedDate && archiveDate.isValid() && outdatedDate.isAfter(archiveDate, 'day')) {
-          // 过时种子比归档记录新，下载
+          // 过时种子比归档记录新，下载并使用过时种子的日期更新归档
           download(mostRecentOutdated.href)
-          ElNotification({ title: '提示', message: '正在下载最近的过时种子', type: 'info' })
-          await upsertHentaiArchive(Number(gid), date.toDate(), HentaiArchiveStatus.DownloadSuccess)
+          await upsertHentaiArchive(Number(gid), outdatedDate.toDate(), HentaiArchiveStatus.DownloadSuccess)
+          ElNotification({ title: '提示', message: '下载最近的过时种子完成', type: 'info' })
           try {
             $download.hide()
           } catch {
@@ -279,10 +279,10 @@ export class Exhentai extends SiteAbstract {
           return
         }
       } else {
-        // 没有存档记录，直接下载最近的过时种子
+        // 没有存档记录，直接下载最近的过时种子，使用过时种子的日期
         download(mostRecentOutdated.href)
         ElNotification({ title: '提示', message: '未找到下载记录，下载最近的过时种子', type: 'info' })
-        await upsertHentaiArchive(Number(gid), date.toDate(), HentaiArchiveStatus.DownloadSuccess)
+        await upsertHentaiArchive(Number(gid), mostRecentOutdated.parsedDate?.toDate() || date.toDate(), HentaiArchiveStatus.DownloadSuccess)
         try {
           $download.hide()
         } catch {

@@ -24,7 +24,7 @@ export const useUserStore = defineStore('user', {
   },
   actions: {
     onAuthStateChange() {
-      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      supabase.auth.onAuthStateChange((event, session) => {
         console.log(event, session)
         if (event === 'INITIAL_SESSION') {
           // handle initial session

@@ -72,11 +72,6 @@ export async function getJavstoreUrl(serialNumber: string, retry = 1): Promise<s
     })
 }
 
-function containsHTML(text: string) {
-  const regex = /<\/?[a-z][\s\S]*>/i
-  return regex.test(text)
-}
-
 export async function getThumbnailUrlFromDetail(detail: Document, serialNumber: string): Promise<Array<string>> {
   try {
     let img_array = jquery(detail).find('div.p-6 a img[alt*=".th"]')

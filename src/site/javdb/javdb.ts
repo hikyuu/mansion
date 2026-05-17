@@ -124,7 +124,7 @@ export class Javdb extends SiteAbstract {
         this.downloadList.delete(serialNumber)
         throw new Error('没有找到详情页')
       }
-    } catch (e) {
+    } catch {
       this.downloadList.delete(serialNumber)
       return
     }
