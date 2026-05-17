@@ -33,7 +33,6 @@ if (exactSite === undefined) {
 const site = useSiteStore().getSite
 
 const isDevMode = import.meta.env.DEV
-
 </script>
 
 <template>

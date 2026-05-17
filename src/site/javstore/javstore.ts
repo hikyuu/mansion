@@ -216,7 +216,7 @@ export class Javstore extends SiteAbstract {
       ElNotification({ title: '提示', message: '没有选中', type: 'info' })
       return
     }
-    
+
     if (this.downloadList.has(serialNumber)) {
       ElNotification({ title: '提示', message: '正在下载中', type: 'info' })
       return
@@ -233,7 +233,7 @@ export class Javstore extends SiteAbstract {
       this.downloadList.delete(serialNumber)
       return
     }
-    
+
     return downloadFromJavdb(serialNumber)
       .then((r) => {
         if (r) {

@@ -65,10 +65,7 @@ export async function fetchDailyByPathDate(pathDate: string, siteId: SiteId): Pr
   dailyLock.lock(monthStart.toString())
   const monthEnd = day.endOf('month')
 
-  await Promise.all([
-    fetchDailyRange(monthStart, monthEnd),
-    fetchDailyHistoryRange(monthStart, monthEnd, siteId)
-  ])
+  await Promise.all([fetchDailyRange(monthStart, monthEnd), fetchDailyHistoryRange(monthStart, monthEnd, siteId)])
 
   dailyLock.unlock(monthStart.toString())
   daily = dailiesRef.value.get(pathDate)

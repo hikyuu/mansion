@@ -18,7 +18,7 @@ export declare interface HentaiArchiveDto {
 
 function normalizeArchive(item: Record<string, unknown> | null): HentaiArchiveDto | null {
   if (!item) return item
-  
+
   // 处理 date 字段 - 使用 dayjs
   if (item.date !== undefined && item.date !== null) {
     const dateObj = dayjs(item.date as string | number | Date)
@@ -26,7 +26,7 @@ function normalizeArchive(item: Record<string, unknown> | null): HentaiArchiveDt
   } else {
     item.date = dayjs().toDate()
   }
-  
+
   // 处理 created_time 字段 - 使用 dayjs
   if (item.created_time !== undefined && item.created_time !== null) {
     const dateObj = dayjs(item.created_time as string | number | Date)
@@ -34,7 +34,7 @@ function normalizeArchive(item: Record<string, unknown> | null): HentaiArchiveDt
   } else {
     item.created_time = dayjs().toDate()
   }
-  
+
   // 处理 status 字段
   const statusNum = typeof item.status === 'number' ? item.status : Number(item.status)
   if (statusNum === HentaiArchiveStatus.NoNewerSeed) {
@@ -42,7 +42,7 @@ function normalizeArchive(item: Record<string, unknown> | null): HentaiArchiveDt
   } else {
     item.status = HentaiArchiveStatus.DownloadSuccess
   }
-  
+
   return item as HentaiArchiveDto
 }
 
@@ -76,13 +76,10 @@ export async function getHentaiArchivesMap(
   status?: HentaiArchiveStatus
 ): Promise<Record<number, HentaiArchiveDto[]>> {
   if (!gids || gids.length === 0) return {}
-  
+
   const supabase = await useUserStore().getAuthSupabase()
 
-  let query = supabase
-    .from('hentai_archive')
-    .select('gid, date, status')
-    .in('gid', gids)
+  let query = supabase.from('hentai_archive').select('gid, date, status').in('gid', gids)
 
   if (status !== undefined) {
     query = query.eq('status', status)

@@ -34,7 +34,7 @@ export async function getJavstoreUrl(serialNumber: string, retry = 1): Promise<s
       // 查找包含番号的a标签数组,忽略大小写
       const a_array = jquery(overview).find(`div.grid.grid-cols-2 > a.group.block`)
 
-      console.debug('javstore搜索结果：', a_array.length);
+      console.debug('javstore搜索结果：', a_array.length)
 
       let a = a_array[0]
       //如果找到全高清大图优先获取全高清的
@@ -78,7 +78,6 @@ export async function getThumbnailUrlFromDetail(detail: Document, serialNumber: 
     const urls: string[] = []
     //新方法
     if (img_array.length <= 0) {
-
       img_array = jquery(detail).find('div.p-6 >> a:contains("CLICK HERE!")')
 
       if (img_array.length <= 0) return urls

@@ -219,7 +219,7 @@ function solveLink(date: Date) {
 </template>
 
 <style scoped>
-.today-badge{
+.today-badge {
   position: absolute;
   top: 6px;
   right: 8px;

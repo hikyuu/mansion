@@ -72,9 +72,12 @@ export async function fetchTorrentsFromDownloadPage(downloadPageUrl: string): Pr
     }
 
     // 找到 "Outdated Torrents:" 标题
-    const $outdatedHeader = $doc.find('p').filter((_i, el) => {
-      return jquery(el).text().trim() === 'Outdated Torrents:'
-    }).first()
+    const $outdatedHeader = $doc
+      .find('p')
+      .filter((_i, el) => {
+        return jquery(el).text().trim() === 'Outdated Torrents:'
+      })
+      .first()
 
     let latest: TorrentEntry | null = null
     const outdated: TorrentEntry[] = []
@@ -89,7 +92,7 @@ export async function fetchTorrentsFromDownloadPage(downloadPageUrl: string): Pr
       })
     } else {
       const headerElement = $outdatedHeader[0] as HTMLElement
-      
+
       $forms.each((_i, formEl) => {
         const entry = parseTorrentFromForm(jquery(formEl) as JQuery<HTMLElement>)
         if (!entry) return
@@ -97,7 +100,7 @@ export async function fetchTorrentsFromDownloadPage(downloadPageUrl: string): Pr
         const formElement = formEl as HTMLElement
         // 检查 form 是否在标题之后
         const isAfterHeader = headerElement.compareDocumentPosition(formElement) & Node.DOCUMENT_POSITION_FOLLOWING
-        
+
         if (isAfterHeader) {
           outdated.push(entry)
         } else {
