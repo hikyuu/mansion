@@ -61,7 +61,7 @@ export const useUserStore = defineStore('user', {
         }
       })
     },
-    async getAuthSupabase(): Promise<SupabaseClient<any, 'public', any>> {
+    async getAuthSupabase(): Promise<SupabaseClient> {
       if (!this.initial) {
         await supabase.auth.getSession()
       }

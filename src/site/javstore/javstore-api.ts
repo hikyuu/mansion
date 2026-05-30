@@ -1,6 +1,8 @@
 import { getImgUrlFromPixhost, parseText, request } from '@/common/common'
 import jquery from 'jquery'
 
+const TITLE_SELECTOR = 'article h1'
+
 export async function getDetailFromJavStore(javstore: string, retry = 3): Promise<Document | undefined> {
   try {
     const result = await request(javstore, 'https://javstore.net/')
@@ -15,9 +17,10 @@ export async function getDetailFromJavStore(javstore: string, retry = 3): Promis
   }
 }
 
+
 export function getTitleFromDetail(detail: Document) {
   try {
-    const array = jquery(detail).find('.news .first_des')
+    const array = jquery(detail).find(TITLE_SELECTOR)
     if (array.length <= 0) return undefined
     return array.text()
   } catch (reason) {
