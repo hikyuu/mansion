@@ -105,7 +105,7 @@ export class ExhentaiDownloadHandler {
         const archiveDayjs = archiveDate ? ExhentaiUtils.parseDateText(archiveDate) : null
         const outdatedDate = mostRecentOutdated.parsedDate
 
-        if (outdatedDate && archiveDayjs && archiveDayjs.isValid() && outdatedDate.isAfter(archiveDayjs, 'day')) {
+        if (outdatedDate && archiveDayjs && archiveDayjs.isValid() && outdatedDate.isAfter(archiveDayjs)) {
           // 过时种子比归档记录新，下载并使用过时种子的日期更新归档
           download(mostRecentOutdated.href)
           await upsertHentaiArchive(Number(this.gid), outdatedDate.toDate(), HentaiArchiveStatus.DownloadSuccess)
