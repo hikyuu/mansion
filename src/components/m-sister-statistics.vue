@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Location, Memo } from '@element-plus/icons-vue'
 import MImgItem from '@/components/m-img-item.vue'
-import { computed, defineProps } from 'vue'
+import { computed } from 'vue'
 import type { SiteAbstract } from '@/site/site-abstract'
 import { useScroll } from '@vueuse/core'
 import { useSisterStore } from '@/store/sister-store'

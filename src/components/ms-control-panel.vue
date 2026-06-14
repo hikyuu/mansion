@@ -27,6 +27,7 @@ const { x, y } = useScroll(window, {
   onStop: () => {
     // console.log('滚动结束')
     site.waterfall.onScrollEvent()
+    site.endUserNavigating()
   },
   behavior: useConfigStore().getSiteConfig.smooth ? 'smooth' : 'auto'
 })

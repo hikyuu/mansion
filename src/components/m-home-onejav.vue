@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { Onejav } from '@/site/onejav/onejav'
-import { computed, defineProps } from 'vue'
+import { computed } from 'vue'
 import { FORMAT } from '@/dictionary'
 import { DocumentCopy, Right } from '@element-plus/icons-vue'
 import MImgBox from '@/components/m-img-box.vue'

@@ -22,6 +22,22 @@ export abstract class SiteAbstract implements SiteInterface {
 
   protected sister = useSisterStore()
 
+  /**
+   * 用户主动按键导航时设为 true，抑制 onScrollEvent 覆盖 current_index。
+   * 由 ms-control-panel 的 onStop 回调在 onScrollEvent 执行后调用 endUserNavigating() 复位。
+   */
+  private _userNavigating = false
+
+  /** 设置用户导航状态，阻止滚动事件覆盖当前索引 */
+  public setUserNavigating() {
+    this._userNavigating = true
+  }
+
+  /** 在 onStop 回调中（onScrollEvent 已执行完毕）调用，恢复正常检测 */
+  public endUserNavigating() {
+    this._userNavigating = false
+  }
+
   abstract name: string
 
   abstract siteId: SiteId
@@ -115,6 +131,7 @@ export abstract class SiteAbstract implements SiteInterface {
   }
 
   scrollToCurrent(x: Ref<number>, y: Ref<number>): void {
+    this.setUserNavigating()
     let prev = jquery('#' + useSisterStore().current_key)
     switch (useConfigStore().getSiteConfig.navigationPoint) {
       case 1:
@@ -132,6 +149,9 @@ export abstract class SiteAbstract implements SiteInterface {
   }
 
   protected getCurrentWindowElement(detail: JQuery, scrollTop: number) {
+    // 用户通过方向键主动导航时，抑制滚动事件覆盖 current_index
+    if (this._userNavigating) return
+
     const detailTop = detail.offset()?.top
     if (detailTop === undefined) return
     const detailHeight = detail.height()
