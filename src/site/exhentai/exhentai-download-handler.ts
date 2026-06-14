@@ -1,7 +1,7 @@
-import type { Dayjs } from 'dayjs'
+import dayjs, { type Dayjs } from 'dayjs'
 import { fetchTorrentsFromDownloadPage, type TorrentEntry } from './exhentai-api'
 import { download } from '@/download'
-import { getDownloadedArchivesMap, upsertHentaiArchive, HentaiArchiveStatus } from '@/dao/hentai-archive'
+import { getDownloadedArchivesMap, upsertHentaiArchive, HentaiArchiveStatus, type HentaiArchiveDto } from '@/dao/hentai-archive'
 import { ElNotification } from 'element-plus'
 import { ExhentaiUtils } from './exhentai-utils'
 
@@ -56,13 +56,77 @@ export class ExhentaiDownloadHandler {
     download(latest.href)
     try {
       await upsertHentaiArchive(Number(this.gid), this.date.toDate(), HentaiArchiveStatus.DownloadSuccess)
-      try {
-        this.$download.hide()
-      } catch {
-        // 忽略 DOM 操作错误
-      }
+      this.tryHideDownloadButton()
     } catch (err) {
       console.warn('exhentai: upsertHentaiArchive failed', err)
+    }
+  }
+
+  /** 统一隐藏下载按钮 */
+  private tryHideDownloadButton(): void {
+    try {
+      this.$download.hide()
+    } catch {
+      // 忽略 DOM 操作错误
+    }
+  }
+
+  /** 下载种子并写入归档记录 */
+  private async downloadAndArchive(entry: TorrentEntry, status: HentaiArchiveStatus): Promise<void> {
+    download(entry.href)
+    const date = entry.parsedDate?.toDate() || this.date.toDate()
+    await upsertHentaiArchive(Number(this.gid), date, status)
+    this.tryHideDownloadButton()
+  }
+
+  /** 解析过时种子的日期文本 */
+  private parseOutdatedDates(outdated: TorrentEntry[]): void {
+    for (const entry of outdated) {
+      if (!entry.parsedDate) {
+        const parsed = ExhentaiUtils.parseDateText(entry.dateText)
+        if (parsed) {
+          entry.parsedDate = parsed
+        }
+      }
+    }
+  }
+
+  /** 从归档记录中提取 Dayjs 日期 */
+  private getArchiveDayjs(archive: HentaiArchiveDto): Dayjs | null {
+    if (!archive.date) return null
+    const d = dayjs(archive.date)
+    return d.isValid() ? d : null
+  }
+
+  /** 无存档记录时：直接下载最近的过时种子 */
+  private async handleNoArchive(entry: TorrentEntry): Promise<void> {
+    await this.downloadAndArchive(entry, HentaiArchiveStatus.DownloadSuccess)
+    ElNotification({ title: '提示', message: '未找到下载记录，下载最近的过时种子', type: 'info' })
+  }
+
+  /** 有存档记录时：比较日期，若更新则下载 */
+  private async handleExistingArchive(archive: HentaiArchiveDto, entry: TorrentEntry): Promise<boolean> {
+    const archiveDayjs = this.getArchiveDayjs(archive)
+    const outdatedDate = entry.parsedDate
+
+    if (outdatedDate && archiveDayjs?.isValid() && outdatedDate.isAfter(archiveDayjs)) {
+      await this.downloadAndArchive(entry, HentaiArchiveStatus.DownloadSuccess)
+      ElNotification({ title: '提示', message: '下载最近的过时种子完成', type: 'info' })
+      return true
+    }
+    return false
+  }
+
+  /** 标记为无更新种子 */
+  private async markAsNoNewerSeed(entry: TorrentEntry): Promise<void> {
+    const outdatedDate = entry.parsedDate
+    if (outdatedDate) {
+      await upsertHentaiArchive(Number(this.gid), outdatedDate.toDate(), HentaiArchiveStatus.NoNewerSeed)
+    }
+    try {
+      ExhentaiUtils.applyArchiveStyle(this.$download)
+    } catch {
+      // 忽略 DOM 操作错误
     }
   }
 
@@ -72,65 +136,27 @@ export class ExhentaiDownloadHandler {
       return
     }
 
-    // 将outdated中的dateText全部转为dayjs,后续不用重复转换
-    outdated.forEach((entry) => {
-      if (!entry.parsedDate) {
-        const parsed = ExhentaiUtils.parseDateText(entry.dateText)
-        if (parsed) {
-          entry.parsedDate = parsed
-        }
-      }
-    })
-
-    // 对 outdated 数组按日期从新到旧排序（使用缓存的parsedDate）
+    // 解析日期并排序
+    this.parseOutdatedDates(outdated)
     const sortedOutdated = this.sortOutdatedByDate(outdated)
+    const mostRecent = sortedOutdated[0]
 
-    // 取最近的过时种子（数组第一个即最近）
-    const mostRecentOutdated = sortedOutdated[0]
-
-    if (!mostRecentOutdated) {
+    if (!mostRecent) {
       ElNotification({ title: '提示', message: '未找到下载链接', type: 'error' })
       return
     }
 
-    // 查询 hentai-archive 是否有下载记录
+    // 查询归档记录并决策
     try {
       const archivesMap = await getDownloadedArchivesMap([Number(this.gid)])
       const archives = archivesMap[Number(this.gid)]
       const archive = archives && archives.length > 0 ? archives[0] : null
-
+      
       if (archive) {
-        // 比较日期：如果最近的过时种子比归档记录更新，则下载
-        const archiveDate = archive.date ? (typeof archive.date === 'string' ? archive.date : '') : ''
-        const archiveDayjs = archiveDate ? ExhentaiUtils.parseDateText(archiveDate) : null
-        const outdatedDate = mostRecentOutdated.parsedDate
-
-        if (outdatedDate && archiveDayjs && archiveDayjs.isValid() && outdatedDate.isAfter(archiveDayjs)) {
-          // 过时种子比归档记录新，下载并使用过时种子的日期更新归档
-          download(mostRecentOutdated.href)
-          await upsertHentaiArchive(Number(this.gid), outdatedDate.toDate(), HentaiArchiveStatus.DownloadSuccess)
-          ElNotification({ title: '提示', message: '下载最近的过时种子完成', type: 'info' })
-          try {
-            this.$download.hide()
-          } catch {
-            // 忽略 DOM 操作错误
-          }
-          return
-        }
+        const downloaded = await this.handleExistingArchive(archive, mostRecent)
+        if (downloaded) return
       } else {
-        // 没有存档记录，直接下载最近的过时种子，使用过时种子的日期
-        download(mostRecentOutdated.href)
-        ElNotification({ title: '提示', message: '未找到下载记录，下载最近的过时种子', type: 'info' })
-        await upsertHentaiArchive(
-          Number(this.gid),
-          mostRecentOutdated.parsedDate?.toDate() || this.date.toDate(),
-          HentaiArchiveStatus.DownloadSuccess
-        )
-        try {
-          this.$download.hide()
-        } catch {
-          // 忽略 DOM 操作错误
-        }
+        await this.handleNoArchive(mostRecent)
         return
       }
     } catch (err) {
@@ -140,16 +166,7 @@ export class ExhentaiDownloadHandler {
     // 过时种子不比归档新，标记为无新种子
     ElNotification({ title: '提示', message: '没有最新的种子', type: 'info' })
     try {
-      // 使用最近过时种子的日期进行归档（使用缓存的parsedDate）
-      const outdatedDate = mostRecentOutdated.parsedDate
-      if (outdatedDate) {
-        await upsertHentaiArchive(Number(this.gid), outdatedDate.toDate(), HentaiArchiveStatus.NoNewerSeed)
-      }
-      try {
-        ExhentaiUtils.applyArchiveStyle(this.$download)
-      } catch {
-        // 忽略 DOM 操作错误
-      }
+      await this.markAsNoNewerSeed(mostRecent)
     } catch (err) {
       console.warn('exhentai: upsertHentaiArchive failed', err)
     }
