@@ -8,7 +8,9 @@
     "dev": "vite -d --host",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false",
-    "lint": "oxlint . --fix",
+    "lint": "oxlint . && eslint .",
+    "lint:ox": "oxlint . --fix",
+    "lint:eslint": "eslint . --fix",
     "format": "prettier --write src/",
     "test": "vitest"
   },
@@ -37,6 +39,7 @@
     "@vue/eslint-config-typescript": "^14.8.0",
     "@vue/tsconfig": "^0.9.1",
     "eslint": "^10.5.0",
+    "eslint-plugin-oxlint": "^1.70.0",
     "eslint-plugin-vue": "^10.9.2",
     "jiti": "^2.7.0",
     "oxlint": "^1.70.0",
