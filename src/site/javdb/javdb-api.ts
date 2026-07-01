@@ -1,12 +1,16 @@
 import { JAVDB_NAME, javdb_selector } from '@/site/javdb/javdb'
 import { request, sortId } from '@/common/common'
-import { createSession, getFromFlareSolverr, type GmCallbackCookie } from '@/common/flare-solverr.ts'
+import { SessionPool } from '@/common/session-pool.ts'
+import type { GmCallbackCookie } from '@/common/flare-solverr.ts'
 import { GM_cookie, type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
 import jquery from 'jquery'
-import { useConfigStore } from '@/store/config-store.ts'
 
 const baseUrl = 'https://javdb.com'
 
+/** SessionPool 实例 */
+const sessionPool = SessionPool.getInstance()
+
+/** 当前是否已触发 FlareSolverr 绕过模式 */
 let bypassSuccess = false
 
 function handleSearch(doc: JQuery<HTMLElement>) {
@@ -25,7 +29,7 @@ function handleSearch(doc: JQuery<HTMLElement>) {
   return items.first()
 }
 
-async function searchHtml(serialNumber: string, retry: number = 3) {
+async function searchHtml(serialNumber: string) {
   const fullUrl = `https://javdb.com/search?q=${serialNumber}`
   if (bypassSuccess) {
     console.log('请求搜索页（已绕过Cloudflare）', fullUrl)
@@ -40,7 +44,7 @@ async function searchHtml(serialNumber: string, retry: number = 3) {
     console.log('被Cloudflare拦截')
     if (!bypassSuccess) {
       bypassSuccess = true
-      return searchHtml(serialNumber, retry)
+      return searchHtml(serialNumber)
     }
   }
   return handleSearch(doc)
@@ -81,10 +85,14 @@ function handleMagnet(doc: JQuery) {
   return highestScore
 }
 
+/**
+ * 通过 SessionPool 使用 FlareSolverr 获取页面 HTML
+ * - 自动管理 session 创建/复用/轮换
+ * - 500 错误自动重建 session 并重试
+ */
 async function flareGet(fullUrl: string): Promise<string> {
   const siteCookies = await getCookies()
-  const sessionId = await getSessionId()
-  const solution = await getFromFlareSolverr(fullUrl, sessionId, siteCookies)
+  const { solution } = await sessionPool.request(JAVDB_NAME, fullUrl, siteCookies)
   if (!solution.response) {
     throw new Error('FlareSolverr 未返回有效响应')
   }
@@ -117,16 +125,7 @@ async function magnetHtml(detailUrl: string, retry: number = 2): Promise<Highest
   return handleMagnet(doc)
 }
 
-async function getSessionId() {
-  const session = useConfigStore().common.sessionId.find((s) => s.site == JAVDB_NAME)
-  if (!session) {
-    console.log('Javdb 获取新的 FlareSolverr 会话 ID')
-    const sessionId = await createSession()
-    useConfigStore().updateSessionId(JAVDB_NAME, sessionId)
-    return sessionId
-  }
-  return session.id
-}
+
 
 declare interface HighestScore {
   score: number

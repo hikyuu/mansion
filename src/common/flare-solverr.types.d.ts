@@ -86,6 +86,7 @@ declare module 'flare-solverr' {
     cmd: Command
     maxTimeout?: number
     session?: string
+    session_ttl_minutes?: number
   }
 
   // GET请求参数
@@ -118,4 +119,32 @@ declare module 'flare-solverr' {
   export interface SessionCreateParams extends BaseRequest {
     cmd: 'sessions.create'
   }
+
+  // 会话列表响应
+  export interface SessionListResponse {
+    status: 'ok' | 'error'
+    message: string
+    sessions: string[]
+    startTimestamp: number
+    endTimestamp: number
+    version: string
+  }
+
+  // 会话销毁参数
+  export interface SessionDestroyParams {
+    cmd: 'sessions.destroy'
+    session: string
+  }
+
+  // 会话销毁响应
+  export interface SessionDestroyResponse {
+    status: 'ok' | 'error'
+    message: string
+    startTimestamp: number
+    endTimestamp: number
+    version: string
+  }
+
+  // 命令类型
+  type Command = 'request.get' | 'request.post' | 'sessions.create' | 'sessions.destroy' | 'sessions.list'
 }
