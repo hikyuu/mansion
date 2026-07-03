@@ -3,7 +3,8 @@ import dayjs from 'dayjs'
 
 export enum HentaiArchiveStatus {
   DownloadSuccess = 200,
-  NoNewerSeed = 304 // 没有更新的种子即过时
+  NoNewerSeed = 304, // 没有更新的种子即过时
+  SkipDownload = 400 // 用户主动标记跳过下载
 }
 
 export declare interface HentaiArchiveDto {
@@ -39,6 +40,8 @@ function normalizeArchive(item: Record<string, unknown> | null): HentaiArchiveDt
   const statusNum = typeof item.status === 'number' ? item.status : Number(item.status)
   if (statusNum === HentaiArchiveStatus.NoNewerSeed) {
     item.status = HentaiArchiveStatus.NoNewerSeed
+  } else if (statusNum === HentaiArchiveStatus.SkipDownload) {
+    item.status = HentaiArchiveStatus.SkipDownload
   } else {
     item.status = HentaiArchiveStatus.DownloadSuccess
   }
