@@ -13,6 +13,21 @@ const sessionPool = SessionPool.getInstance()
 /** 当前是否已触发 FlareSolverr 绕过模式 */
 let bypassSuccess = false
 
+/**
+ * 检测 Cloudflare 拦截并自动切换绕过模式
+ * - 判据：HTTP 状态码非 200 或响应文本包含 "Just a moment..."
+ * - 命中后将 bypassSuccess 置为 true，后续请求自动走 FlareSolverr
+ * @returns true 表示检测到 CF 拦截，调用方应走 flareGet 重试
+ */
+function checkCfAndHandle(res: GmResponseEvent<'document'>, doc: JQuery<HTMLElement>): boolean {
+  if (res.status !== 200 || doc.text().includes('Just a moment...')) {
+    console.log('检测到 Cloudflare 拦截，切换为 FlareSolverr 绕过模式')
+    bypassSuccess = true
+    return true
+  }
+  return false
+}
+
 function handleSearch(doc: JQuery<HTMLElement>) {
   const container = doc.find(javdb_selector.container)
   if (container.length === 0) {
@@ -35,17 +50,14 @@ async function searchHtml(serialNumber: string) {
     console.log('请求搜索页（已绕过Cloudflare）', fullUrl)
     const response = await flareGet(fullUrl)
     const flareDoc = jquery(response)
-    // 使用类型守卫过滤出 HTMLElement
     return handleSearch(flareDoc)
   }
-  const res = await request(`fullUrl`, 'https://javdb.com/')
-  const doc = jQuery(res.responseText)
-  if (res.status !== 200 || doc.text().includes('Just a moment...')) {
-    console.log('被Cloudflare拦截')
-    if (!bypassSuccess) {
-      bypassSuccess = true
-      return searchHtml(serialNumber)
-    }
+  const res = await request(fullUrl, 'https://javdb.com/')
+  const doc = jquery(res.responseText)
+  if (checkCfAndHandle(res, doc)) {
+    const response = await flareGet(fullUrl)
+    const flareDoc = jquery(response)
+    return handleSearch(flareDoc)
   }
   return handleSearch(doc)
 }
@@ -99,28 +111,21 @@ async function flareGet(fullUrl: string): Promise<string> {
   return solution.response
 }
 
-async function magnetHtml(detailUrl: string, retry: number = 2): Promise<HighestScore> {
-  if (retry === 0) {
-    throw new Error('多次重试仍无法获取磁力链接，可能是网站结构变化或IP被封，请检查。')
-  }
+async function magnetHtml(detailUrl: string): Promise<HighestScore> {
   const fullUrl = baseUrl + detailUrl
   if (bypassSuccess) {
-    console.log('请求详情页(绕过Cloudflare）', fullUrl)
+    console.log('请求详情页（已绕过Cloudflare）', fullUrl)
     const response = await flareGet(fullUrl)
     const flareDoc = jquery(response)
-    // 使用类型守卫过滤出 HTMLElement
     return handleMagnet(flareDoc)
   }
   console.log('请求详情页', fullUrl)
   const res: GmResponseEvent<'document'> = await request(fullUrl, 'https://javdb.com/', -1)
   const doc = jquery(res.responseText)
-  if (res.status !== 200 || doc.text().includes('Just a moment...')) {
-    console.log('被Cloudflare拦截')
-    if (!bypassSuccess) {
-      console.log('使用 FlareSolverr 绕过 Cloudflare')
-      bypassSuccess = true
-      return magnetHtml(detailUrl, retry - 1)
-    }
+  if (checkCfAndHandle(res, doc)) {
+    const response = await flareGet(fullUrl)
+    const flareDoc = jquery(response)
+    return handleMagnet(flareDoc)
   }
   return handleMagnet(doc)
 }
