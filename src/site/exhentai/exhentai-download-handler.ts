@@ -10,12 +10,14 @@ export class ExhentaiDownloadHandler {
   private index: number
   private gid: string
   private date: Dayjs
+  private title: string
 
-  constructor($download: JQuery, index: number, gid: string, date: Dayjs) {
+  constructor($download: JQuery, index: number, gid: string, date: Dayjs, title: string = '') {
     this.$download = $download
     this.index = index
     this.gid = gid
     this.date = date
+    this.title = title
   }
 
   public createHandler() {
@@ -55,7 +57,7 @@ export class ExhentaiDownloadHandler {
   private async handleLatestTorrent(latest: TorrentEntry): Promise<void> {
     download(latest.href)
     try {
-      await upsertHentaiArchive(Number(this.gid), this.date.toDate(), HentaiArchiveStatus.DownloadSuccess)
+      await upsertHentaiArchive(Number(this.gid), this.date.toDate(), HentaiArchiveStatus.DownloadSuccess, this.title)
       this.tryHideDownloadButton()
     } catch (err) {
       console.warn('exhentai: upsertHentaiArchive failed', err)
@@ -75,7 +77,7 @@ export class ExhentaiDownloadHandler {
   private async downloadAndArchive(entry: TorrentEntry, status: HentaiArchiveStatus): Promise<void> {
     download(entry.href)
     const date = entry.parsedDate?.toDate() || this.date.toDate()
-    await upsertHentaiArchive(Number(this.gid), date, status)
+    await upsertHentaiArchive(Number(this.gid), date, status, this.title)
     this.tryHideDownloadButton()
   }
 
@@ -121,7 +123,7 @@ export class ExhentaiDownloadHandler {
   private async markAsNoNewerSeed(entry: TorrentEntry): Promise<void> {
     const outdatedDate = entry.parsedDate
     if (outdatedDate) {
-      await upsertHentaiArchive(Number(this.gid), outdatedDate.toDate(), HentaiArchiveStatus.NoNewerSeed)
+      await upsertHentaiArchive(Number(this.gid), outdatedDate.toDate(), HentaiArchiveStatus.NoNewerSeed, this.title)
     }
     try {
       ExhentaiUtils.applyArchiveStyle(this.$download)

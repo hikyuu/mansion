@@ -264,6 +264,10 @@ export declare interface Selector {
    * 链接选择器
    */
   link: string
+  /**
+   * 标题选择器（可选，解析画廊标题等场景使用）
+   */
+  title?: string
 }
 
 class Lock {

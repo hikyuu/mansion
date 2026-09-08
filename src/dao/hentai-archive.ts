@@ -1,4 +1,5 @@
 import { useUserStore } from '@/store/user-store'
+import { sha256Hex } from '@/common/hash'
 import dayjs from 'dayjs'
 
 export enum HentaiArchiveStatus {
@@ -14,6 +15,8 @@ export declare interface HentaiArchiveDto {
   user_id: string
   created_time: Date
   status: HentaiArchiveStatus
+  title?: string
+  title_hash?: string
   [key: string]: unknown
 }
 
@@ -46,13 +49,28 @@ function normalizeArchive(item: Record<string, unknown> | null): HentaiArchiveDt
     item.status = HentaiArchiveStatus.DownloadSuccess
   }
 
+  // 处理 title 字段
+  if (item.title === undefined || item.title === null) {
+    item.title = ''
+  } else {
+    item.title = String(item.title)
+  }
+
+  // 处理 title_hash 字段
+  if (item.title_hash === undefined || item.title_hash === null) {
+    item.title_hash = ''
+  } else {
+    item.title_hash = String(item.title_hash)
+  }
+
   return item as HentaiArchiveDto
 }
 
 export async function upsertHentaiArchive(
   gid: number,
   date: Date,
-  status: HentaiArchiveStatus
+  status: HentaiArchiveStatus,
+  title?: string
 ): Promise<HentaiArchiveDto | null> {
   const supabase = await useUserStore().getAuthSupabase()
   const record: Record<string, string | number> = {
@@ -60,9 +78,16 @@ export async function upsertHentaiArchive(
     date: dayjs(date).toISOString(),
     status: status
   }
+  if (title) {
+    record.title = title
+    const hash = await sha256Hex(title)
+    if (hash) {
+      record.title_hash = hash
+    }
+  }
   const { data, error } = await supabase
     .from('hentai_archive')
-    .upsert(record, { onConflict: 'gid,status,user_id' })
+    .upsert(record, { onConflict: 'title_hash,status,user_id' })
     .select()
   if (error) {
     console.error(error)
@@ -82,7 +107,10 @@ export async function getHentaiArchivesMap(
 
   const supabase = await useUserStore().getAuthSupabase()
 
-  let query = supabase.from('hentai_archive').select('gid, date, status').in('gid', gids)
+  let query = supabase
+    .from('hentai_archive')
+    .select('id, gid, date, status, created_time, title, title_hash')
+    .in('gid', gids)
 
   if (status !== undefined) {
     query = query.eq('status', status)
@@ -104,6 +132,45 @@ export async function getHentaiArchivesMap(
           map[gid] = []
         }
         map[gid].push(normalized)
+      }
+    })
+  }
+  return map
+}
+
+export async function getHentaiArchivesMapByHash(
+  hashes: string[],
+  status?: HentaiArchiveStatus
+): Promise<Record<string, HentaiArchiveDto[]>> {
+  if (!hashes || hashes.length === 0) return {}
+
+  const supabase = await useUserStore().getAuthSupabase()
+
+  let query = supabase
+    .from('hentai_archive')
+    .select('id, gid, date, status, created_time, title, title_hash')
+    .in('title_hash', hashes)
+
+  if (status !== undefined) {
+    query = query.eq('status', status)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error(error)
+    return Promise.reject(error)
+  }
+  const map: Record<string, HentaiArchiveDto[]> = {}
+  if (Array.isArray(data)) {
+    data.forEach((row: Record<string, unknown>) => {
+      const normalized = normalizeArchive(row)
+      if (normalized && normalized.title_hash) {
+        const hash = String(normalized.title_hash)
+        if (!map[hash]) {
+          map[hash] = []
+        }
+        map[hash].push(normalized)
       }
     })
   }
