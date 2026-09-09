@@ -233,7 +233,7 @@ export class Exhentai extends SiteAbstract {
         $download.css('cursor', 'pointer')
       }
 
-      const handler = new ExhentaiDownloadHandler($download, index, gid, date, info.title)
+      const handler = new ExhentaiDownloadHandler($download, index, gid, date, info.title, info.titleHash)
       $download.on('click', handler.createHandler())
     }
   }

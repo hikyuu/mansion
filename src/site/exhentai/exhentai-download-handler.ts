@@ -1,7 +1,12 @@
 import dayjs, { type Dayjs } from 'dayjs'
 import { fetchTorrentsFromDownloadPage, type TorrentEntry } from './exhentai-api'
 import { download } from '@/download'
-import { getDownloadedArchivesMap, upsertHentaiArchive, HentaiArchiveStatus, type HentaiArchiveDto } from '@/dao/hentai-archive'
+import {
+  getHentaiArchivesMapByHash,
+  upsertHentaiArchive,
+  HentaiArchiveStatus,
+  type HentaiArchiveDto
+} from '@/dao/hentai-archive'
 import { ElNotification } from 'element-plus'
 import { ExhentaiUtils } from './exhentai-utils'
 
@@ -11,13 +16,22 @@ export class ExhentaiDownloadHandler {
   private gid: string
   private date: Dayjs
   private title: string
+  private titleHash?: string
 
-  constructor($download: JQuery, index: number, gid: string, date: Dayjs, title: string = '') {
+  constructor(
+    $download: JQuery,
+    index: number,
+    gid: string,
+    date: Dayjs,
+    title: string = '',
+    titleHash?: string
+  ) {
     this.$download = $download
     this.index = index
     this.gid = gid
     this.date = date
     this.title = title
+    this.titleHash = titleHash
   }
 
   public createHandler() {
@@ -148,12 +162,16 @@ export class ExhentaiDownloadHandler {
       return
     }
 
-    // 查询归档记录并决策
+    // 查询归档记录并决策：一律按标题 hash 判重（gid 会随画廊更新/重传变动，不作判重依据；title/title_hash 已强制非空，无 gid 回退）
     try {
-      const archivesMap = await getDownloadedArchivesMap([Number(this.gid)])
-      const archives = archivesMap[Number(this.gid)]
-      const archive = archives && archives.length > 0 ? archives[0] : null
-      
+      let archive: HentaiArchiveDto | null = null
+      if (this.titleHash) {
+        const archives = (await getHentaiArchivesMapByHash([this.titleHash], HentaiArchiveStatus.DownloadSuccess))[
+          this.titleHash
+        ]
+        archive = archives && archives.length > 0 ? archives[0] : null
+      }
+
       if (archive) {
         const downloaded = await this.handleExistingArchive(archive, mostRecent)
         if (downloaded) return
@@ -162,7 +180,7 @@ export class ExhentaiDownloadHandler {
         return
       }
     } catch (err) {
-      console.warn('exhentai: getDownloadedArchivesMap failed', err)
+      console.warn('exhentai: getHentaiArchivesMapByHash failed', err)
     }
 
     // 过时种子不比归档新，标记为无新种子

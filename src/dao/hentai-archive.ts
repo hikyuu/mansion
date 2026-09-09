@@ -15,8 +15,8 @@ export declare interface HentaiArchiveDto {
   user_id: string
   created_time: Date
   status: HentaiArchiveStatus
-  title?: string
-  title_hash?: string
+  title: string
+  title_hash: string
   [key: string]: unknown
 }
 
@@ -49,19 +49,14 @@ function normalizeArchive(item: Record<string, unknown> | null): HentaiArchiveDt
     item.status = HentaiArchiveStatus.DownloadSuccess
   }
 
-  // 处理 title 字段
-  if (item.title === undefined || item.title === null) {
-    item.title = ''
-  } else {
-    item.title = String(item.title)
+  // title 与 title_hash 必须成对且都不为空（数据库已有 NOT NULL + 非空 CHECK 兜底）
+  const title = item.title === undefined || item.title === null ? '' : String(item.title)
+  const titleHash = item.title_hash === undefined || item.title_hash === null ? '' : String(item.title_hash)
+  if (!title || !titleHash) {
+    return null
   }
-
-  // 处理 title_hash 字段
-  if (item.title_hash === undefined || item.title_hash === null) {
-    item.title_hash = ''
-  } else {
-    item.title_hash = String(item.title_hash)
-  }
+  item.title = title
+  item.title_hash = titleHash
 
   return item as HentaiArchiveDto
 }
@@ -70,20 +65,27 @@ export async function upsertHentaiArchive(
   gid: number,
   date: Date,
   status: HentaiArchiveStatus,
-  title?: string
+  title: string
 ): Promise<HentaiArchiveDto | null> {
   const supabase = await useUserStore().getAuthSupabase()
+
+  // 代码层约束：title 与 title_hash 必须都不为空（与数据库 NOT NULL + 非空 CHECK 对应）
+  if (!title) {
+    console.warn('hentai_archive: title 为空，拒绝写入', { gid, status })
+    return null
+  }
+  const hash = await sha256Hex(title)
+  if (!hash) {
+    console.warn('hentai_archive: title_hash 计算失败，拒绝写入', { gid, title })
+    return null
+  }
+
   const record: Record<string, string | number> = {
     gid,
     date: dayjs(date).toISOString(),
-    status: status
-  }
-  if (title) {
-    record.title = title
-    const hash = await sha256Hex(title)
-    if (hash) {
-      record.title_hash = hash
-    }
+    status: status,
+    title,
+    title_hash: hash
   }
   const { data, error } = await supabase
     .from('hentai_archive')
