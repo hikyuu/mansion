@@ -3,7 +3,7 @@ import { SiteId } from '@/site/site-id'
 import { SiteAbstract } from '../site-abstract'
 import waterfall from '@/waterfall/waterfall'
 import jquery from 'jquery'
-import type { Dayjs } from 'dayjs'
+import dayjs, { type Dayjs } from 'dayjs'
 import {
   getHentaiArchivesMapByHash,
   upsertHentaiArchive,
@@ -12,7 +12,13 @@ import {
 } from '@/dao/hentai-archive'
 import { sha256Hex } from '@/common/hash'
 import { useConfigStore } from '@/store/config-store'
-import { ExhentaiDownloadHandler } from './exhentai-download-handler'
+import {
+  useDownloadQueueStore,
+  setDownloadQueueExecutor,
+  type DownloadQueueItem,
+  type EnqueueDownloadItem
+} from '@/store/download-queue-store'
+import { ExhentaiDownloadHandler, type DownloadOutcome } from './exhentai-download-handler'
 import { ExhentaiUtils } from './exhentai-utils'
 
 type ItemInfo = {
@@ -142,10 +148,44 @@ export class Exhentai extends SiteAbstract {
   }
 
   mount(): void {
+    setDownloadQueueExecutor((item) => this.executeQueuedDownload(item))
     const infos = this.collectItemInfos()
     void this.attachHandlersForInfos(infos).catch((err) => {
       console.error('exhentai mount archive check failed', err)
     })
+  }
+
+  /**
+   * 队列执行器：按 gid 重新定位 DOM 并构造 handler，避免在队列里持有闭包。
+   * handler 以 silent 模式运行，通知统一由面板呈现。
+   */
+  private async executeQueuedDownload(item: DownloadQueueItem): Promise<DownloadOutcome> {
+    const $item = jquery(`#exhentai_gid_${item.gid}`)
+    if ($item.length === 0) {
+      return { ok: false, downloaded: false, kind: 'dom-missing', message: '条目已不在页面中' }
+    }
+
+    const $download = $item.find(this.selector.link).first()
+    if ($download.length === 0) {
+      return { ok: false, downloaded: false, kind: 'no-download-button', message: '该条目没有下载按钮' }
+    }
+
+    const handler = new ExhentaiDownloadHandler(
+      $download,
+      item.index,
+      item.gid,
+      dayjs(item.dateMs),
+      item.title,
+      item.titleHash,
+      true
+    )
+    const outcome = await handler.execute()
+    try {
+      $download.attr('data-mansion-queue', outcome.ok ? 'success' : 'failed')
+    } catch {
+      // 忽略 DOM 操作错误
+    }
+    return outcome
   }
 
   private collectItemInfos(): ItemInfo[] {
@@ -183,9 +223,12 @@ export class Exhentai extends SiteAbstract {
         ? await getHentaiArchivesMapByHash(hashes)
         : ({} as Record<string, HentaiArchiveDto[]>)
     const skipRead = useConfigStore().getSiteConfig.skipRead
+    // 304 且无更新的条目：绑定完成后统一入队（此时 data-orig-href 已就绪）
+    const queueItems: EnqueueDownloadItem[] = []
 
     for (const info of infos) {
       const { index, gid, titleHash, $download, date, $item } = info
+      let queueDownload = false
 
       // 命中归档：仅同一标题 hash 才视为同一画廊
       const archives = titleHash ? archivesByHash[titleHash] : undefined
@@ -196,7 +239,7 @@ export class Exhentai extends SiteAbstract {
           current.created_time.getTime() > latest.created_time.getTime() ? current : latest
         )
         // 命中条件：同一标题 hash 即视为同一画廊（gid 变动/重传也能命中）
-        // 200/304 额外比较画廊日期：当前日期比存档更新 → 视为有新版本，允许重新下载
+        // 仅 200 比较画廊日期：当前日期比存档更新 → 视为有新版本，允许重新下载
         const isNewer = !!date && date.valueOf() > archive.date.getTime()
 
         if (archive.status === HentaiArchiveStatus.DownloadSuccess) {
@@ -207,11 +250,11 @@ export class Exhentai extends SiteAbstract {
           }
           // 有更新版本：不隐藏，走下方绑定下载
         } else if (archive.status === HentaiArchiveStatus.NoNewerSeed) {
-          if (!isNewer) {
-            // 无更新：置灰，仍允许点击下载过时种子
+          // 304 一律置灰并加入下载队列自动复查下载页，不再比较画廊日期（仍允许手动点击）
+          if ($download.length > 0) {
             ExhentaiUtils.applyArchiveStyle($download)
+            queueDownload = true
           }
-          // 有更新则不置灰，走下方绑定下载
         } else if (archive.status === HentaiArchiveStatus.SkipDownload) {
           // 用户标记跳过下载：不看日期，同标题 hash 即隐藏
           if (skipRead) $item.hide()
@@ -219,7 +262,8 @@ export class Exhentai extends SiteAbstract {
           continue
         }
       }
-      if (!$download) continue
+      // 注意：空 jQuery 也是真值，必须用 length 判断
+      if (!$download || $download.length === 0) continue
 
       // 将点击行为绑定到原始下载链接，移除克隆按钮的需要
       if (gid) $download.attr('data-gid', gid)
@@ -235,6 +279,16 @@ export class Exhentai extends SiteAbstract {
 
       const handler = new ExhentaiDownloadHandler($download, index, gid, date, info.title, info.titleHash)
       $download.on('click', handler.createHandler())
+
+      // 手动点击路径已就绪，此时把 304 无更新的条目交给队列自动执行
+      if (queueDownload && titleHash) {
+        $download.attr('data-mansion-queue', 'pending')
+        queueItems.push({ gid, title: info.title, titleHash, index, dateMs: date.valueOf() })
+      }
+    }
+
+    if (queueItems.length > 0) {
+      useDownloadQueueStore().enqueue(queueItems)
     }
   }
 

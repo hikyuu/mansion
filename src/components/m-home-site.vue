@@ -1,12 +1,14 @@
 <script lang="ts" setup>
 import { getSite } from '@/site/site'
 import { Onejav } from '@/site/onejav/onejav'
+import { Exhentai } from '@/site/exhentai/exhentai'
 import ControlPanel from './ms-control-panel.vue'
 import HomeOnejav from '@/components/m-home-onejav.vue'
 import MansionSetting from '@/components/m-setting.vue'
 import { ElNotification } from 'element-plus'
 import MHomeUser from '@/components/m-home-user.vue'
 import MsHomeInfo from '@/components/ms-home-info.vue'
+import MsDownloadQueue from '@/components/ms-download-queue.vue'
 import { useReactStore } from '@/store/react-store'
 import { useSiteStore } from '@/store/site-store.ts'
 import MsDebugPanel from '@/components/ms-debug-panel.vue'
@@ -39,6 +41,7 @@ const isDevMode = import.meta.env.DEV
   <template v-if="site">
     <div style="padding-left: 5px">
       <ms-home-info />
+      <ms-download-queue v-if="site instanceof Exhentai" />
     </div>
     <div class="mansion-right">
       <m-home-user v-if="useReactStore().wgt1670" />

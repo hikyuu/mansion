@@ -10,6 +10,26 @@ import {
 import { ElNotification } from 'element-plus'
 import { ExhentaiUtils } from './exhentai-utils'
 
+/** 下载流程的结果类型 */
+export type DownloadOutcomeKind =
+  | 'latest' // 命中最新种子并已提交下载
+  | 'downloaded' // 从过时种子里挑选并已提交下载
+  | 'no-newer-seed' // 过时种子不比归档新，已标记 304（未下载）
+  | 'no-href' // 缺少 data-orig-href
+  | 'fetch-error' // 请求下载页失败 / 抛出异常
+  | 'no-outdated' // 无过时种子
+  | 'dom-missing' // 队列专用：条目已不在 DOM
+  | 'no-download-button' // 队列专用：找不到下载按钮
+
+export interface DownloadOutcome {
+  /** 流程是否正常走完（含 no-newer-seed）；false 表示硬错误 */
+  ok: boolean
+  /** 是否调用过 download()（仅代表已提交，不代表文件真的下载成功） */
+  downloaded: boolean
+  kind: DownloadOutcomeKind
+  message: string
+}
+
 export class ExhentaiDownloadHandler {
   private $download: JQuery
   private index: number
@@ -17,6 +37,7 @@ export class ExhentaiDownloadHandler {
   private date: Dayjs
   private title: string
   private titleHash?: string
+  private silent: boolean
 
   constructor(
     $download: JQuery,
@@ -24,7 +45,8 @@ export class ExhentaiDownloadHandler {
     gid: string,
     date: Dayjs,
     title: string = '',
-    titleHash?: string
+    titleHash?: string,
+    silent = false
   ) {
     this.$download = $download
     this.index = index
@@ -32,39 +54,80 @@ export class ExhentaiDownloadHandler {
     this.date = date
     this.title = title
     this.titleHash = titleHash
+    this.silent = silent
   }
 
-  public createHandler() {
-    return async () => {
-      console.log('exhentai download clicked', this.index, this.gid)
+  /** 统一通知出口；队列批量执行时静默，避免刷屏 */
+  private notify(message: string, type: 'success' | 'warning' | 'info' | 'error' = 'info'): void {
+    if (this.silent) return
+    ElNotification({ title: '提示', message, type })
+  }
+
+  /** 同一画廊同一时刻只允许一条执行链（手动点击 vs 队列） */
+  private acquireLock(): boolean {
+    if (this.$download.attr('data-mansion-lock') === '1') return false
+    this.$download.attr('data-mansion-lock', '1')
+    return true
+  }
+
+  private releaseLock(): void {
+    try {
+      this.$download.removeAttr('data-mansion-lock')
+    } catch {
+      // 忽略 DOM 操作错误
+    }
+  }
+
+  /** 完整执行"点击一次"的全部逻辑，返回结构化结果供队列消费 */
+  public async execute(): Promise<DownloadOutcome> {
+    if (!this.acquireLock()) {
+      this.notify('该画廊正在处理中，请稍候', 'warning')
+      return { ok: false, downloaded: false, kind: 'fetch-error', message: '该画廊正在处理中' }
+    }
+
+    try {
+      console.log('exhentai download execute', this.index, this.gid)
 
       const downloadHref = this.$download.attr('data-orig-href') || this.$download.data('orig-href')
       if (!downloadHref) {
         console.warn('exhentai: 没有找到原始下载链接 (data-orig-href)')
-        ElNotification({ title: '提示', message: '未找到下载链接', type: 'error' })
-        return
+        this.notify('未找到下载链接', 'error')
+        return { ok: false, downloaded: false, kind: 'no-href', message: '未找到下载链接' }
       }
 
-      try {
-        const res = await fetchTorrentsFromDownloadPage(downloadHref)
-        if (res.error) {
-          console.warn('exhentai fetch error', res.error)
-          ElNotification({ title: '提示', message: '请求下载页面失败', type: 'error' })
-          return
-        }
-
-        // 有最新的种子，直接下载
-        if (res.latest) {
-          await this.handleLatestTorrent(res.latest)
-          return
-        }
-
-        // 处理过时种子
-        await this.handleOutdatedTorrents(res.outdated)
-      } catch (err) {
-        console.error(err)
-        ElNotification({ title: '提示', message: '请求下载页面失败', type: 'error' })
+      const res = await fetchTorrentsFromDownloadPage(downloadHref)
+      if (res.error) {
+        console.warn('exhentai fetch error', res.error)
+        this.notify('请求下载页面失败', 'error')
+        return { ok: false, downloaded: false, kind: 'fetch-error', message: res.error }
       }
+
+      // 有最新的种子，直接下载
+      if (res.latest) {
+        await this.handleLatestTorrent(res.latest)
+        return { ok: true, downloaded: true, kind: 'latest', message: '已提交最新种子' }
+      }
+
+      // 处理过时种子
+      return await this.handleOutdatedTorrents(res.outdated)
+    } catch (err) {
+      console.error(err)
+      this.notify('请求下载页面失败', 'error')
+      return {
+        ok: false,
+        downloaded: false,
+        kind: 'fetch-error',
+        message: err instanceof Error ? err.message : String(err)
+      }
+    } finally {
+      this.releaseLock()
+    }
+  }
+
+  /** 兼容现有的手动点击绑定，行为与改造前一致 */
+  public createHandler() {
+    return async () => {
+      await this.execute()
     }
   }
 
@@ -117,7 +180,7 @@ export class ExhentaiDownloadHandler {
   /** 无存档记录时：直接下载最近的过时种子 */
   private async handleNoArchive(entry: TorrentEntry): Promise<void> {
     await this.downloadAndArchive(entry, HentaiArchiveStatus.DownloadSuccess)
-    ElNotification({ title: '提示', message: '未找到下载记录，下载最近的过时种子', type: 'info' })
+    this.notify('未找到下载记录，已提交最近的过时种子', 'info')
   }
 
   /** 有存档记录时：比较日期，若更新则下载 */
@@ -127,7 +190,7 @@ export class ExhentaiDownloadHandler {
 
     if (outdatedDate && archiveDayjs?.isValid() && outdatedDate.isAfter(archiveDayjs)) {
       await this.downloadAndArchive(entry, HentaiArchiveStatus.DownloadSuccess)
-      ElNotification({ title: '提示', message: '下载最近的过时种子完成', type: 'info' })
+      this.notify('已提交更新的过时种子', 'info')
       return true
     }
     return false
@@ -146,10 +209,10 @@ export class ExhentaiDownloadHandler {
     }
   }
 
-  private async handleOutdatedTorrents(outdated: TorrentEntry[]): Promise<void> {
+  private async handleOutdatedTorrents(outdated: TorrentEntry[]): Promise<DownloadOutcome> {
     if (outdated.length === 0) {
-      ElNotification({ title: '提示', message: '未找到下载链接', type: 'error' })
-      return
+      this.notify('未找到下载链接', 'error')
+      return { ok: false, downloaded: false, kind: 'no-outdated', message: '未找到过时种子' }
     }
 
     // 解析日期并排序
@@ -158,8 +221,8 @@ export class ExhentaiDownloadHandler {
     const mostRecent = sortedOutdated[0]
 
     if (!mostRecent) {
-      ElNotification({ title: '提示', message: '未找到下载链接', type: 'error' })
-      return
+      this.notify('未找到下载链接', 'error')
+      return { ok: false, downloaded: false, kind: 'no-outdated', message: '未找到过时种子' }
     }
 
     // 查询归档记录并决策：一律按标题 hash 判重（gid 会随画廊更新/重传变动，不作判重依据；title/title_hash 已强制非空，无 gid 回退）
@@ -174,22 +237,30 @@ export class ExhentaiDownloadHandler {
 
       if (archive) {
         const downloaded = await this.handleExistingArchive(archive, mostRecent)
-        if (downloaded) return
+        if (downloaded) {
+          return { ok: true, downloaded: true, kind: 'downloaded', message: '已提交更新的过时种子' }
+        }
       } else {
         await this.handleNoArchive(mostRecent)
-        return
+        return {
+          ok: true,
+          downloaded: true,
+          kind: 'downloaded',
+          message: '未找到下载记录，已提交最近的过时种子'
+        }
       }
     } catch (err) {
       console.warn('exhentai: getHentaiArchivesMapByHash failed', err)
     }
 
     // 过时种子不比归档新，标记为无新种子
-    ElNotification({ title: '提示', message: '没有最新的种子', type: 'info' })
+    this.notify('没有最新的种子', 'info')
     try {
       await this.markAsNoNewerSeed(mostRecent)
     } catch (err) {
       console.warn('exhentai: upsertHentaiArchive failed', err)
     }
+    return { ok: true, downloaded: false, kind: 'no-newer-seed', message: '没有更新的种子' }
   }
 
   private sortOutdatedByDate(outdated: TorrentEntry[]): TorrentEntry[] {
