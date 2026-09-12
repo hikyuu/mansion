@@ -1,0 +1,33 @@
+{
+  "backup_of": "hentai_archive",
+  "project_ref": "tlxamlurkzfqblzyfztp",
+  "reason": "按用户要求删除标题 [UnrealBeautyAIMIX] Collection [🎥Animated WEBP] [AI Generated] 的归档记录",
+  "deleted_at": "2026-09-12T21:05+08:00",
+  "match": {
+    "title_hash": "4da667b73c08e712f7c85994de336fdfa6f1c13447adea766c87021281a62650",
+    "user_id": "608bc996-7b53-4eb7-8068-201556307a96"
+  },
+  "restore_sql": "insert into hentai_archive (id, gid, date, user_id, created_time, status, title, title_hash) values (1854, 4184803, '2026-09-08 01:22:00+00', '608bc996-7b53-4eb7-8068-201556307a96', '2026-09-08 11:50:47.379637+00', 200, '[UnrealBeautyAIMIX] Collection [🎥Animated WEBP] [AI Generated]', '4da667b73c08e712f7c85994de336fdfa6f1c13447adea766c87021281a62650'), (2053, 4184803, '2026-09-08 01:22:00+00', '608bc996-7b53-4eb7-8068-201556307a96', '2026-09-12 12:30:28.973861+00', 304, '[UnrealBeautyAIMIX] Collection [🎥Animated WEBP] [AI Generated]', '4da667b73c08e712f7c85994de336fdfa6f1c13447adea766c87021281a62650');",
+  "rows": [
+    {
+      "id": 1854,
+      "gid": 4184803,
+      "date": "2026-09-08 01:22:00+00",
+      "status": 200,
+      "title": "[UnrealBeautyAIMIX] Collection [🎥Animated WEBP] [AI Generated]",
+      "title_hash": "4da667b73c08e712f7c85994de336fdfa6f1c13447adea766c87021281a62650",
+      "created_time": "2026-09-08 11:50:47.379637+00",
+      "user_id": "608bc996-7b53-4eb7-8068-201556307a96"
+    },
+    {
+      "id": 2053,
+      "gid": 4184803,
+      "date": "2026-09-08 01:22:00+00",
+      "status": 304,
+      "title": "[UnrealBeautyAIMIX] Collection [🎥Animated WEBP] [AI Generated]",
+      "title_hash": "4da667b73c08e712f7c85994de336fdfa6f1c13447adea766c87021281a62650",
+      "created_time": "2026-09-12 12:30:28.973861+00",
+      "user_id": "608bc996-7b53-4eb7-8068-201556307a96"
+    }
+  ]
+}

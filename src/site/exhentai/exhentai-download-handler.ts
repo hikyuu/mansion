@@ -13,7 +13,7 @@ import { ExhentaiUtils } from './exhentai-utils'
 /** 下载流程的结果类型 */
 export type DownloadOutcomeKind =
   | 'latest' // 命中最新种子并已提交下载
-  | 'downloaded' // 从过时种子里挑选并已提交下载
+  | 'downloaded' // 从过时种子里挑选并已提交下载（归档记为 304）
   | 'no-newer-seed' // 过时种子不比归档新，已标记 304（未下载）
   | 'no-href' // 缺少 data-orig-href
   | 'fetch-error' // 请求下载页失败 / 抛出异常
@@ -37,6 +37,11 @@ export class ExhentaiDownloadHandler {
   private date: Dayjs
   private title: string
   private titleHash?: string
+  /**
+   * 该标题 hash 下的归档记录（列表页已批量查过，含 200/304/400）。
+   * undefined = 调用方未注入 → 判重时回退查库；[] = 查过但没有记录（有效值，不再查库）
+   */
+  private archives?: HentaiArchiveDto[]
   private silent: boolean
 
   constructor(
@@ -46,6 +51,7 @@ export class ExhentaiDownloadHandler {
     date: Dayjs,
     title: string = '',
     titleHash?: string,
+    archives?: HentaiArchiveDto[],
     silent = false
   ) {
     this.$download = $download
@@ -54,6 +60,7 @@ export class ExhentaiDownloadHandler {
     this.date = date
     this.title = title
     this.titleHash = titleHash
+    this.archives = archives
     this.silent = silent
   }
 
@@ -153,9 +160,21 @@ export class ExhentaiDownloadHandler {
   /** 下载种子并写入归档记录 */
   private async downloadAndArchive(entry: TorrentEntry, status: HentaiArchiveStatus): Promise<void> {
     download(entry.href)
+    // 解析失败时回退页面画廊日期：该日期同时是判重水位线（见 resolveArchive），
+    // 宁可偏高（少下载）也不能归零，否则每次进页面都会判为"有更新"而重复下载
     const date = entry.parsedDate?.toDate() || this.date.toDate()
     await upsertHentaiArchive(Number(this.gid), date, status, this.title)
-    this.tryHideDownloadButton()
+    // 与下次进页面时 304 条目的呈现保持一致：置灰而非隐藏
+    this.applyArchiveStyle()
+  }
+
+  /** 置灰下载按钮（304 语义的统一呈现） */
+  private applyArchiveStyle(): void {
+    try {
+      ExhentaiUtils.applyArchiveStyle(this.$download)
+    } catch {
+      // 忽略 DOM 操作错误
+    }
   }
 
   /** 解析过时种子的日期文本 */
@@ -177,19 +196,36 @@ export class ExhentaiDownloadHandler {
     return d.isValid() ? d : null
   }
 
-  /** 无存档记录时：直接下载最近的过时种子 */
+  /**
+   * 从归档记录中挑出"已处理过"的一条：200（已下载）/ 304（无更新）都算已处理，排除 400（用户跳过）。
+   * 取 date 最大的一条作为判重水位线——因为 304 记录的 date 写的就是种子日期，
+   * 所以"最新过时种子 > 水位线"即等价于"出现了尚未处理过的新种子"。
+   *
+   * 用 max(date) 而非 max(created_time)：markAsNoNewerSeed 的写入守卫保证 304 行的 date
+   * 不会超过对应 200 行的 date，因此与旧实现（只查 200）的判定结果一致，对既有画廊零行为变更。
+   */
+  private resolveArchive(archives?: HentaiArchiveDto[]): HentaiArchiveDto | null {
+    if (!archives || archives.length === 0) return null
+    const processed = archives.filter(
+      (a) => a.status === HentaiArchiveStatus.DownloadSuccess || a.status === HentaiArchiveStatus.NoNewerSeed
+    )
+    if (processed.length === 0) return null
+    return processed.reduce((latest, current) => (current.date.getTime() > latest.date.getTime() ? current : latest))
+  }
+
+  /** 无存档记录时：直接下载最近的过时种子，归档记为 304（下的是过时种子，保留复查） */
   private async handleNoArchive(entry: TorrentEntry): Promise<void> {
-    await this.downloadAndArchive(entry, HentaiArchiveStatus.DownloadSuccess)
+    await this.downloadAndArchive(entry, HentaiArchiveStatus.NoNewerSeed)
     this.notify('未找到下载记录，已提交最近的过时种子', 'info')
   }
 
-  /** 有存档记录时：比较日期，若更新则下载 */
+  /** 有存档记录时：比较日期，若更新则下载，归档记为 304 */
   private async handleExistingArchive(archive: HentaiArchiveDto, entry: TorrentEntry): Promise<boolean> {
     const archiveDayjs = this.getArchiveDayjs(archive)
     const outdatedDate = entry.parsedDate
 
     if (outdatedDate && archiveDayjs?.isValid() && outdatedDate.isAfter(archiveDayjs)) {
-      await this.downloadAndArchive(entry, HentaiArchiveStatus.DownloadSuccess)
+      await this.downloadAndArchive(entry, HentaiArchiveStatus.NoNewerSeed)
       this.notify('已提交更新的过时种子', 'info')
       return true
     }
@@ -202,11 +238,7 @@ export class ExhentaiDownloadHandler {
     if (outdatedDate) {
       await upsertHentaiArchive(Number(this.gid), outdatedDate.toDate(), HentaiArchiveStatus.NoNewerSeed, this.title)
     }
-    try {
-      ExhentaiUtils.applyArchiveStyle(this.$download)
-    } catch {
-      // 忽略 DOM 操作错误
-    }
+    this.applyArchiveStyle()
   }
 
   private async handleOutdatedTorrents(outdated: TorrentEntry[]): Promise<DownloadOutcome> {
@@ -225,15 +257,14 @@ export class ExhentaiDownloadHandler {
       return { ok: false, downloaded: false, kind: 'no-outdated', message: '未找到过时种子' }
     }
 
-    // 查询归档记录并决策：一律按标题 hash 判重（gid 会随画廊更新/重传变动，不作判重依据；title/title_hash 已强制非空，无 gid 回退）
+    // 判重决策：一律按标题 hash（gid 会随画廊更新/重传变动，不作判重依据；title/title_hash 已强制非空，无 gid 回退）
+    // 数据优先用列表页注入的缓存（同一批查询结果，不再逐条查库）；仅在未注入时才回退查询
     try {
-      let archive: HentaiArchiveDto | null = null
-      if (this.titleHash) {
-        const archives = (await getHentaiArchivesMapByHash([this.titleHash], HentaiArchiveStatus.DownloadSuccess))[
-          this.titleHash
-        ]
-        archive = archives && archives.length > 0 ? archives[0] : null
+      let archiveList = this.archives
+      if (archiveList === undefined && this.titleHash) {
+        archiveList = (await getHentaiArchivesMapByHash([this.titleHash]))[this.titleHash]
       }
+      const archive = this.resolveArchive(archiveList)
 
       if (archive) {
         const downloaded = await this.handleExistingArchive(archive, mostRecent)

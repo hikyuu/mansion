@@ -53,6 +53,12 @@ export class Exhentai extends SiteAbstract {
     SECONDARY_COLOR: '#e3f5f3',
     WARNING_COLOR: '#fadd65'
   }
+  /**
+   * 列表页批量查到的归档记录（含 200/304/400），供下载判重复用，避免逐条查库。
+   * null = 尚未查询；查过但没有记录的 hash 不出现在 key 中（由注入方转成 []）
+   */
+  private archiveCache: Record<string, HentaiArchiveDto[]> | null = null
+
   constructor() {
     super()
     this.waterfall = new waterfall(this, this.selector)
@@ -177,6 +183,8 @@ export class Exhentai extends SiteAbstract {
       dayjs(item.dateMs),
       item.title,
       item.titleHash,
+      // 注入列表页缓存（未命中 = 查过但没有记录，同样是有效值，避免 handler 再查库）
+      item.titleHash ? (this.archiveCache?.[item.titleHash] ?? []) : undefined,
       true
     )
     const outcome = await handler.execute()
@@ -222,6 +230,8 @@ export class Exhentai extends SiteAbstract {
       hashes.length > 0
         ? await getHentaiArchivesMapByHash(hashes)
         : ({} as Record<string, HentaiArchiveDto[]>)
+    // 本次批量结果同时作为下载判重的数据源（该查询不带 status，天然含 200/304/400）
+    this.archiveCache = archivesByHash
     const skipRead = useConfigStore().getSiteConfig.skipRead
     // 304 且无更新的条目：绑定完成后统一入队（此时 data-orig-href 已就绪）
     const queueItems: EnqueueDownloadItem[] = []
@@ -231,7 +241,8 @@ export class Exhentai extends SiteAbstract {
       let queueDownload = false
 
       // 命中归档：仅同一标题 hash 才视为同一画廊
-      const archives = titleHash ? archivesByHash[titleHash] : undefined
+      // 查过但没有记录时给 []（有效值），便于下载判重区分"数据未知"与"确实没有归档"
+      const archives = titleHash ? (archivesByHash[titleHash] ?? []) : undefined
 
       if (archives && archives.length > 0) {
         // 取最近操作（created_time 最大）的一条作为当前判定状态
@@ -277,7 +288,8 @@ export class Exhentai extends SiteAbstract {
         $download.css('cursor', 'pointer')
       }
 
-      const handler = new ExhentaiDownloadHandler($download, index, gid, date, info.title, info.titleHash)
+      // 复用上面的列表页批量结果作为下载判重数据，避免 handler 二次查库
+      const handler = new ExhentaiDownloadHandler($download, index, gid, date, info.title, titleHash, archives)
       $download.on('click', handler.createHandler())
 
       // 手动点击路径已就绪，此时把 304 无更新的条目交给队列自动执行
