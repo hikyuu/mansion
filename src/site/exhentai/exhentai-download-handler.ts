@@ -4,6 +4,7 @@ import { download } from '@/download'
 import {
   getHentaiArchivesMapByHash,
   upsertHentaiArchive,
+  resolveArchiveWaterline,
   HentaiArchiveStatus,
   type HentaiArchiveDto
 } from '@/dao/hentai-archive'
@@ -197,20 +198,11 @@ export class ExhentaiDownloadHandler {
   }
 
   /**
-   * 从归档记录中挑出"已处理过"的一条：200（已下载）/ 304（无更新）都算已处理，排除 400（用户跳过）。
-   * 取 date 最大的一条作为判重水位线——因为 304 记录的 date 写的就是种子日期，
-   * 所以"最新过时种子 > 水位线"即等价于"出现了尚未处理过的新种子"。
-   *
-   * 用 max(date) 而非 max(created_time)：markAsNoNewerSeed 的写入守卫保证 304 行的 date
-   * 不会超过对应 200 行的 date，因此与旧实现（只查 200）的判定结果一致，对既有画廊零行为变更。
+   * 从归档记录中挑出判重水位线：200（已下载）/ 304（无更新）都算已处理，排除 400（用户跳过）。
+   * 口径与列表页共用 dao 的 resolveArchiveWaterline，避免两处判定不一致。
    */
   private resolveArchive(archives?: HentaiArchiveDto[]): HentaiArchiveDto | null {
-    if (!archives || archives.length === 0) return null
-    const processed = archives.filter(
-      (a) => a.status === HentaiArchiveStatus.DownloadSuccess || a.status === HentaiArchiveStatus.NoNewerSeed
-    )
-    if (processed.length === 0) return null
-    return processed.reduce((latest, current) => (current.date.getTime() > latest.date.getTime() ? current : latest))
+    return resolveArchiveWaterline(archives).archive
   }
 
   /** 无存档记录时：直接下载最近的过时种子，归档记为 304（下的是过时种子，保留复查） */

@@ -7,6 +7,8 @@ import dayjs, { type Dayjs } from 'dayjs'
 import {
   getHentaiArchivesMapByHash,
   upsertHentaiArchive,
+  resolveArchiveWaterline,
+  pickLatestOperatedArchive,
   HentaiArchiveStatus,
   type HentaiArchiveDto
 } from '@/dao/hentai-archive'
@@ -245,32 +247,36 @@ export class Exhentai extends SiteAbstract {
       const archives = titleHash ? (archivesByHash[titleHash] ?? []) : undefined
 
       if (archives && archives.length > 0) {
-        // 取最近操作（created_time 最大）的一条作为当前判定状态
-        const archive = archives.reduce((latest, current) =>
-          current.created_time.getTime() > latest.created_time.getTime() ? current : latest
-        )
-        // 命中条件：同一标题 hash 即视为同一画廊（gid 变动/重传也能命中）
-        // 仅 200 比较画廊日期：当前日期比存档更新 → 视为有新版本，允许重新下载
-        const isNewer = !!date && date.valueOf() > archive.date.getTime()
-
-        if (archive.status === HentaiArchiveStatus.DownloadSuccess) {
-          if (!isNewer) {
-            // 无更新版本：隐藏下载按钮
-            $download.hide()
-            continue
-          }
-          // 有更新版本：不隐藏，走下方绑定下载
-        } else if (archive.status === HentaiArchiveStatus.NoNewerSeed) {
-          // 304 一律置灰并加入下载队列自动复查下载页，不再比较画廊日期（仍允许手动点击）
-          if ($download.length > 0) {
-            ExhentaiUtils.applyArchiveStyle($download)
-            queueDownload = true
-          }
-        } else if (archive.status === HentaiArchiveStatus.SkipDownload) {
+        // 400（用户主动跳过）是明确的人工意图，优先按"最近一次写入"判定，不被后续复查结果覆盖
+        const latestOperated = pickLatestOperatedArchive(archives)
+        if (latestOperated?.status === HentaiArchiveStatus.SkipDownload) {
           // 用户标记跳过下载：不看日期，同标题 hash 即隐藏
           if (skipRead) $item.hide()
           // 无论 skipRead 是否开启，都不触发下载绑定
           continue
+        }
+
+        // 判重与下载 handler 共用同一口径：水位线取 date 最大的 200/304 记录。
+        // 不再用 created_time 挑状态行——304 行的 created_time 一旦晚于 200 行就会永久胜出，
+        // 导致每次进页面都无条件自动入队复查，并重复提交下载。
+        const { archive, hasDownloaded } = resolveArchiveWaterline(archives)
+        if (archive) {
+          // 命中条件：同一标题 hash 即视为同一画廊（gid 变动/重传也能命中）
+          // 当前画廊日期比水位线更新 → 视为有新版本，允许重新下载
+          const isNewer = !!date && date.valueOf() > archive.date.getTime()
+
+          if (hasDownloaded) {
+            if (!isNewer) {
+              // 已下载过最新种子且画廊无更新：隐藏下载按钮，不入队
+              $download.hide()
+              continue
+            }
+            // 有更新版本：不隐藏，走下方绑定下载（不自动入队）
+          } else if ($download.length > 0) {
+            // 只下过过时种子（304）：置灰并加入下载队列自动复查下载页（仍允许手动点击）
+            ExhentaiUtils.applyArchiveStyle($download)
+            queueDownload = true
+          }
         }
       }
       // 注意：空 jQuery 也是真值，必须用 length 判断

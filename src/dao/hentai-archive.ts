@@ -85,7 +85,11 @@ export async function upsertHentaiArchive(
     date: dayjs(date).toISOString(),
     status: status,
     title,
-    title_hash: hash
+    title_hash: hash,
+    // 显式写入而不是依赖列默认 now()：默认值只在 insert 时生效，
+    // 不写的话 upsert 后 created_time 会一直停留在首次插入时间，
+    // 使"最近一次操作"的判定永远停在最早写下的那一行
+    created_time: dayjs().toISOString()
   }
   const { data, error } = await supabase
     .from('hentai_archive')
@@ -99,6 +103,46 @@ export async function upsertHentaiArchive(
     return normalizeArchive(data[0])
   }
   return null
+}
+
+/** 归档判重结果：统一口径，列表页与下载 handler 必须共用 */
+export interface ArchiveWaterline {
+  /** date 最大的已处理记录（200/304），无则 null；400（用户跳过）不参与判重 */
+  archive: HentaiArchiveDto | null
+  /** 是否存在 200（已提交过最新种子）记录 */
+  hasDownloaded: boolean
+}
+
+/**
+ * 归档判重的唯一口径：水位线取 date 最大的 200/304 记录，并给出是否下载过最新种子。
+ *
+ * 为什么用 max(date) 而不是 max(created_time)：
+ * - 304 记录的 date 写的是种子日期，200 记录的 date 写的是画廊日期，两者天然可比；
+ * - created_time 只反映写入先后，304 行一旦晚于 200 行写入就会"永久胜出"，
+ *   使列表页每次都判为需要自动复查，从而反复重新下载，永不自愈。
+ */
+export function resolveArchiveWaterline(archives?: HentaiArchiveDto[]): ArchiveWaterline {
+  const processed = (archives ?? []).filter(
+    (a) => a.status === HentaiArchiveStatus.DownloadSuccess || a.status === HentaiArchiveStatus.NoNewerSeed
+  )
+  if (processed.length === 0) return { archive: null, hasDownloaded: false }
+
+  const archive = processed.reduce((latest, current) =>
+    current.date.getTime() > latest.date.getTime() ? current : latest
+  )
+  const hasDownloaded = processed.some((a) => a.status === HentaiArchiveStatus.DownloadSuccess)
+  return { archive, hasDownloaded }
+}
+
+/**
+ * 最近一次写入的行（created_time 最大；upsert 已将其刷新为当前时间）。
+ * 仅用于"用户主动跳过"这类必须按操作先后判定的场景，不作为判重水位线。
+ */
+export function pickLatestOperatedArchive(archives?: HentaiArchiveDto[]): HentaiArchiveDto | null {
+  if (!archives || archives.length === 0) return null
+  return archives.reduce((latest, current) =>
+    current.created_time.getTime() > latest.created_time.getTime() ? current : latest
+  )
 }
 
 export async function getHentaiArchivesMap(
