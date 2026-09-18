@@ -220,18 +220,14 @@ export class Exhentai extends SiteAbstract {
 
   private async attachHandlersForInfos(infos: ItemInfo[]): Promise<void> {
     // 仅按标题 hash 匹配，不兼容 gid（gid 会随画廊更新/重传变动）
-    const hashed = await Promise.all(
-      infos.map(async (i) => (i.title ? await sha256Hex(i.title) : ''))
-    )
+    const hashed = await Promise.all(infos.map(async (i) => (i.title ? await sha256Hex(i.title) : '')))
     infos.forEach((info, idx) => {
       info.titleHash = hashed[idx]!
     })
 
     const hashes = Array.from(new Set(hashed.filter(Boolean)))
     const archivesByHash =
-      hashes.length > 0
-        ? await getHentaiArchivesMapByHash(hashes)
-        : ({} as Record<string, HentaiArchiveDto[]>)
+      hashes.length > 0 ? await getHentaiArchivesMapByHash(hashes) : ({} as Record<string, HentaiArchiveDto[]>)
     // 本次批量结果同时作为下载判重的数据源（该查询不带 status，天然含 200/304/400）
     this.archiveCache = archivesByHash
     const skipRead = useConfigStore().getSiteConfig.skipRead
@@ -247,8 +243,10 @@ export class Exhentai extends SiteAbstract {
       const archives = titleHash ? (archivesByHash[titleHash] ?? []) : undefined
 
       if (archives && archives.length > 0) {
-        // 400（用户主动跳过）是明确的人工意图，优先按"最近一次写入"判定，不被后续复查结果覆盖
+        // 当前状态由"最后一次写入的记录"决定：created_time 在 upsert 时已刷新为写入时刻，
+        // 因此哪条记录最后写下，就代表该条目最近一次处理的真实结果（200 已下载 / 304 只有过时种子 / 400 用户跳过）
         const latestOperated = pickLatestOperatedArchive(archives)
+
         if (latestOperated?.status === HentaiArchiveStatus.SkipDownload) {
           // 用户标记跳过下载：不看日期，同标题 hash 即隐藏
           if (skipRead) $item.hide()
@@ -256,27 +254,24 @@ export class Exhentai extends SiteAbstract {
           continue
         }
 
-        // 判重与下载 handler 共用同一口径：水位线取 date 最大的 200/304 记录。
-        // 不再用 created_time 挑状态行——304 行的 created_time 一旦晚于 200 行就会永久胜出，
-        // 导致每次进页面都无条件自动入队复查，并重复提交下载。
-        const { archive, hasDownloaded } = resolveArchiveWaterline(archives)
-        if (archive) {
-          // 命中条件：同一标题 hash 即视为同一画廊（gid 变动/重传也能命中）
-          // 当前画廊日期比水位线更新 → 视为有新版本，允许重新下载
-          const isNewer = !!date && date.valueOf() > archive.date.getTime()
-
-          if (hasDownloaded) {
-            if (!isNewer) {
-              // 已下载过最新种子且画廊无更新：隐藏下载按钮，不入队
-              $download.hide()
-              continue
-            }
-            // 有更新版本：不隐藏，走下方绑定下载（不自动入队）
-          } else if ($download.length > 0) {
-            // 只下过过时种子（304）：置灰并加入下载队列自动复查下载页（仍允许手动点击）
+        if (latestOperated?.status === HentaiArchiveStatus.NoNewerSeed) {
+          // 只拿到过时种子：置灰并加入下载队列，每次进页面自动复查下载页（等最新种子出现）
+          // 注意：这里不能用"是否曾下载过 200"当门槛——200 行不会因最新种子下架而消失，
+          // 一旦用它拦住，这些画廊的过时种子重载自动检测会永久失效
+          if ($download.length > 0) {
             ExhentaiUtils.applyArchiveStyle($download)
             queueDownload = true
           }
+        } else if (latestOperated?.status === HentaiArchiveStatus.DownloadSuccess) {
+          // 已提交过最新种子：只有画廊日期比判重水位线更新（与 handler 同一口径）才算有新版本
+          const waterline = resolveArchiveWaterline(archives)
+          const isNewer = !!date && !!waterline && date.valueOf() > waterline.date.getTime()
+          if (!isNewer) {
+            // 无更新版本：隐藏下载按钮，不入队
+            $download.hide()
+            continue
+          }
+          // 有更新版本：不隐藏，走下方绑定下载（不自动入队）
         }
       }
       // 注意：空 jQuery 也是真值，必须用 length 判断

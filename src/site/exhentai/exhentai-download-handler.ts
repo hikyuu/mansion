@@ -202,7 +202,7 @@ export class ExhentaiDownloadHandler {
    * 口径与列表页共用 dao 的 resolveArchiveWaterline，避免两处判定不一致。
    */
   private resolveArchive(archives?: HentaiArchiveDto[]): HentaiArchiveDto | null {
-    return resolveArchiveWaterline(archives).archive
+    return resolveArchiveWaterline(archives)
   }
 
   /** 无存档记录时：直接下载最近的过时种子，归档记为 304（下的是过时种子，保留复查） */

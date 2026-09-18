@@ -1,5 +1,4 @@
 import { useUserStore } from '@/store/user-store'
-import { sha256Hex } from '@/common/hash'
 import dayjs from 'dayjs'
 
 export enum HentaiArchiveStatus {
@@ -61,6 +60,19 @@ function normalizeArchive(item: Record<string, unknown> | null): HentaiArchiveDt
   return item as HentaiArchiveDto
 }
 
+/** upsert_hentai_archive() 的返回行：列名即数据库列名，在此显式映射为 DTO */
+interface UpsertArchiveRow {
+  id: number
+  user_id: string
+  gallery_id: number
+  status: number
+  watermark_date: string
+  updated_time: string
+  gid: number
+  title: string
+  title_hash: string
+}
+
 export async function upsertHentaiArchive(
   gid: number,
   date: Date,
@@ -69,69 +81,56 @@ export async function upsertHentaiArchive(
 ): Promise<HentaiArchiveDto | null> {
   const supabase = await useUserStore().getAuthSupabase()
 
-  // 代码层约束：title 与 title_hash 必须都不为空（与数据库 NOT NULL + 非空 CHECK 对应）
+  // 代码层约束：title 非空（与数据库 CHECK 对应）
   if (!title) {
     console.warn('hentai_archive: title 为空，拒绝写入', { gid, status })
     return null
   }
-  const hash = await sha256Hex(title)
-  if (!hash) {
-    console.warn('hentai_archive: title_hash 计算失败，拒绝写入', { gid, title })
-    return null
-  }
 
-  const record: Record<string, string | number> = {
-    gid,
-    date: dayjs(date).toISOString(),
-    status: status,
-    title,
-    title_hash: hash,
-    // 显式写入而不是依赖列默认 now()：默认值只在 insert 时生效，
-    // 不写的话 upsert 后 created_time 会一直停留在首次插入时间，
-    // 使"最近一次操作"的判定永远停在最早写下的那一行
-    created_time: dayjs().toISOString()
-  }
-  const { data, error } = await supabase
-    .from('hentai_archive')
-    .upsert(record, { onConflict: 'title_hash,status,user_id' })
-    .select()
+  // 写入唯一入口：库函数内原子完成「画廊 upsert + 归档事件 upsert」。
+  // - title_hash 统一由库侧 sha256(title) 计算（与前端 sha256Hex 同算法，由触发器守卫生效性）；
+  // - updated_time 在库内刷新为 now()，替代原先由前端显式写 created_time 的做法；
+  // - 拆表后不再需要前端拼 title/gid 等实体字段。
+  const { data, error } = await supabase.rpc('upsert_hentai_archive', {
+    p_gid: gid,
+    p_title: title,
+    p_date: dayjs(date).toISOString(),
+    p_status: status
+  })
   if (error) {
     console.error(error)
     return Promise.reject(error)
   }
-  if (Array.isArray(data) && data.length > 0) {
-    return normalizeArchive(data[0])
-  }
-  return null
-}
 
-/** 归档判重结果：统一口径，列表页与下载 handler 必须共用 */
-export interface ArchiveWaterline {
-  /** date 最大的已处理记录（200/304），无则 null；400（用户跳过）不参与判重 */
-  archive: HentaiArchiveDto | null
-  /** 是否存在 200（已提交过最新种子）记录 */
-  hasDownloaded: boolean
+  const row = Array.isArray(data) ? (data[0] as UpsertArchiveRow | undefined) : undefined
+  if (!row) return null
+  // 归一化为与拆表前完全一致的 DTO 形状，调用方与判重逻辑无需感知底层结构
+  return normalizeArchive({
+    id: row.id,
+    gid: row.gid,
+    date: row.watermark_date,
+    user_id: row.user_id,
+    created_time: row.updated_time,
+    status: row.status,
+    title: row.title,
+    title_hash: row.title_hash
+  })
 }
 
 /**
- * 归档判重的唯一口径：水位线取 date 最大的 200/304 记录，并给出是否下载过最新种子。
+ * 归档判重的唯一口径：水位线 = date 最大的已处理记录（200 已下载 / 304 只有过时种子），
+ * 400（用户主动跳过）不参与判重。列表页与下载 handler 必须共用本函数，否则两处判定会互相打架。
  *
- * 为什么用 max(date) 而不是 max(created_time)：
- * - 304 记录的 date 写的是种子日期，200 记录的 date 写的是画廊日期，两者天然可比；
- * - created_time 只反映写入先后，304 行一旦晚于 200 行写入就会"永久胜出"，
- *   使列表页每次都判为需要自动复查，从而反复重新下载，永不自愈。
+ * 用 max(date) 而不是 max(created_time)：
+ * - 304 记录的 date 是种子日期，200 记录的 date 是画廊日期，两者语义一致、可直接比较；
+ * - created_time 只反映写入先后，用它当水位线会把判定锁死在最早写下的那一行。
  */
-export function resolveArchiveWaterline(archives?: HentaiArchiveDto[]): ArchiveWaterline {
+export function resolveArchiveWaterline(archives?: HentaiArchiveDto[]): HentaiArchiveDto | null {
   const processed = (archives ?? []).filter(
     (a) => a.status === HentaiArchiveStatus.DownloadSuccess || a.status === HentaiArchiveStatus.NoNewerSeed
   )
-  if (processed.length === 0) return { archive: null, hasDownloaded: false }
-
-  const archive = processed.reduce((latest, current) =>
-    current.date.getTime() > latest.date.getTime() ? current : latest
-  )
-  const hasDownloaded = processed.some((a) => a.status === HentaiArchiveStatus.DownloadSuccess)
-  return { archive, hasDownloaded }
+  if (processed.length === 0) return null
+  return processed.reduce((latest, current) => (current.date.getTime() > latest.date.getTime() ? current : latest))
 }
 
 /**
@@ -145,63 +144,22 @@ export function pickLatestOperatedArchive(archives?: HentaiArchiveDto[]): Hentai
   )
 }
 
-export async function getHentaiArchivesMap(
-  gids: number[],
-  status?: HentaiArchiveStatus
-): Promise<Record<number, HentaiArchiveDto[]>> {
-  if (!gids || gids.length === 0) return {}
-
-  const supabase = await useUserStore().getAuthSupabase()
-
-  let query = supabase
-    .from('hentai_archive')
-    .select('id, gid, date, status, created_time, title, title_hash')
-    .in('gid', gids)
-
-  if (status !== undefined) {
-    query = query.eq('status', status)
-  }
-
-  const { data, error } = await query
-
-  if (error) {
-    console.error(error)
-    return Promise.reject(error)
-  }
-  const map: Record<number, HentaiArchiveDto[]> = {}
-  if (Array.isArray(data)) {
-    data.forEach((row: Record<string, unknown>) => {
-      const normalized = normalizeArchive(row)
-      if (normalized && normalized.gid !== undefined) {
-        const gid = Number(normalized.gid)
-        if (!map[gid]) {
-          map[gid] = []
-        }
-        map[gid].push(normalized)
-      }
-    })
-  }
-  return map
-}
-
-export async function getHentaiArchivesMapByHash(
-  hashes: string[],
-  status?: HentaiArchiveStatus
-): Promise<Record<string, HentaiArchiveDto[]>> {
+/**
+ * 按标题 hash 批量查归档。
+ *
+ * 判重键只有 title_hash：gid 会随画廊更新/重传变动，且 gallery 行上的 gid 是"最近值"，
+ * 用旧 gid 查会查不到、用重传后的 gid 查会串到别的 hash 行，因此不再提供按 gid 的读路径。
+ * 查询不做 status 过滤：列表页与 handler 的判定都需要 200/304/400 全量（避免两次查库双份真值）。
+ */
+export async function getHentaiArchivesMapByHash(hashes: string[]): Promise<Record<string, HentaiArchiveDto[]>> {
   if (!hashes || hashes.length === 0) return {}
 
   const supabase = await useUserStore().getAuthSupabase()
 
-  let query = supabase
+  const { data, error } = await supabase
     .from('hentai_archive')
     .select('id, gid, date, status, created_time, title, title_hash')
     .in('title_hash', hashes)
-
-  if (status !== undefined) {
-    query = query.eq('status', status)
-  }
-
-  const { data, error } = await query
 
   if (error) {
     console.error(error)
@@ -221,8 +179,4 @@ export async function getHentaiArchivesMapByHash(
     })
   }
   return map
-}
-
-export async function getDownloadedArchivesMap(gids: number[]): Promise<Record<number, HentaiArchiveDto[]>> {
-  return getHentaiArchivesMap(gids, HentaiArchiveStatus.DownloadSuccess)
 }
