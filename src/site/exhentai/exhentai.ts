@@ -14,6 +14,7 @@ import {
 } from '@/dao/hentai-archive'
 import { sha256Hex } from '@/common/hash'
 import { useConfigStore } from '@/store/config-store'
+import { WaterfallStatus } from '@/dictionary'
 import {
   useDownloadQueueStore,
   setDownloadQueueExecutor,
@@ -190,6 +191,8 @@ export class Exhentai extends SiteAbstract {
    * flow() 的懒加载会在 lazyLimit 处停下，之后靠滚动继续追加，否则页面到 100 条就再也长不出来了。
    */
   private observeSentinel(): void {
+    // 配置里关掉瀑布流时，flow() 只会提示，不应再由滚动追加
+    if (useConfigStore().getSiteConfig.scrollStatus === WaterfallStatus.close.code) return
     if (this.sentinelObserver !== null || this.waterfall.page.isEnd) return
     const sentinel = document.createElement('div')
     sentinel.id = 'mansion-exhentai-sentinel'
@@ -231,6 +234,7 @@ export class Exhentai extends SiteAbstract {
       console.error('exhentai waterfall archive check failed', err)
     }
   }
+
   /**
    * 队列执行器：按 gid 重新定位 DOM 并构造 handler，避免在队列里持有闭包。
    * handler 以 silent 模式运行，通知统一由面板呈现。
@@ -267,7 +271,10 @@ export class Exhentai extends SiteAbstract {
   }
 
   private collectItemInfos($scope?: JQuery): ItemInfo[] {
-    const $items = $scope ?? jquery(this.selector.container).find(this.selector.item)
+    // $scope 传入的集合既可能是容器，也可能是条目本身（瀑布流追加回调），两种都要覆盖
+    const $items = $scope
+      ? $scope.filter(this.selector.item).add($scope.find(this.selector.item))
+      : jquery(this.selector.container).find(this.selector.item)
     const infos: ItemInfo[] = []
 
     $items.each((index, elem) => {
@@ -300,11 +307,15 @@ export class Exhentai extends SiteAbstract {
       hashes.length > 0 ? await getHentaiArchivesMapByHash(hashes) : ({} as Record<string, HentaiArchiveDto[]>)
     // 本次批量结果同时作为下载判重的数据源（该查询不带 status，天然含 200/304/400）
     // 注意是"合并"而不是覆盖：追加页若覆盖首屏结果，前面页的 hash 会被误判成"无归档"
-    this.archiveCache = { ...(this.archiveCache ?? {}), ...archivesByHash }
+    this.archiveCache = { ...this.archiveCache, ...archivesByHash }
     const siteConfig = useConfigStore().getSiteConfig
     const skipRead = siteConfig.skipRead
-    // 开启后已下载且无新版本的画廊整条隐藏；关闭时保持只隐藏下载按钮
-    const hideDownloadedGallery = siteConfig.hideDownloadedGallery
+    // 开启后只保留可直接下载的条目（已下载无新版本 / 过时种子 / 用户跳过 / 无种子 全部整条隐藏）
+    const onlyShowDownloadable = siteConfig.onlyShowDownloadable
+    const hideUnavailable = ($target: JQuery, gid: string, title: string, reason: string) => {
+      $target.hide()
+      console.log('exhentai: 隐藏不可下载条目', gid, reason, title)
+    }
     // 304 且无更新的条目：绑定完成后统一入队（此时 data-orig-href 已就绪）
     const queueItems: EnqueueDownloadItem[] = []
 
@@ -323,7 +334,11 @@ export class Exhentai extends SiteAbstract {
 
         if (latestOperated?.status === HentaiArchiveStatus.SkipDownload) {
           // 用户标记跳过下载：不看日期，同标题 hash 即隐藏
-          if (skipRead) $item.hide()
+          if (onlyShowDownloadable) {
+            hideUnavailable($item, gid, info.title, '用户标记跳过下载')
+          } else if (skipRead) {
+            $item.hide()
+          }
           // 无论 skipRead 是否开启，都不触发下载绑定
           continue
         }
@@ -336,15 +351,18 @@ export class Exhentai extends SiteAbstract {
             ExhentaiUtils.applyArchiveStyle($download)
             queueDownload = true
           }
+          // 仅显示可下载时整条隐藏，但不 continue：仍要绑定并入队，保证后台自动复查最新种子
+          if (onlyShowDownloadable) {
+            hideUnavailable($item, gid, info.title, '只拿到过时种子')
+          }
         } else if (latestOperated?.status === HentaiArchiveStatus.DownloadSuccess) {
           // 已提交过最新种子：只有画廊日期比判重水位线更新（与 handler 同一口径）才算有新版本
           const waterline = resolveArchiveWaterline(archives)
           const isNewer = !!date && !!waterline && date.valueOf() > waterline.date.getTime()
           if (!isNewer) {
             // 无更新版本：按开关隐藏整条画廊或仅隐藏下载按钮，不入队
-            if (hideDownloadedGallery) {
-              $item.hide()
-              console.log('exhentai: 隐藏已下载画廊', gid, info.title)
+            if (onlyShowDownloadable) {
+              hideUnavailable($item, gid, info.title, '已下载且无新版本')
             } else {
               $download.hide()
             }
@@ -354,7 +372,13 @@ export class Exhentai extends SiteAbstract {
         }
       }
       // 注意：空 jQuery 也是真值，必须用 length 判断
-      if (!$download || $download.length === 0) continue
+      // 没有种子时 div.gldown 里只有置灰图标（img[title="No torrents available"]），没有 a[href]，即不可下载
+      if (!$download || $download.length === 0 || !$download.attr('href')) {
+        if (onlyShowDownloadable) {
+          hideUnavailable($item, gid, info.title, '没有种子')
+        }
+        continue
+      }
 
       // 将点击行为绑定到原始下载链接，移除克隆按钮的需要
       if (gid) $download.attr('data-gid', gid)

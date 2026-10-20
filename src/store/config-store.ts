@@ -27,8 +27,8 @@ interface SiteConfig {
   navigationPoint: number
   skipRead: boolean
   lazyLimit: number
-  /** 仅 exhentai：已下载且无新版本的画廊是否整条隐藏（关闭时仅隐藏下载按钮） */
-  hideDownloadedGallery: boolean
+  /** 仅 exhentai：是否只显示可下载的画廊（隐藏已下载/跳过/无种子的条目） */
+  onlyShowDownloadable: boolean
 }
 function getDefaultSiteConfig(): SiteConfig {
   return {
@@ -39,7 +39,7 @@ function getDefaultSiteConfig(): SiteConfig {
     navigationPoint: 0,
     skipRead: false,
     lazyLimit: 100,
-    hideDownloadedGallery: false
+    onlyShowDownloadable: false
   }
 }
 export const useConfigStore = defineStore('config', {
@@ -77,7 +77,7 @@ export const useConfigStore = defineStore('config', {
         if (config.sites.has(name)) {
           const userSiteConfig = config.sites.get(name)
           // 合并配置，添加新字段
-          Object.assign(siteConfig, userSiteConfig)
+          if (userSiteConfig) Object.assign(siteConfig, userSiteConfig)
         }
         config.sites.set(name, siteConfig)
         config.common.keyword.like = LIKE

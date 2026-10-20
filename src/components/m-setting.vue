@@ -60,11 +60,11 @@ function loadThumbnailSwitchChange(value: boolean) {
   }
 }
 
-function hideDownloadedGalleryChange(value: boolean) {
+function onlyShowDownloadableChange(value: boolean) {
   if (value) {
-    ElNotification({ title: 'ExHentai', message: `隐藏已下载画廊`, type: 'info' })
+    ElNotification({ title: 'ExHentai', message: `仅显示可下载的画廊`, type: 'info' })
   } else {
-    ElNotification({ title: 'ExHentai', message: `仅隐藏已下载画廊的下载按钮`, type: 'info' })
+    ElNotification({ title: 'ExHentai', message: `显示全部画廊`, type: 'info' })
   }
 }
 
@@ -104,7 +104,7 @@ function allRead() {}
         </template>
         <template #default>
           <el-form label-position="right" label-width="auto">
-            <el-form-item v-if="site.siteId !== SiteId.EXHENTAI" label="缩略图">
+            <el-form-item label="缩略图">
               <el-switch
                 v-model="currentConfig.loadThumbnailSwitch"
                 @change="loadThumbnailSwitchChange"
@@ -123,10 +123,10 @@ function allRead() {}
                 size="large"
               />
             </el-form-item>
-            <el-form-item v-if="site.siteId === SiteId.EXHENTAI" label="隐藏已下载画廊">
+            <el-form-item v-if="site.siteId === SiteId.EXHENTAI" label="仅显示可下载">
               <el-switch
-                v-model="currentConfig.hideDownloadedGallery"
-                @change="hideDownloadedGalleryChange"
+                v-model="currentConfig.onlyShowDownloadable"
+                @change="onlyShowDownloadableChange"
                 active-icon="Check"
                 inactive-icon="Close"
                 inline-prompt
