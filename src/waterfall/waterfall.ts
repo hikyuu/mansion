@@ -117,6 +117,12 @@ export default class {
       this.allReadedPage = 0
       jquery(this.selector.container).append(items)
       this.setSisterNumber()
+      // 追加条目交给站点复用首屏的条目处理逻辑（判重、隐藏、绑定、入队等）
+      try {
+        await this.site.onItemsAppended?.(items)
+      } catch (err) {
+        console.error('瀑布流: 追加条目回调失败', err)
+      }
     }
     if (this.allReadedPage >= allReadPageLimit) {
       console.log('连续5页没有缩略图，停止加载')
@@ -175,8 +181,16 @@ export default class {
       }
       const html = await response.text()
       const doc = new DOMParser().parseFromString(html, 'text/html')
-      this.page.nextUrl = this.getNextUrl(doc)
-      this.page.nextDetail = this.getDetail(doc)
+      const nextUrl = this.getNextUrl(doc)
+      const detail = this.getDetail(doc)
+      // 仍有"下一页"却抽不到条目：多半是限流页/验证页/结果上限，不能当作正常到底
+      if (detail.length === 0 && nextUrl !== null) {
+        console.error('瀑布流: 下一页没有条目，判定为受限或已到上限', this.page.nextUrl)
+        ElNotification({ title: '瀑布流', message: '下一页没有内容，已停止加载', type: 'warning' })
+        return this.isEnd()
+      }
+      this.page.nextUrl = nextUrl
+      this.page.nextDetail = detail
     } catch (reason) {
       console.error(reason)
       if (retry > 0) {
@@ -200,7 +214,8 @@ export default class {
   }
 
   getNextUrl(doc: Document) {
-    const href = jquery(doc).find(this.selector.next).attr('href')
+    // 取最后一个：部分站点头尾各有一个 next 链接（如 #unext / #dnext）
+    const href = jquery(doc).find(this.selector.next).last().attr('href')
     const a = document.createElement('a')
     if (href === undefined || href === null) return null
     a.href = href
@@ -211,7 +226,11 @@ export default class {
     // $(window).off('scroll');
     if (this.anchor === undefined) return
     const $end = jquery(`<h1>The End</h1>`)
-    jquery(this.anchor).replaceWith($end)
+    const $anchor = jquery(this.anchor)
+    // 分页条整体替换，避免只换掉"下一页"链接后留下残缺的页码
+    const $bar = $anchor.closest('table, .gtb')
+    const $target = $bar.length > 0 ? $bar : $anchor
+    $target.replaceWith($end)
   }
 
   setSisterNumber() {
@@ -224,6 +243,11 @@ export default class {
   }
 
   private async loadThumbnail(detail: JQuery) {
+    // 列表自带缩略图：无需站点二次解析，也不受"加载缩略图"开关影响
+    // （若受开关影响会返回空数组，被 appendNextLocal 误判为"整页没有条目"而提前落地）
+    if (this.selector.nativeThumbnail) {
+      return detail.toArray().map((elem) => jquery(elem))
+    }
     if (useConfigStore().getSiteConfig.loadThumbnailSwitch) {
       return await this.site.resolveElements(detail)
     }
@@ -268,6 +292,10 @@ export declare interface Selector {
    * 标题选择器（可选，解析画廊标题等场景使用）
    */
   title?: string
+  /**
+   * 列表自带缩略图（可选）：为 true 时瀑布流直接追加原条目，跳过站点缩略图解析
+   */
+  nativeThumbnail?: boolean
 }
 
 class Lock {

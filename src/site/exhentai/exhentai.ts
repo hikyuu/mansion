@@ -41,14 +41,18 @@ export class Exhentai extends SiteAbstract {
   public siteId = SiteId.EXHENTAI
 
   selector: Selector = {
-    next: 'a.pagination-next.button.is-primary',
+    // 页尾的 Next：exhentai 头尾各有一个（#unext / #dnext），瀑布流取最后一个
+    next: 'a#dnext, a#unext',
     item: 'div.gl1t',
     container: 'div.itg.gld',
-    pagination: '',
+    // 分页锚点：落地时用它整条替换成 The End
+    pagination: '#dnext',
     serialNumber: 'a:has(.gl4t.glname.glink)',
     link: 'div.gl5t .gldown a',
     date: 'div.gl5t [id^="posted_"]',
-    title: 'div.gl4t.glname.glink'
+    title: 'div.gl4t.glname.glink',
+    // 列表自带缩略图，追加时直接把原 DOM 交给瀑布流
+    nativeThumbnail: true
   } as Selector
   theme = {
     PRIMARY_COLOR: '#00d1b2',
@@ -60,6 +64,13 @@ export class Exhentai extends SiteAbstract {
    * null = 尚未查询；查过但没有记录的 hash 不出现在 key 中（由注入方转成 []）
    */
   private archiveCache: Record<string, HentaiArchiveDto[]> | null = null
+
+  /** 已处理过的 gid：翻页重叠或重复触发时避免同一条目被二次绑定 */
+  private processedGids = new Set<string>()
+
+  /** 瀑布流触底哨兵 */
+  private sentinel: HTMLElement | null = null
+  private sentinelObserver: IntersectionObserver | null = null
 
   constructor() {
     super()
@@ -157,12 +168,69 @@ export class Exhentai extends SiteAbstract {
 
   mount(): void {
     setDownloadQueueExecutor((item) => this.executeQueuedDownload(item))
-    const infos = this.collectItemInfos()
+    const $items = jquery(this.selector.container).find(this.selector.item)
+    const infos = this.collectItemInfos($items)
     void this.attachHandlersForInfos(infos).catch((err) => {
       console.error('exhentai mount archive check failed', err)
     })
+    this.enableWaterfall($items)
   }
 
+  /** 只在列表页启用瀑布流：画廊详情页没有 gl1t 条目 */
+  private enableWaterfall($items: JQuery): void {
+    if ($items.length === 0) return
+    this.waterfall
+      .flow()
+      .then(() => this.observeSentinel())
+      .catch((err) => console.error('exhentai waterfall flow failed', err))
+  }
+
+  /**
+   * 触底自动追加下一页。
+   * flow() 的懒加载会在 lazyLimit 处停下，之后靠滚动继续追加，否则页面到 100 条就再也长不出来了。
+   */
+  private observeSentinel(): void {
+    if (this.sentinelObserver !== null || this.waterfall.page.isEnd) return
+    const sentinel = document.createElement('div')
+    sentinel.id = 'mansion-exhentai-sentinel'
+    sentinel.style.height = '1px'
+    jquery(this.selector.container).after(sentinel)
+    this.sentinel = sentinel
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return
+        if (this.waterfall.page.isEnd || this.waterfall.page.nextUrl === null) return
+        // 并发由 Waterfall 内部的锁兜底，这里不额外加状态
+        void this.loadNext()
+      },
+      { rootMargin: '600px 0px' }
+    )
+    observer.observe(sentinel)
+    this.sentinelObserver = observer
+  }
+
+  private stopSentinel(): void {
+    this.sentinelObserver?.disconnect()
+    this.sentinelObserver = null
+    this.sentinel?.remove()
+    this.sentinel = null
+  }
+
+  /**
+   * 瀑布流追加完成后的回调：只处理新增条目，复用首屏的归档链路
+   * （判重、隐藏已下载/已跳过、304 自动入队、绑定下载与关闭按钮）
+   */
+  async onItemsAppended(items: JQuery[]): Promise<void> {
+    const nodes = items.map(($item) => $item[0]).filter((elem): elem is HTMLElement => elem !== undefined)
+    const infos = this.collectItemInfos(jquery(nodes))
+    if (infos.length === 0) return
+    try {
+      await this.attachHandlersForInfos(infos)
+    } catch (err) {
+      console.error('exhentai waterfall archive check failed', err)
+    }
+  }
   /**
    * 队列执行器：按 gid 重新定位 DOM 并构造 handler，避免在队列里持有闭包。
    * handler 以 silent 模式运行，通知统一由面板呈现。
@@ -198,14 +266,16 @@ export class Exhentai extends SiteAbstract {
     return outcome
   }
 
-  private collectItemInfos(): ItemInfo[] {
-    const $items = jquery(this.selector.container).find(this.selector.item)
+  private collectItemInfos($scope?: JQuery): ItemInfo[] {
+    const $items = $scope ?? jquery(this.selector.container).find(this.selector.item)
     const infos: ItemInfo[] = []
 
     $items.each((index, elem) => {
       const $item = jquery(elem)
       const gid = this.extractGidFromGalleryLink($item)
-      if (!gid) return
+      // 游标翻页仍可能与上一页尾部重叠，同一条目只处理一次
+      if (!gid || this.processedGids.has(gid)) return
+      this.processedGids.add(gid)
       $item.attr('id', `exhentai_gid_${gid}`)
       const date = this.parseItemDate($item)
       if (!date) return
@@ -229,8 +299,12 @@ export class Exhentai extends SiteAbstract {
     const archivesByHash =
       hashes.length > 0 ? await getHentaiArchivesMapByHash(hashes) : ({} as Record<string, HentaiArchiveDto[]>)
     // 本次批量结果同时作为下载判重的数据源（该查询不带 status，天然含 200/304/400）
-    this.archiveCache = archivesByHash
-    const skipRead = useConfigStore().getSiteConfig.skipRead
+    // 注意是"合并"而不是覆盖：追加页若覆盖首屏结果，前面页的 hash 会被误判成"无归档"
+    this.archiveCache = { ...(this.archiveCache ?? {}), ...archivesByHash }
+    const siteConfig = useConfigStore().getSiteConfig
+    const skipRead = siteConfig.skipRead
+    // 开启后已下载且无新版本的画廊整条隐藏；关闭时保持只隐藏下载按钮
+    const hideDownloadedGallery = siteConfig.hideDownloadedGallery
     // 304 且无更新的条目：绑定完成后统一入队（此时 data-orig-href 已就绪）
     const queueItems: EnqueueDownloadItem[] = []
 
@@ -267,8 +341,13 @@ export class Exhentai extends SiteAbstract {
           const waterline = resolveArchiveWaterline(archives)
           const isNewer = !!date && !!waterline && date.valueOf() > waterline.date.getTime()
           if (!isNewer) {
-            // 无更新版本：隐藏下载按钮，不入队
-            $download.hide()
+            // 无更新版本：按开关隐藏整条画廊或仅隐藏下载按钮，不入队
+            if (hideDownloadedGallery) {
+              $item.hide()
+              console.log('exhentai: 隐藏已下载画廊', gid, info.title)
+            } else {
+              $download.hide()
+            }
             continue
           }
           // 有更新版本：不隐藏，走下方绑定下载（不自动入队）
@@ -305,8 +384,10 @@ export class Exhentai extends SiteAbstract {
     }
   }
 
-  resolveElements(): Promise<JQuery[]> {
-    throw new Error('Method not implemented.')
+  async resolveElements(elems: JQuery): Promise<JQuery[]> {
+    // exhentai 列表自带缩略图，这里只需把条目原样交回瀑布流
+    if (!elems || elems.length === 0) return []
+    return elems.toArray().map((elem) => jquery(elem))
   }
   download(): void {
     // throw new Error('Method not implemented.')
@@ -316,10 +397,11 @@ export class Exhentai extends SiteAbstract {
   }
 
   allLoadCompleted(): void {
-    // throw new Error('Method not implemented.')
+    this.hasLoadCompleted = true
+    this.stopSentinel()
   }
   checkSite(): boolean {
-    return /(this.name)/i.test(document.URL)
+    return /(^|\.)exhentai\.org$/i.test(location.hostname)
   }
   updateInfo(): void {
     throw new Error('Method not implemented.')

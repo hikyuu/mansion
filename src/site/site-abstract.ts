@@ -62,6 +62,14 @@ export abstract class SiteAbstract implements SiteInterface {
 
   abstract updateInfo(item: JQuery, info: Info): void
 
+  /**
+   * 瀑布流追加新条目后的回调（默认空实现）
+   * 站点在这里复用首屏的条目处理逻辑，避免追加内容成为"裸 DOM"
+   */
+  onItemsAppended(_items: JQuery[]): void | Promise<void> {
+    // 默认不处理
+  }
+
   infoLoadCompleted(serialNumber: string) {
     useSisterStore().updateInfo({ serialNumber, loadCompleted: true })
   }

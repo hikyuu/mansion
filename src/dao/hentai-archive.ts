@@ -9,6 +9,13 @@ export enum HentaiArchiveStatus {
 
 export declare interface HentaiArchiveDto {
   id: number
+  /**
+   * 纯元数据，仅供追溯（对应 hentai_gallery.gid =「该用户最近一次见到的 gid」），
+   * 不参与任何业务判定：
+   * - gid 会随画廊更新/重传变动，同一画廊的 gid 不是稳定标识；
+   * - 画廊按 (user_id, title_hash) 分用户各存一行，同一画廊不同用户的 gid 可能不同；
+   * 判重唯一口径是 title_hash + date（见 resolveArchiveWaterline），禁止用 gid 做判定或跨用户比对。
+   */
   gid: number
   date: Date
   user_id: string
@@ -68,11 +75,15 @@ interface UpsertArchiveRow {
   status: number
   watermark_date: string
   updated_time: string
-  gid: number
+  gid: number // 元数据，映射进 DTO 后仅供追溯，不参与判定（见 HentaiArchiveDto.gid）
   title: string
   title_hash: string
 }
 
+/**
+ * 归档写入唯一入口。
+ * 注：gid 仅作追溯元数据写入 hentai_gallery.gid，不参与判重；判重口径是 title_hash + date。
+ */
 export async function upsertHentaiArchive(
   gid: number,
   date: Date,
@@ -91,6 +102,7 @@ export async function upsertHentaiArchive(
   // - title_hash 统一由库侧 sha256(title) 计算（与前端 sha256Hex 同算法，由触发器守卫生效性）；
   // - updated_time 在库内刷新为 now()，替代原先由前端显式写 created_time 的做法；
   // - 拆表后不再需要前端拼 title/gid 等实体字段。
+  // - p_gid 只落到 hentai_gallery.gid 作追溯元数据（每用户一份、会随重传漂移），不参与库内任何判定。
   const { data, error } = await supabase.rpc('upsert_hentai_archive', {
     p_gid: gid,
     p_title: title,

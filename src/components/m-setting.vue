@@ -5,6 +5,7 @@ import MImgBox from '@/components/m-img-box.vue'
 import MImgItem from '@/components/m-img-item.vue'
 import { useSiteStore } from '@/store/site-store.ts'
 import { useConfigStore } from '@/store/config-store.ts'
+import { SiteId } from '@/site/site-id'
 
 const props = defineProps({
   size: {
@@ -59,6 +60,14 @@ function loadThumbnailSwitchChange(value: boolean) {
   }
 }
 
+function hideDownloadedGalleryChange(value: boolean) {
+  if (value) {
+    ElNotification({ title: 'ExHentai', message: `隐藏已下载画廊`, type: 'info' })
+  } else {
+    ElNotification({ title: 'ExHentai', message: `仅隐藏已下载画廊的下载按钮`, type: 'info' })
+  }
+}
+
 // watch(
 //   () => currentConfig,
 //   (value) => {
@@ -95,7 +104,7 @@ function allRead() {}
         </template>
         <template #default>
           <el-form label-position="right" label-width="auto">
-            <el-form-item label="缩略图">
+            <el-form-item v-if="site.siteId !== SiteId.EXHENTAI" label="缩略图">
               <el-switch
                 v-model="currentConfig.loadThumbnailSwitch"
                 @change="loadThumbnailSwitchChange"
@@ -108,6 +117,16 @@ function allRead() {}
             <el-form-item label="跳过已读">
               <el-switch
                 v-model="currentConfig.skipRead"
+                active-icon="Check"
+                inactive-icon="Close"
+                inline-prompt
+                size="large"
+              />
+            </el-form-item>
+            <el-form-item v-if="site.siteId === SiteId.EXHENTAI" label="隐藏已下载画廊">
+              <el-switch
+                v-model="currentConfig.hideDownloadedGallery"
+                @change="hideDownloadedGalleryChange"
                 active-icon="Check"
                 inactive-icon="Close"
                 inline-prompt

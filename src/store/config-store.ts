@@ -27,6 +27,8 @@ interface SiteConfig {
   navigationPoint: number
   skipRead: boolean
   lazyLimit: number
+  /** 仅 exhentai：已下载且无新版本的画廊是否整条隐藏（关闭时仅隐藏下载按钮） */
+  hideDownloadedGallery: boolean
 }
 function getDefaultSiteConfig(): SiteConfig {
   return {
@@ -36,7 +38,8 @@ function getDefaultSiteConfig(): SiteConfig {
     downloadMethod: 0,
     navigationPoint: 0,
     skipRead: false,
-    lazyLimit: 100
+    lazyLimit: 100,
+    hideDownloadedGallery: false
   }
 }
 export const useConfigStore = defineStore('config', {

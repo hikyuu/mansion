@@ -15,4 +15,7 @@ export interface SiteInterface {
   loadNext(): void
 
   getOriginalId(item: JQuery): string | undefined
+
+  /** 瀑布流追加新条目后的回调（可选），站点在这里复用首屏的条目处理逻辑 */
+  onItemsAppended?(items: JQuery[]): void | Promise<void>
 }
