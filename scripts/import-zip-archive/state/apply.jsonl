@@ -1,0 +1,9 @@
+{"batchId":"6cda5da5-46ba-45d4-a666-176a32af65d8","file":"D:\\workspace\\mansion\\scripts\\import-zip-archive\\state\\sql\\batch-0001.sql","count":51,"expected":51,"appliedAt":"2026-10-20T20:13:23.352Z"}
+{"batchId":"7781ae5e-7aea-4932-a55c-5b4aa1ef01f4","file":"D:\\workspace\\mansion\\scripts\\import-zip-archive\\state\\sql\\batch-0001.sql","count":200,"expected":200,"appliedAt":"2026-10-21T01:24:51.806Z"}
+{"batchId":"7781ae5e-7aea-4932-a55c-5b4aa1ef01f4","file":"D:\\workspace\\mansion\\scripts\\import-zip-archive\\state\\sql\\batch-0002.sql","count":200,"expected":400,"appliedAt":"2026-10-21T01:24:52.968Z"}
+{"batchId":"7781ae5e-7aea-4932-a55c-5b4aa1ef01f4","file":"D:\\workspace\\mansion\\scripts\\import-zip-archive\\state\\sql\\batch-0003.sql","count":200,"expected":600,"appliedAt":"2026-10-21T01:24:53.984Z"}
+{"batchId":"7781ae5e-7aea-4932-a55c-5b4aa1ef01f4","file":"D:\\workspace\\mansion\\scripts\\import-zip-archive\\state\\sql\\batch-0004.sql","count":200,"expected":800,"appliedAt":"2026-10-21T01:24:55.077Z"}
+{"batchId":"7781ae5e-7aea-4932-a55c-5b4aa1ef01f4","file":"D:\\workspace\\mansion\\scripts\\import-zip-archive\\state\\sql\\batch-0005.sql","count":79,"expected":879,"appliedAt":"2026-10-21T01:24:56.027Z"}
+{"batchId":"b25d9cde-c4f4-408b-928d-bd79111b48ff","file":"D:\\workspace\\mansion\\scripts\\import-zip-archive\\state\\sql\\batch-0001.sql","count":14,"expected":14,"appliedAt":"2026-10-21T01:29:08.130Z"}
+{"batchId":"6f6c6808-2d2f-4cb5-96ce-3b4f5baac286","file":"D:\\workspace\\mansion\\scripts\\import-zip-archive\\state\\sql\\batch-0001.sql","count":16,"expected":16,"appliedAt":"2026-10-21T01:31:39.034Z"}
+{"batchId":"e84a7a98-e767-4850-aaf9-66b0b2aeedc4","file":"D:\\workspace\\mansion\\scripts\\import-zip-archive\\state\\sql\\batch-0001.sql","count":8,"expected":8,"appliedAt":"2026-10-21T01:44:44.370Z"}

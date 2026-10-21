@@ -28,3 +28,7 @@ coverage
 *.sw?
 auto-imports.d.ts
 components.d.ts
+# 迅雷工具运行状态
+.thunder-sync/
+.thunder-state/
+.thunder-create-task/

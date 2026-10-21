@@ -1,0 +1,11 @@
+# 需要入库共享的只有：files.json / verified.jsonl / decisions.jsonl / apply.jsonl
+# 下面都是可重建的派生产物或运行时文件，不提交（避免 diff 噪音与仓库膨胀）
+sql/
+tmp/
+run.lock
+apply.lock
+report.json
+report.md
+disputed.json
+verify.out.log
+verify.err.log
