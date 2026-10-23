@@ -1,4 +1,4 @@
-import { JAVDB_NAME, javdb_selector } from '@/site/javdb/javdb'
+import { JAVDB_NAME, javdb_detail_selector, javdb_selector } from '@/site/javdb/javdb'
 import { request, sortId } from '@/common/common'
 import { SessionPool } from '@/common/session-pool.ts'
 import type { GmCallbackCookie } from '@/common/flare-solverr.ts'
@@ -63,26 +63,28 @@ async function searchHtml(serialNumber: string) {
 }
 
 function handleMagnet(doc: JQuery) {
-  const magnetsContent = doc.find('#magnets-content')
+  const magnetsContent = doc.find(javdb_detail_selector.magnetsContainer)
   if (magnetsContent.length === 0) {
     return Promise.reject('没有找到磁力链接容器')
   }
 
-  const magnets = magnetsContent.find('div.item.columns.is-desktop')
+  // 容器内还混有广告（div.sda-content），只保留包含 magnet: 链接的条目
+  const magnets = magnetsContent
+    .find(javdb_detail_selector.magnetItem)
+    .filter((_, element) => jquery(element).find(javdb_detail_selector.magnetLink).length > 0)
   if (magnets.length === 0) {
     return Promise.reject('没有找到磁力链接')
   }
 
-  const highestScore = {
+  const highestScore: HighestScore = {
     score: 0,
-    magnet: magnets.first().find('a').first()
+    magnet: magnets.first().find(javdb_detail_selector.magnetLink).first()
   }
 
   magnets.each((index, element) => {
     let score = 0
-    const magnet = jQuery(element)
-    const link = magnet.find('a').first()
-    const name = link.find('span.name').first().text()
+    const link = jquery(element).find(javdb_detail_selector.magnetLink).first()
+    const name = link.find(javdb_detail_selector.magnetName).first().text()
     if (name.match(/\S+[-|_]c/gi)) {
       score++
     }

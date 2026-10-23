@@ -13,5 +13,8 @@
   },
   "categories": {
     "correctness": "error"
+  },
+  "rules": {
+    "vitest/expect-expect": ["error", { "assertFunctionNames": ["expect", "expectFallback"] }]
   }
 }

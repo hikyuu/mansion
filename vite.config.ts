@@ -19,11 +19,18 @@ dayjs.extend(timezone)
 export default defineConfig({
   server: {
     hmr: false,
-    port: 9160
+    port: 9160,
+    fs: {
+      allow: [
+        fileURLToPath(new URL('.', import.meta.url)),
+        fileURLToPath(new URL('../flutter/miao/sdk/ts', import.meta.url))
+      ]
+    }
   },
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@miao/thunder-client': fileURLToPath(new URL('../flutter/miao/sdk/ts/src/index.ts', import.meta.url))
     }
   },
   plugins: [

@@ -1,0 +1,71 @@
+import { defineStore } from 'pinia'
+import type { TaskFileMeta } from '@miao/thunder-client'
+
+export interface FileSelectionPayload {
+  /** 种子/任务名，展示在弹窗标题 */
+  name: string
+  /** needsSelection 返回的必要元数据清单 */
+  files: TaskFileMeta[]
+}
+
+interface PendingRequest extends FileSelectionPayload {
+  resolve: (indexes: number[] | null) => void
+}
+
+/** 模块级、非响应式：弹窗 Promise 的 resolver 与 FIFO 队列不进 reactive 状态 */
+const waiting: PendingRequest[] = []
+let currentResolve: ((indexes: number[] | null) => void) | null = null
+
+export const useFilePickerStore = defineStore('miaoFilePicker', {
+  state: (): {
+    visible: boolean
+    name: string
+    files: TaskFileMeta[]
+  } => ({
+    visible: false,
+    name: '',
+    files: []
+  }),
+  actions: {
+    /** 确认勾选：返回选中的文件序号 */
+    submit(indexes: number[]) {
+      finish(indexes)
+    },
+    /** 取消（含 X / ESC 关闭）：返回 null */
+    cancel() {
+      finish(null)
+    }
+  }
+})
+
+function finish(indexes: number[] | null): void {
+  const store = useFilePickerStore()
+  store.visible = false
+  const resolve = currentResolve
+  currentResolve = null
+  resolve?.(indexes)
+  showNext()
+}
+
+function showNext(): void {
+  const store = useFilePickerStore()
+  if (store.visible) return
+  const next = waiting.shift()
+  if (!next) return
+  currentResolve = next.resolve
+  store.name = next.name
+  store.files = next.files
+  store.visible = true
+}
+
+/**
+ * 弹窗让用户勾选 needsSelection 的候选文件。
+ * 返回勾选的文件序号（index 列表）；用户取消返回 null。
+ * 多个请求按先来后到排队，同时只展示一个弹窗。
+ */
+export function requestFileSelection(payload: FileSelectionPayload): Promise<number[] | null> {
+  return new Promise((resolve) => {
+    waiting.push({ ...payload, resolve })
+    showNext()
+  })
+}

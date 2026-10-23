@@ -15,27 +15,70 @@ interface Config {
       like: string[]
       unlike: string[]
     }
+    /** miao 本地服务连接配置（全局，与站点无关） */
+    miao: MiaoConfig
   }
   sites: Map<string, SiteConfig>
+}
+
+/** 下载方式：miao 优先（默认，失败回退迅雷）/ 迅雷协议 / 复制链接 */
+export type DownloadMethod = 'miao' | 'thunder' | 'copy'
+
+/** miao 本地服务连接配置 */
+export interface MiaoConfig {
+  /** 下载保存目录（miao 服务端视角的路径），须命中 miao 下载目录白名单 */
+  savePath: string
+  /** miao REST 服务地址，默认 http://127.0.0.1:6427 */
+  baseUrl: string
 }
 
 interface SiteConfig {
   loadThumbnailSwitch: boolean
   scrollStatus: number
   smooth: number
-  downloadMethod: number
+  downloadMethod: DownloadMethod
   navigationPoint: number
   skipRead: boolean
   lazyLimit: number
   /** 仅 exhentai：是否只显示可下载的画廊（隐藏已下载/跳过/无种子的条目） */
   onlyShowDownloadable: boolean
 }
+
+const DEFAULT_MIAO_BASE_URL = 'http://127.0.0.1:6427'
+
+export function getDefaultMiaoConfig(): MiaoConfig {
+  return {
+    savePath: '',
+    baseUrl: DEFAULT_MIAO_BASE_URL
+  }
+}
+
+/**
+ * 归一化 downloadMethod。
+ * 旧配置存的是 number（0 迅雷 / 1 复制）且从未有过设置 UI，
+ * 凡非合法字符串值一律迁移为 'miao'（miao 优先，全员默认）。
+ */
+export function normalizeDownloadMethod(value: unknown): DownloadMethod {
+  return value === 'thunder' || value === 'copy' || value === 'miao' ? value : 'miao'
+}
+
+/** 老配置没有 common.miao 字段，补齐默认值；非法字段回退默认值 */
+export function mergeMiaoConfig(saved: unknown): MiaoConfig {
+  const defaults = getDefaultMiaoConfig()
+  if (!saved || typeof saved !== 'object') return defaults
+  const partial = saved as Partial<MiaoConfig>
+  return {
+    savePath: typeof partial.savePath === 'string' ? partial.savePath : defaults.savePath,
+    baseUrl: typeof partial.baseUrl === 'string' && partial.baseUrl ? partial.baseUrl : defaults.baseUrl
+  }
+}
+
 function getDefaultSiteConfig(): SiteConfig {
   return {
     loadThumbnailSwitch: true,
     scrollStatus: 1,
     smooth: 1,
-    downloadMethod: 0,
+    downloadMethod: 'miao',
     navigationPoint: 0,
     skipRead: false,
     lazyLimit: 100,
@@ -50,7 +93,8 @@ export const useConfigStore = defineStore('config', {
         keyword: {
           like: [],
           unlike: []
-        }
+        },
+        miao: getDefaultMiaoConfig()
       },
       sites: new Map<string, SiteConfig>()
     }
@@ -74,6 +118,12 @@ export const useConfigStore = defineStore('config', {
       if (json) {
         const config: Config = JSON.parse(json, reviver)
         console.log('读取配置文件', config)
+        // 老配置没有 common.miao 字段，补齐默认值
+        config.common.miao = mergeMiaoConfig(config.common.miao)
+        // 旧 downloadMethod 为 number（0 迅雷 / 1 复制）且从未有过 UI，统一迁移为 'miao' 优先
+        for (const siteConfig of config.sites.values()) {
+          if (siteConfig) siteConfig.downloadMethod = normalizeDownloadMethod(siteConfig.downloadMethod)
+        }
         if (config.sites.has(name)) {
           const userSiteConfig = config.sites.get(name)
           // 合并配置，添加新字段

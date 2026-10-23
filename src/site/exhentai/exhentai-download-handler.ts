@@ -21,11 +21,12 @@ export type DownloadOutcomeKind =
   | 'no-outdated' // 无过时种子
   | 'dom-missing' // 队列专用：条目已不在 DOM
   | 'no-download-button' // 队列专用：找不到下载按钮
+  | 'submit-failed' // download() 未真实提交成功（miao 失败且迅雷回退也失败 / 用户取消文件选择）
 
 export interface DownloadOutcome {
   /** 流程是否正常走完（含 no-newer-seed）；false 表示硬错误 */
   ok: boolean
-  /** 是否调用过 download()（仅代表已提交，不代表文件真的下载成功） */
+  /** 是否已真实提交（download() 返回 ok，含 miao / 迅雷 / 复制通道），不代表文件真的下载成功 */
   downloaded: boolean
   kind: DownloadOutcomeKind
   message: string
@@ -112,8 +113,10 @@ export class ExhentaiDownloadHandler {
 
       // 有最新的种子，直接下载
       if (res.latest) {
-        await this.handleLatestTorrent(res.latest)
-        return { ok: true, downloaded: true, kind: 'latest', message: '已提交最新种子' }
+        const submitted = await this.handleLatestTorrent(res.latest)
+        return submitted
+          ? { ok: true, downloaded: true, kind: 'latest', message: '已提交最新种子' }
+          : { ok: false, downloaded: false, kind: 'submit-failed', message: '提交下载失败' }
       }
 
       // 处理过时种子
@@ -139,14 +142,19 @@ export class ExhentaiDownloadHandler {
     }
   }
 
-  private async handleLatestTorrent(latest: TorrentEntry): Promise<void> {
-    download(latest.href)
+  private async handleLatestTorrent(latest: TorrentEntry): Promise<boolean> {
+    const result = await download(latest.href)
+    if (!result.ok) {
+      this.notify('提交下载失败：' + result.message, 'error')
+      return false
+    }
     try {
       await upsertHentaiArchive(Number(this.gid), this.date.toDate(), HentaiArchiveStatus.DownloadSuccess, this.title)
       this.tryHideDownloadButton()
     } catch (err) {
       console.warn('exhentai: upsertHentaiArchive failed', err)
     }
+    return true
   }
 
   /** 统一隐藏下载按钮 */
@@ -158,15 +166,20 @@ export class ExhentaiDownloadHandler {
     }
   }
 
-  /** 下载种子并写入归档记录 */
-  private async downloadAndArchive(entry: TorrentEntry, status: HentaiArchiveStatus): Promise<void> {
-    download(entry.href)
+  /** 下载种子并写入归档记录；未真实提交成功则不写归档（保留下次进页面重试） */
+  private async downloadAndArchive(entry: TorrentEntry, status: HentaiArchiveStatus): Promise<boolean> {
+    const result = await download(entry.href)
+    if (!result.ok) {
+      this.notify('提交下载失败：' + result.message, 'error')
+      return false
+    }
     // 解析失败时回退页面画廊日期：该日期同时是判重水位线（见 resolveArchive），
     // 宁可偏高（少下载）也不能归零，否则每次进页面都会判为"有更新"而重复下载
     const date = entry.parsedDate?.toDate() || this.date.toDate()
     await upsertHentaiArchive(Number(this.gid), date, status, this.title)
     // 与下次进页面时 304 条目的呈现保持一致：置灰而非隐藏
     this.applyArchiveStyle()
+    return true
   }
 
   /** 置灰下载按钮（304 语义的统一呈现） */
@@ -206,22 +219,27 @@ export class ExhentaiDownloadHandler {
   }
 
   /** 无存档记录时：直接下载最近的过时种子，归档记为 304（下的是过时种子，保留复查） */
-  private async handleNoArchive(entry: TorrentEntry): Promise<void> {
-    await this.downloadAndArchive(entry, HentaiArchiveStatus.NoNewerSeed)
-    this.notify('未找到下载记录，已提交最近的过时种子', 'info')
+  private async handleNoArchive(entry: TorrentEntry): Promise<boolean> {
+    const submitted = await this.downloadAndArchive(entry, HentaiArchiveStatus.NoNewerSeed)
+    if (submitted) this.notify('未找到下载记录，已提交最近的过时种子', 'info')
+    return submitted
   }
 
-  /** 有存档记录时：比较日期，若更新则下载，归档记为 304 */
-  private async handleExistingArchive(archive: HentaiArchiveDto, entry: TorrentEntry): Promise<boolean> {
+  /** 有存档记录时：比较日期，若更新则下载，归档记为 304；区分「没更新」与「提交失败」，避免误走无新种子分支 */
+  private async handleExistingArchive(
+    archive: HentaiArchiveDto,
+    entry: TorrentEntry
+  ): Promise<'downloaded' | 'not-newer' | 'submit-failed'> {
     const archiveDayjs = this.getArchiveDayjs(archive)
     const outdatedDate = entry.parsedDate
 
     if (outdatedDate && archiveDayjs?.isValid() && outdatedDate.isAfter(archiveDayjs)) {
-      await this.downloadAndArchive(entry, HentaiArchiveStatus.NoNewerSeed)
+      const submitted = await this.downloadAndArchive(entry, HentaiArchiveStatus.NoNewerSeed)
+      if (!submitted) return 'submit-failed'
       this.notify('已提交更新的过时种子', 'info')
-      return true
+      return 'downloaded'
     }
-    return false
+    return 'not-newer'
   }
 
   /** 标记为无更新种子 */
@@ -259,18 +277,23 @@ export class ExhentaiDownloadHandler {
       const archive = this.resolveArchive(archiveList)
 
       if (archive) {
-        const downloaded = await this.handleExistingArchive(archive, mostRecent)
-        if (downloaded) {
+        const decision = await this.handleExistingArchive(archive, mostRecent)
+        if (decision === 'downloaded') {
           return { ok: true, downloaded: true, kind: 'downloaded', message: '已提交更新的过时种子' }
         }
-      } else {
-        await this.handleNoArchive(mostRecent)
-        return {
-          ok: true,
-          downloaded: true,
-          kind: 'downloaded',
-          message: '未找到下载记录，已提交最近的过时种子'
+        if (decision === 'submit-failed') {
+          return { ok: false, downloaded: false, kind: 'submit-failed', message: '提交下载失败' }
         }
+      } else {
+        const submitted = await this.handleNoArchive(mostRecent)
+        return submitted
+          ? {
+              ok: true,
+              downloaded: true,
+              kind: 'downloaded',
+              message: '未找到下载记录，已提交最近的过时种子'
+            }
+          : { ok: false, downloaded: false, kind: 'submit-failed', message: '提交下载失败' }
       }
     } catch (err) {
       console.warn('exhentai: getHentaiArchivesMapByHash failed', err)

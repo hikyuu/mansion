@@ -9,6 +9,7 @@ import { ElNotification } from 'element-plus'
 import MHomeUser from '@/components/m-home-user.vue'
 import MsHomeInfo from '@/components/ms-home-info.vue'
 import MsDownloadQueue from '@/components/ms-download-queue.vue'
+import MsMiaoFilePicker from '@/components/ms-miao-file-picker.vue'
 import { useReactStore } from '@/store/react-store'
 import { useSiteStore } from '@/store/site-store.ts'
 import MsDebugPanel from '@/components/ms-debug-panel.vue'
@@ -43,6 +44,7 @@ const isDevMode = import.meta.env.DEV
       <ms-home-info />
       <ms-download-queue v-if="site instanceof Exhentai" />
     </div>
+    <ms-miao-file-picker />
     <div class="mansion-right">
       <m-home-user v-if="useReactStore().wgt1670" />
       <home-onejav v-if="site instanceof Onejav" />

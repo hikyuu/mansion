@@ -28,6 +28,18 @@ export const javdb_selector: Selector = {
   link: 'div.tags.has-addons'
 }
 
+/**
+ * 详情页磁力区块选择器
+ * - 新版详情页的磁力条目为 div.item[data-rank]，不再带 columns/is-desktop
+ * - 容器内混有广告（div.sda-content），磁力链接需以 magnet: 开头区分
+ */
+export const javdb_detail_selector = {
+  magnetsContainer: '#magnets-content',
+  magnetItem: 'div.item',
+  magnetLink: 'a[href^="magnet:"]',
+  magnetName: 'span.name'
+}
+
 export class Javdb extends SiteAbstract {
   public name = JAVDB_NAME
   public siteId = SiteId.JAVDB

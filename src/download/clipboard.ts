@@ -8,17 +8,18 @@ const waitTime = 1000
 const waitQueue: Array<string> = []
 let waiting = false
 
-export async function copyUrl(text: string) {
-  if (!isSupported) {
+export async function copyUrl(text: string): Promise<boolean> {
+  if (!isSupported.value) {
     ElNotification({ title: '复制', message: '您的浏览器不支持剪贴板API，请手动复制', type: 'error' })
-    return
+    return false
   }
   if (!useSiteStore().isValid) {
     ElNotification({ title: '复制', message: '站点列表未加载完成，请稍后再试', type: 'error' })
-    return
+    return false
   }
   waitQueue.push(text)
   task()
+  return true
 }
 
 function task() {
