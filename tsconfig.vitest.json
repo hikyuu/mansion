@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.app.json",
-  "include": ["env.d.ts", "src/**/*", "src/**/*.vue", "../flutter/miao/sdk/ts/src/**/*"],
+  "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
   "exclude": [],
   "compilerOptions": {
     "composite": true,

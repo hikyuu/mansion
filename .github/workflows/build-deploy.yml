@@ -24,7 +24,12 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+        registry-url: https://npm.pkg.github.com
+        scope: '@hikyuu'                     # 生成 @hikyuu 作用域的 .npmrc
     - run: npm ci
+      env:
+        # @hikyuu/thunder-client 是私有包，npm ci 也需要读权限令牌（仓库 secret 里放 PAT）
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_READ_TOKEN }}
     - run: npm run build --if-present
 
     - name: Upload GitHub Pages artifact

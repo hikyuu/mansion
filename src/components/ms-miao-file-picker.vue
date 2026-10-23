@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { ref, watch } from 'vue'
 import { useFilePickerStore } from '@/download/file-picker.ts'
-import type { TaskFileMeta } from '@miao/thunder-client'
+import type { TaskFileMeta } from '@hikyuu/thunder-client'
 
 const store = useFilePickerStore()
 const selected = ref<TaskFileMeta[]>([])

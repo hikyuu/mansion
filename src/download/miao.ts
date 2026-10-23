@@ -6,7 +6,7 @@ import {
   type AddTaskOptions,
   type AddTaskResult,
   type AddTaskSeedSource
-} from '@miao/thunder-client'
+} from '@hikyuu/thunder-client'
 import { ElNotification } from 'element-plus'
 import { useConfigStore } from '@/store/config-store.ts'
 import { useSiteStore } from '@/store/site-store.ts'

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ThunderApiError, ThunderClient, ThunderTransportError, type AddTaskResult } from '@miao/thunder-client'
+import { ThunderApiError, ThunderClient, ThunderTransportError, type AddTaskResult } from '@hikyuu/thunder-client'
 import { ElNotification } from 'element-plus'
 import { SiteId } from '@/site/site-id'
 import { download } from '@/download/index.ts'
@@ -35,7 +35,7 @@ vi.mock('@/download/thunder.ts', () => ({
 vi.mock('@/download/clipboard.ts', () => ({ copyUrl: vi.fn<(text: string) => Promise<boolean>>() }))
 vi.mock('@/store/config-store.ts', () => ({ useConfigStore: vi.fn<() => unknown>() }))
 vi.mock('@/store/site-store.ts', () => ({ useSiteStore: vi.fn<() => unknown>() }))
-vi.mock('@miao/thunder-client', async (importOriginal) => {
+vi.mock('@hikyuu/thunder-client', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
   return { ...actual, ThunderClient: vi.fn<(...args: unknown[]) => unknown>() }
 })

@@ -1,4 +1,4 @@
-# @miao/thunder-client SDK 完善思路
+# @hikyuu/thunder-client SDK 完善思路
 
 > 来源：mansion 油猴脚本（javdb / javstore / onejav / exhentai）接入 miao REST 服务的实践反馈。
 > 接入实现见 mansion `src/download/`（miao.ts / gm-fetch.ts / torrent.ts / file-picker.ts），

@@ -1,12 +1,11 @@
 {
   "extends": "@vue/tsconfig/tsconfig.dom.json",
-  "include": ["env.d.ts", "src/**/*", "src/**/*.vue", "../flutter/miao/sdk/ts/src/**/*"],
+  "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
   "exclude": ["src/**/__tests__/*"],
   "compilerOptions": {
     "composite": true,
     "paths": {
-      "@/*": ["./src/*"],
-      "@miao/thunder-client": ["../flutter/miao/sdk/ts/src/index.ts"]
+      "@/*": ["./src/*"]
     }
   }
 }
