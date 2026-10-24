@@ -1,5 +1,6 @@
 import { JAVDB_NAME, javdb_detail_selector, javdb_selector } from '@/site/javdb/javdb'
-import { request, sortId } from '@/common/common'
+import { request } from '@/common/common'
+import { parseSerialNumber } from '@/common/serial-number'
 import { SessionPool } from '@/common/session-pool.ts'
 import type { GmCallbackCookie } from '@/common/flare-solverr.ts'
 import { GM_cookie, type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
@@ -13,19 +14,24 @@ const sessionPool = SessionPool.getInstance()
 /** 当前是否已触发 FlareSolverr 绕过模式 */
 let bypassSuccess = false
 
+/** Cloudflare 拦截判据：HTTP 状态码非 200 或返回挑战页 */
+function isCloudflareBlocked(res: GmResponseEvent<'document'>, doc: JQuery<HTMLElement>): boolean {
+  return res.status !== 200 || doc.text().includes('Just a moment...')
+}
+
 /**
- * 检测 Cloudflare 拦截并自动切换绕过模式
- * - 判据：HTTP 状态码非 200 或响应文本包含 "Just a moment..."
- * - 命中后将 bypassSuccess 置为 true，后续请求自动走 FlareSolverr
- * @returns true 表示检测到 CF 拦截，调用方应走 flareGet 重试
+ * 取页面 DOM：先走 GM 请求，命中 Cloudflare 后切 FlareSolverr（此后本会话内一律走 FlareSolverr）。
+ * 搜索页与详情页共用同一出口，避免每个调用点各写一遍判定与重试。
  */
-function checkCfAndHandle(res: GmResponseEvent<'document'>, doc: JQuery<HTMLElement>): boolean {
-  if (res.status !== 200 || doc.text().includes('Just a moment...')) {
-    console.log('检测到 Cloudflare 拦截，切换为 FlareSolverr 绕过模式')
+async function fetchPageDoc(url: string): Promise<JQuery<HTMLElement>> {
+  if (!bypassSuccess) {
+    const res = await request(url, 'https://javdb.com/')
+    const doc = jquery(res.responseText)
+    if (!isCloudflareBlocked(res, doc)) return doc
+    console.log('检测到 Cloudflare 拦截，切换为 FlareSolverr 绕过模式', url)
     bypassSuccess = true
-    return true
   }
-  return false
+  return jquery(await flareGet(url))
 }
 
 function handleSearch(doc: JQuery<HTMLElement>) {
@@ -45,20 +51,7 @@ function handleSearch(doc: JQuery<HTMLElement>) {
 }
 
 async function searchHtml(serialNumber: string) {
-  const fullUrl = `https://javdb.com/search?q=${serialNumber}`
-  if (bypassSuccess) {
-    console.log('请求搜索页（已绕过Cloudflare）', fullUrl)
-    const response = await flareGet(fullUrl)
-    const flareDoc = jquery(response)
-    return handleSearch(flareDoc)
-  }
-  const res = await request(fullUrl, 'https://javdb.com/')
-  const doc = jquery(res.responseText)
-  if (checkCfAndHandle(res, doc)) {
-    const response = await flareGet(fullUrl)
-    const flareDoc = jquery(response)
-    return handleSearch(flareDoc)
-  }
+  const doc = await fetchPageDoc(`https://javdb.com/search?q=${serialNumber}`)
   return handleSearch(doc)
 }
 
@@ -114,25 +107,9 @@ async function flareGet(fullUrl: string): Promise<string> {
 }
 
 async function magnetHtml(detailUrl: string): Promise<HighestScore> {
-  const fullUrl = baseUrl + detailUrl
-  if (bypassSuccess) {
-    console.log('请求详情页（已绕过Cloudflare）', fullUrl)
-    const response = await flareGet(fullUrl)
-    const flareDoc = jquery(response)
-    return handleMagnet(flareDoc)
-  }
-  console.log('请求详情页', fullUrl)
-  const res: GmResponseEvent<'document'> = await request(fullUrl, 'https://javdb.com/', -1)
-  const doc = jquery(res.responseText)
-  if (checkCfAndHandle(res, doc)) {
-    const response = await flareGet(fullUrl)
-    const flareDoc = jquery(response)
-    return handleMagnet(flareDoc)
-  }
+  const doc = await fetchPageDoc(baseUrl + detailUrl)
   return handleMagnet(doc)
 }
-
-
 
 declare interface HighestScore {
   score: number
@@ -140,7 +117,7 @@ declare interface HighestScore {
 }
 
 export async function highScoreMagnet(serialNumber: string): Promise<JQuery<HTMLElement> | undefined> {
-  const sortedId = sortId(serialNumber)
+  const sortedId = parseSerialNumber(serialNumber).javdbVariant()
   return searchHtml(sortedId).then(async (item): Promise<JQuery<HTMLElement> | undefined> => {
     const url = item.find('a').attr('href')
     if (!url) throw new Error('没有找到详情链接')
@@ -154,7 +131,7 @@ export async function highScoreMagnet(serialNumber: string): Promise<JQuery<HTML
 }
 
 export async function downloadFromJavdb(serialNumber: string): Promise<JQuery | undefined> {
-  const sortedId = sortId(serialNumber)
+  const sortedId = parseSerialNumber(serialNumber).javdbVariant()
   console.log('下载 JavDB 磁力链接', sortedId)
   return searchHtml(sortedId).then(async (item): Promise<JQuery | undefined> => {
     const url = item.find('a').attr('href')

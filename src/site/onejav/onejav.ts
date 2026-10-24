@@ -1,98 +1,82 @@
 import type { Selector } from '@/waterfall/waterfall'
 import Waterfall from '@/waterfall/waterfall'
-import { getSortId, isFC2 } from '@/common/common'
+import { parseSerialNumber } from '@/common/serial-number'
 import { SiteAbstract } from '../site-abstract'
 import jquery from 'jquery'
 import { WaterfallStatus } from '@/dictionary'
 import { GM_addStyle } from 'vite-plugin-monkey/dist/client'
 import { ElNotification } from 'element-plus'
-import { haveArchived, upsertArchive } from '@/dao/archive'
 import { highScoreMagnet } from '@/site/javdb/javdb-api'
 import { uploadDaily } from '@/dao/onejav-daily-dao'
-import { loadDailyHistory, loadLatestHistory, uploadHistory } from '@/dao/browse-history'
-import type { Info } from '@/store/sister-store'
-import { useTaskStore } from '@/store/task-store.ts'
-import { downloadFromOnejav } from '@/site/onejav/onejav-api.ts'
-import { download } from '@/download'
+import { fetchHistoriesSince, loadDailyHistory, uploadHistory } from '@/dao/browse-history'
+import { useDailyHistoryStore } from '@/store/daily-history-store'
+import { resolveOnejavTorrent } from '@/site/onejav/onejav-api.ts'
+import { submitDownload } from '@/download/intent'
 import { SiteId } from '@/site/site-id'
 
-export async function downloadFromJavDB(serialNumber: string): Promise<boolean> {
-  if (isFC2(serialNumber)) {
-    return Promise.resolve(false)
+/**
+ * javdb 侧的磁链解析：只解析不提交。
+ * FC2 不受 javdb 支持；任何解析异常都返回 null，交给 onejav 自身种子兜底。
+ */
+export async function resolveJavdbMagnet(serialNumber: string): Promise<string | null> {
+  if (parseSerialNumber(serialNumber).isFc2) return null
+  try {
+    const sortId = parseSerialNumber(serialNumber).searchVariant(0)
+    console.log('sortId:', sortId)
+    const magnet = await highScoreMagnet(serialNumber)
+    return magnet?.attr('href') ?? null
+  } catch (reason) {
+    console.warn('[onejav] javdb 磁链解析失败，回退 onejav 种子', { serialNumber, reason })
+    return null
   }
-  const sortId = getSortId(serialNumber, 0)
-  console.log('sortId:', sortId)
-  if (sortId === undefined) {
-    ElNotification({ title: 'javdb', message: '番号解析失败', type: 'error' })
-    return Promise.resolve(false)
-  }
-  return highScoreMagnet(serialNumber)
-    .then((r) => {
-      if (r) {
-        const magnet = r.attr('href')
-        if (magnet === undefined) {
-          ElNotification({ title: 'javdb', message: '没有找到磁力链接', type: 'error' })
-          return false
-        }
-        download(magnet)
-        return true
-      }
-      return false
-    })
-    .catch((e) => {
-      ElNotification.error({ title: 'javdb', message: e })
-      return false
-    })
 }
 
 export const ONEJAV_DOWNLOAD = "a[title='Download .torrent']"
+
+export const onejav_selector: Selector = {
+  next: 'a.pagination-next.button.is-primary',
+  item: 'div.card.mb-3',
+  container: 'body>.container',
+  pagination: '.pagination.is-centered',
+  serialNumber: 'h5.title.is-4.is-spaced a',
+  link: 'h5.title.is-4.is-spaced',
+  date: 'p.subtitle a',
+  // onejav 的日期就是这个链接的 href（形如 /2026/10/01）
+  pathDateFrom: 'href'
+}
 
 export class Onejav extends SiteAbstract {
   public name = 'onejav'
   public siteId = SiteId.ONEJAV
   public waterfall: Waterfall
-  selector: Selector = {
-    next: 'a.pagination-next.button.is-primary',
-    item: 'div.card.mb-3',
-    container: 'body>.container',
-    pagination: '.pagination.is-centered',
-    serialNumber: 'h5.title.is-4.is-spaced a',
-    link: 'h5.title.is-4.is-spaced',
-    date: 'p.subtitle a'
-  } as Selector
+  selector: Selector = onejav_selector
   theme = {
     PRIMARY_COLOR: '#00d1b2',
     SECONDARY_COLOR: '#e3f5f3',
     WARNING_COLOR: '#fadd65'
   }
+  /** 增量拉取浏览历史的游标：上次成功拉到哪个时刻为止 */
+  private historyCursor = new Date()
+
   constructor() {
     super()
     this.waterfall = new Waterfall(this, this.selector)
   }
-  async mount(): Promise<void> {
-    // this.adObserve()
+  mount(): void {
     this.addStyle()
-
     this.homeVisible()
-
-    const $items = jquery(this.selector.container).find(this.selector.item)
-    // 瀑布流脚本
-    this.enableWaterfall($items)
+    this.enableWaterfall()
   }
 
-  async resolveElements(elems: JQuery): Promise<JQuery[]> {
-    if (this.checkSite() && elems) {
-      const items = await this.filterReaded(elems)
-      useTaskStore().addTasks(items)
-      return items
+  /** 归档日期页（路径能解析出日期）条目少，用配置的模式；其余页面页数多，强制懒加载 */
+  protected waterfallStatus(): number | null {
+    if (isNaN(Date.parse(location.pathname))) {
+      ElNotification({ title: '瀑布流', message: `页数可能较多强制启用懒加载模式`, type: 'info' })
+      return WaterfallStatus.lazy.code
     }
-    return []
+    return null
   }
 
-  updateInfo(item: JQuery, info: Info): void {
-    const pathDate = item.find('p.subtitle a').attr('href')
-    this.sister.updateInfo({ serialNumber: info.serialNumber, pathDate })
-  }
 
   // save(serialNumber: string): void {
   //   const info = this.sister.getInfo(serialNumber)
@@ -113,61 +97,24 @@ export class Onejav extends SiteAbstract {
   //   })
   // }
 
-  checkSite(): boolean {
-    if (/(onejav)/g.test(document.URL)) {
-      return true
-    }
-    return false
-  }
-
-  async download(checkArchive: boolean) {
-    const currentKey = this.sister.current_key
-    console.log('下载', currentKey)
-    if (currentKey === undefined) {
-      ElNotification({ title: '提示', message: '没有选中', type: 'info' })
-      return
-    }
-    const info = this.sister.currentSister
-    if (!info) return
-    const serialNumber = info.serialNumber
-    if (this.downloadList.has(serialNumber)) {
-      ElNotification({ title: '提示', message: '正在下载中', type: 'info' })
-      return
-    }
-
-    this.downloadList.add(serialNumber)
-
-    try {
-      if (checkArchive && (await haveArchived(currentKey))) {
-        ElNotification({ title: '提示', message: '已经归档', type: 'info' })
-        throw new Error('已经归档')
+  async download(checkArchive: boolean): Promise<void> {
+    const serialNumber = this.sister.currentSister?.serialNumber ?? this.sister.current_key
+    await submitDownload({
+      serialNumber,
+      checkArchive,
+      resolveSource: async () => {
+        if (!serialNumber) return null
+        console.log('下载', serialNumber)
+        const magnet = await resolveJavdbMagnet(serialNumber)
+        if (magnet) return magnet
+        const href = jquery('#' + serialNumber)
+          .find(ONEJAV_DOWNLOAD)
+          .first()
+          .attr('href')
+        if (!href) return null
+        return await resolveOnejavTorrent(href)
       }
-    } catch {
-      this.downloadList.delete(serialNumber)
-      return
-    }
-
-    const $id = jquery('#' + currentKey)
-    const $download = $id.find(ONEJAV_DOWNLOAD)
-
-    downloadFromJavDB(serialNumber)
-      .then(async (success) => {
-        if (success) return
-        if ($download.length === 0) {
-          ElNotification({ title: '下载地址', message: '没有找到下载地址', type: 'error' })
-          return
-        }
-        const href = $download.first()
-        if (!href) return
-        const url = href.attr('href')
-        if (!url) return
-        await downloadFromOnejav(url)
-      })
-      .finally(() => {
-        upsertArchive(serialNumber)
-        this.downloadList.delete(serialNumber)
-        // this.closeDetailPage()
-      })
+    })
   }
 
   closeDetailPage() {
@@ -181,19 +128,28 @@ export class Onejav extends SiteAbstract {
   }
 
   allLoadCompleted(): void {
-    this.hasLoadCompleted = true
-    uploadDaily(location.pathname, this.sister.sisterNumber, true).then()
+    super.allLoadCompleted()
+    uploadDaily(location.pathname, this.sister.sisterNumber, true)
+      .then()
+      .catch((error) => console.error('上传每日统计失败', error))
   }
 
-  private addStyle() {
+  protected addStyle() {
     GM_addStyle(`.max{width:100%} .min{width:100%} `)
   }
 
+  /**
+   * 回到页面时把「上次拉取之后」新增的浏览历史合并进来。
+   * 游标归这里所有：拉成功才前移，失败下次重拉同一段，不会丢行。
+   */
   private homeVisible() {
     console.log(`监听页面切换状态`, document.visibilityState)
     jquery(document).on('visibilitychange', () => {
-      if (document.visibilityState == 'visible') {
-        loadLatestHistory().then((histories) => {
+      if (document.visibilityState != 'visible') return
+      const since = this.historyCursor
+      fetchHistoriesSince(since)
+        .then((histories) => {
+          this.historyCursor = new Date()
           const pathDateSet = new Set<string>()
           histories.forEach((history) => {
             pathDateSet.add(history.path_date)
@@ -203,28 +159,17 @@ export class Onejav extends SiteAbstract {
             this.sister.updateInfo({ serialNumber: history.serial_number, haveRead: true })
             if (info.pathDate !== history.path_date || info.site !== history.site) {
               this.sister.updateInfo({ serialNumber: history.serial_number, repeatSite: history.site })
-              uploadHistory(info.serialNumber, info).then()
+              uploadHistory(info.serialNumber, info)
+                .then()
+                .catch((error) => console.error('补传浏览历史失败', info.serialNumber, error))
             }
           })
-          loadDailyHistory(pathDateSet, this.siteId).then()
+          return loadDailyHistory(pathDateSet, this.siteId)
         })
-      }
+        .then((rows) => {
+          if (rows) useDailyHistoryStore().fill(rows)
+        })
+        .catch((error) => console.error('加载最新浏览历史失败', error))
     })
-  }
-  private enableWaterfall(items: JQuery) {
-    if (!items.length) {
-      return
-    }
-    if (!items[0] || items[0].parentElement === null) {
-      console.log('当前页面有变动,通知开发者')
-      return
-    }
-
-    if (isNaN(Date.parse(location.pathname))) {
-      ElNotification({ title: '瀑布流', message: `页数可能较多强制启用懒加载模式`, type: 'info' })
-      this.waterfall.flow(WaterfallStatus.lazy.code).then()
-    } else {
-      this.waterfall.flow().then()
-    }
   }
 }

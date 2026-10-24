@@ -3,3 +3,5 @@ dist
 build
 .vscode
 *.min.js
+# 抓取的页面样本（内联 onclick 会被重排，改了就不是原样了）
+src/site/exhentai/html

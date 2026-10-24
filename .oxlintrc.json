@@ -1,20 +1,3 @@
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "eslint",
-    "typescript",
-    "unicorn",
-    "oxc",
-    "vue",
-    "vitest"
-  ],
-  "env": {
-    "browser": true
-  },
-  "categories": {
-    "correctness": "error"
-  },
-  "rules": {
-    "vitest/expect-expect": ["error", { "assertFunctionNames": ["expect", "expectFallback"] }]
-  }
+  "ignorePatterns": ["thunder-tools/**", "scripts/thunder-sync.mjs"]
 }

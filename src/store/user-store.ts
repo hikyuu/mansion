@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { createClient, type Session, SupabaseClient } from '@supabase/supabase-js'
 import { ElNotification } from 'element-plus'
 import { clearDailies } from '@/dao/onejav-daily-dao'
-import { clearHistory } from '@/dao/browse-history'
+import { useDailyHistoryStore } from './daily-history-store'
 const url = 'https://tlxamlurkzfqblzyfztp.supabase.co'
 const anonKey =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRseGFtbHVya3pmcWJsenlmenRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI0NzY3NjAsImV4cCI6MjA0ODA1Mjc2MH0.WtULPMnex03muMRS1L1M52yuxNTeEAG6nB3g_C2Q-CI'
@@ -36,12 +36,12 @@ export const useUserStore = defineStore('user', {
           // handle sign out event
           this.session = null
           clearDailies()
-          clearHistory()
+          useDailyHistoryStore().clear()
         } else if (event === 'PASSWORD_RECOVERY') {
           // handle password recovery event
           this.session = null
           clearDailies()
-          clearHistory()
+          useDailyHistoryStore().clear()
           //跳转到密码重置页面
         } else if (event === 'TOKEN_REFRESHED') {
           this.session = session

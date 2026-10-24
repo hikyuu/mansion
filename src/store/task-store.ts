@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { ElNotification } from 'element-plus'
-import { SiteAbstract } from '@/site/site-abstract.ts'
+import type { SiteAbstract } from '@/site/site-abstract.ts'
 import { useSiteStore } from '@/store/site-store.ts'
 import { ProjectError } from '@/common/errors.ts'
+import { parseSister } from '@/site/sister-entry'
 
 export const useTaskStore = defineStore('task', {
   state: (): {
@@ -44,9 +45,9 @@ export const useTaskStore = defineStore('task', {
       let serialNumber: string | undefined = undefined
       if (elem) {
         try {
-          const originalId = this.site.getOriginalId(elem) // 预先检查ID是否合法
-          if (!originalId) return
-          serialNumber = this.site.sortSerialNumber(originalId)
+          const entry = parseSister(elem, this.site.selector) // 先确认这条妹妹认得出番号
+          if (!entry) return
+          serialNumber = entry.serialNumber
           await this.work(serialNumber, elem)
         } catch (reason) {
           if (reason instanceof ProjectError) {

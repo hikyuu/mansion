@@ -38,14 +38,17 @@ const form = reactive<{
   confirmPassword: ''
 })
 
-const validatePass = (rule: any, value: any, callback: any) => {
+/** Element Plus 表单校验器的形状：rule 不用，value 是要校验的字段原文 */
+type FormValidator = (rule: unknown, value: string, callback: (error?: Error) => void) => void
+
+const validatePass: FormValidator = (_rule, value, callback) => {
   if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/.test(value)) {
     callback(new Error('密码必须至少包含一个字母和一个数字！'))
   } else {
     callback()
   }
 }
-const validatePass2 = (rule: any, value: any, callback: any) => {
+const validatePass2: FormValidator = (_rule, value, callback) => {
   if (value !== form.password) {
     callback(new Error('两个输入不匹配！'))
   } else {

@@ -1,13 +1,5 @@
-import { GM_xmlhttpRequest, type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
-import type {
-  FlareSolverrResponse,
-  RequestGetParams,
-  SessionCreateParams,
-  SessionDestroyParams,
-  SessionListResponse,
-  SessionDestroyResponse,
-  Solution
-} from 'flare-solverr'
+import { GM_xmlhttpRequest } from 'vite-plugin-monkey/dist/client'
+import type { RequestGetParams, SessionCreateParams, SessionDestroyParams, Solution } from 'flare-solverr'
 
 // ========== 配置常量 ==========
 
@@ -29,6 +21,75 @@ export const MAX_RETRY_ON_500 = 2
 /** 重试退避基础间隔（毫秒） */
 export const RETRY_BASE_DELAY = 1000
 
+/** FlareSolverr 调用失败：文案里保留 HTTP 状态码，withRetry 依赖「状态码: 500」判定会话失效 */
+export class FlareSolverrError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'FlareSolverrError'
+  }
+}
+
+// ========== 传输层 ==========
+
+interface FlareEnvelope {
+  status: 'ok' | 'error'
+  message?: string
+  session?: string
+  sessions?: string[]
+  solution?: Solution
+}
+
+/**
+ * 唯一的 FlareSolverr 出口：POST 命令体 → 解析 → 校验 status。
+ * 四个命令（request.get / sessions.create / sessions.destroy / sessions.list）
+ * 只在请求体与取用字段上不同，失败分支完全一致。
+ */
+function postFlare(body: object, timeoutMs: number): Promise<FlareEnvelope> {
+  return new Promise((resolve, reject) => {
+    GM_xmlhttpRequest({
+      url: FLARESOLVERR_URL,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: JSON.stringify(body),
+      timeout: timeoutMs,
+      onload: (response) => {
+        if (response.status !== 200) {
+          reject(new FlareSolverrError(`FlareSolverr 请求失败，状态码: ${response.status}`))
+          return
+        }
+        let json: FlareEnvelope
+        try {
+          json = JSON.parse(response.responseText) as FlareEnvelope
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          reject(new FlareSolverrError('解析 FlareSolverr 响应失败: ' + message))
+          return
+        }
+        if (json.status !== 'ok') {
+          reject(new FlareSolverrError(`FlareSolverr 处理失败: ${json.message ?? '未知错误'}`))
+          return
+        }
+        resolve(json)
+      },
+      onerror: (error) => {
+        // GM 的 onerror 给的是对象，直接拼字符串会得到 [object Object]
+        const detail =
+          error && typeof error === 'object' && 'error' in error
+            ? String((error as { error: unknown }).error)
+            : String(error)
+        reject(
+          new FlareSolverrError(
+            `请求 FlareSolverr 服务出错，请确保服务已启动在 ${FLARESOLVERR_URL}。错误详情: ${detail}`
+          )
+        )
+      },
+      ontimeout: () => {
+        reject(new FlareSolverrError(`请求 FlareSolverr 服务超时（${timeoutMs}ms）`))
+      }
+    })
+  })
+}
+
 // ========== 核心 API ==========
 
 /**
@@ -38,56 +99,28 @@ export const RETRY_BASE_DELAY = 1000
  * @param cookies 携带的 cookies
  * @param sessionTtlMinutes 可选，会话 TTL（分钟）
  */
-export function getFromFlareSolverr(
+export async function getFromFlareSolverr(
   targetUrl: string,
   sessionId: string,
   cookies: GmCallbackCookie[],
   sessionTtlMinutes?: number
 ): Promise<Solution> {
-  return new Promise((resolve, reject) => {
-    const body: RequestGetParams = {
-      cmd: 'request.get',
-      url: targetUrl,
-      session: sessionId,
-      cookies: cookies.map((c) => ({ name: c.name, value: c.value, domain: c.domain })),
-      maxTimeout: REQUEST_TIMEOUT
-    }
-    if (sessionTtlMinutes !== undefined) {
-      body.session_ttl_minutes = sessionTtlMinutes
-    }
+  const body: RequestGetParams = {
+    cmd: 'request.get',
+    url: targetUrl,
+    session: sessionId,
+    cookies: cookies.map((c) => ({ name: c.name, value: c.value, domain: c.domain })),
+    maxTimeout: REQUEST_TIMEOUT
+  }
+  if (sessionTtlMinutes !== undefined) {
+    body.session_ttl_minutes = sessionTtlMinutes
+  }
 
-    GM_xmlhttpRequest({
-      method: 'POST',
-      url: FLARESOLVERR_URL,
-      headers: { 'Content-Type': 'application/json' },
-      data: JSON.stringify(body),
-      onload: function (response) {
-        if (response.status === 200) {
-          try {
-            const jsonResponse: FlareSolverrResponse = JSON.parse(response.responseText)
-            if (jsonResponse.status === 'ok') {
-              if (jsonResponse.solution) {
-                resolve(jsonResponse.solution)
-              } else {
-                reject(new Error('FlareSolverr 返回成功但无 solution'))
-              }
-            } else {
-              reject(new Error(`FlareSolverr 处理失败: ${jsonResponse.message}`))
-            }
-          } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e)
-            reject(new Error('解析 FlareSolverr 响应失败: ' + msg))
-          }
-        } else {
-          reject(new Error(`FlareSolverr 请求失败，状态码: ${response.status}`))
-        }
-      },
-      onerror: function (error) {
-        reject(new Error('请求 FlareSolverr 服务出错，请确保服务已启动在 ' + FLARESOLVERR_URL + '。错误详情: ' + error))
-      },
-      timeout: GM_REQUEST_TIMEOUT
-    })
-  })
+  const response = await postFlare(body, GM_REQUEST_TIMEOUT)
+  if (!response.solution) {
+    throw new FlareSolverrError('FlareSolverr 返回成功但无 solution')
+  }
+  return response.solution
 }
 
 /**
@@ -95,10 +128,8 @@ export function getFromFlareSolverr(
  * @param sessionId 可选的自定义会话 ID
  * @param sessionTtlMinutes 可选，会话 TTL（分钟），到期后 FlareSolverr 自动销毁
  */
-export function createSession(sessionId = '', sessionTtlMinutes?: number): Promise<string> {
-  const postData: SessionCreateParams = {
-    cmd: 'sessions.create'
-  }
+export async function createSession(sessionId = '', sessionTtlMinutes?: number): Promise<string> {
+  const postData: SessionCreateParams = { cmd: 'sessions.create' }
   if (sessionId) {
     postData.session = sessionId
   }
@@ -106,106 +137,33 @@ export function createSession(sessionId = '', sessionTtlMinutes?: number): Promi
     postData.session_ttl_minutes = sessionTtlMinutes
   }
 
-  return new Promise((resolve, reject) => {
-    GM_xmlhttpRequest({
-      url: FLARESOLVERR_URL,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      data: JSON.stringify(postData),
-      timeout: REQUEST_TIMEOUT,
-      onload: function (response) {
-        resolve(handleSessionResponse(response))
-      },
-      onerror: function (error) {
-        reject(new Error('创建 FlareSolverr 会话时发生网络错误:' + error))
-      },
-      ontimeout: function () {
-        reject(new Error('创建 FlareSolverr 会话请求超时。'))
-      }
-    })
-  })
+  const response = await postFlare(postData, REQUEST_TIMEOUT)
+  if (!response.session) {
+    throw new FlareSolverrError('FlareSolverr 未返回 session')
+  }
+  console.log('FlareSolverr 会话创建成功! Session ID:', response.session)
+  return response.session
 }
 
 /**
- * 销毁 FlareSolverr 会话（释放 Chrome 实例）
+ * 销毁 FlareSolverr 会话（释放 Chrome 实例）。
+ * 销毁失败不向上抛：会话本来就无效时，调用方也无事可做。
  */
-export function destroySession(sessionId: string): Promise<void> {
-  const postData: SessionDestroyParams = {
-    cmd: 'sessions.destroy',
-    session: sessionId
+export async function destroySession(sessionId: string): Promise<void> {
+  const postData: SessionDestroyParams = { cmd: 'sessions.destroy', session: sessionId }
+  try {
+    await postFlare(postData, REQUEST_TIMEOUT)
+    console.log('FlareSolverr 会话已销毁:', sessionId)
+  } catch (error) {
+    console.warn('销毁 FlareSolverr 会话失败:', error)
   }
-
-  return new Promise((resolve) => {
-    GM_xmlhttpRequest({
-      url: FLARESOLVERR_URL,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      data: JSON.stringify(postData),
-      timeout: REQUEST_TIMEOUT,
-      onload: function (response) {
-        if (response.status === 200) {
-          try {
-            const result: SessionDestroyResponse = JSON.parse(response.responseText)
-            if (result.status === 'ok') {
-              console.log('FlareSolverr 会话已销毁:', sessionId)
-            } else {
-              console.warn('FlareSolverr 销毁会话返回异常:', result.message)
-            }
-          } catch {
-            // 解析失败静默处理
-          }
-        } else {
-          console.warn('销毁 FlareSolverr 会话失败，状态码:', response.status)
-        }
-        resolve()
-      },
-      onerror: function () {
-        // 网络错误静默处理
-        resolve()
-      },
-      ontimeout: function () {
-        resolve()
-      }
-    })
-  })
 }
 
 /**
  * 列出 FlareSolverr 所有活跃会话
  */
 export function listSessions(): Promise<string[]> {
-  return new Promise((resolve, reject) => {
-    GM_xmlhttpRequest({
-      url: FLARESOLVERR_URL,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      data: JSON.stringify({ cmd: 'sessions.list' }),
-      timeout: REQUEST_TIMEOUT,
-      onload: function (response) {
-        if (response.status === 200) {
-          try {
-            const result: SessionListResponse = JSON.parse(response.responseText)
-            if (result.status === 'ok') {
-              resolve(result.sessions || [])
-            } else {
-              reject(new Error('FlareSolverr 列表查询失败:' + result.message))
-            }
-          } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e)
-            reject(new Error('解析 FlareSolverr 列表响应失败: ' + msg))
-          }
-        } else {
-          reject(new Error('查询 FlareSolverr 会话列表失败，状态码:' + response.status))
-        }
-      },
-      onerror: function (error) {
-        reject(new Error('查询 FlareSolverr 会话列表时发生网络错误:' + error))
-      },
-      ontimeout: function () {
-        reject(new Error('查询 FlareSolverr 会话列表请求超时。'))
-      }
-    })
-  })
+  return postFlare({ cmd: 'sessions.list' }, REQUEST_TIMEOUT).then((response) => response.sessions ?? [])
 }
 
 // ========== 重试与健康检查 ==========
@@ -280,27 +238,6 @@ export async function ensureSessionAlive(sessionId: string): Promise<boolean> {
   } catch {
     // 列表查询失败时保守处理，认为 session 不可用
     return false
-  }
-}
-
-// ========== 内部工具 ==========
-
-function handleSessionResponse(response: GmResponseEvent<'text'>): string {
-  if (response.status === 200) {
-    try {
-      const result = JSON.parse(response.responseText)
-      if (result.status && result.status === 'ok') {
-        const sessionId = result.session
-        console.log('FlareSolverr 会话创建成功! Session ID:', sessionId)
-        return sessionId
-      } else {
-        throw new Error('FlareSolverr 返回错误:' + result.message)
-      }
-    } catch (e) {
-      throw new Error('解析 FlareSolverr 响应失败:' + e)
-    }
-  } else {
-    throw new Error('请求失败，HTTP状态码:' + response.status)
   }
 }
 

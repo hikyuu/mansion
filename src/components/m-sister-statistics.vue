@@ -25,18 +25,12 @@ const props = defineProps({
 })
 
 const loadAll = computed(() => {
-  if (props.site.waterfall.page.isEnd) {
-    return {
-      color: 'green'
-    }
-  } else {
-    return {
-      color: props.site.theme.WARNING_COLOR
-    }
+  return {
+    color: props.site.waterfall.hasMore ? props.site.theme.WARNING_COLOR : 'green'
   }
 })
 
-const { x, y } = useScroll(window, {
+const { y } = useScroll(window, {
   onStop: () => {
     props.site.waterfall.onScrollEvent()
   },

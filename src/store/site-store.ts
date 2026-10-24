@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { SiteAbstract } from '@/site/site-abstract.ts'
+import type { SiteAbstract } from '@/site/site-abstract.ts'
 import { ElNotification } from 'element-plus'
 
 export const useSiteStore = defineStore('site', {

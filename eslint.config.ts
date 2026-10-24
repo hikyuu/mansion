@@ -15,7 +15,18 @@ export default defineConfigWithVueTs(
     files: ['**/*.{ts,mts,tsx,vue}'],
   },
 
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
+  // 迅雷工具的内省脚本转储与运行期状态都不是本扩展的源码，不参与 lint
+  globalIgnores([
+    '**/dist/**',
+    '**/dist-ssr/**',
+    '**/coverage/**',
+    'thunder-tools/**',
+    'javbus/**',
+    '.thunder-state/**',
+    '.thunder-sync/**',
+    '.thunder-create-task/**',
+    '.codebuddy/**'
+  ]),
 
   pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,

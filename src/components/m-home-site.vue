@@ -23,7 +23,7 @@ if (exactSite === undefined) {
   useSiteStore().setSite(exactSite)
   console.log(`当前站点: ${exactSite.name}`)
 
-  useConfigStore().$subscribe((mutation, state) => {
+  useConfigStore().$subscribe(() => {
     useConfigStore().saveConfig()
   })
   useConfigStore().loadConfig()

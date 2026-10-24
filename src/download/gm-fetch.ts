@@ -1,4 +1,4 @@
-import { GM_xmlhttpRequest, type GmAbortHandle } from 'vite-plugin-monkey/dist/client'
+import { GM_xmlhttpRequest } from 'vite-plugin-monkey/dist/client'
 
 /**
  * GM_xmlhttpRequest → fetch 形状适配器，注入 ThunderClient 的 options.fetch。
@@ -20,7 +20,6 @@ export const gmFetch: typeof globalThis.fetch = (input, init) => {
     const data = init?.body ?? undefined
 
     let settled = false
-    let abortHandle: GmAbortHandle | undefined
 
     function succeed(response: Response): void {
       if (settled) return
@@ -41,7 +40,7 @@ export const gmFetch: typeof globalThis.fetch = (input, init) => {
       // 先标记 settled 再 abort，避免 GM 的 onabort 回调二次结算
       settled = true
       init?.signal?.removeEventListener('abort', onAbort)
-      abortHandle?.abort()
+      abortHandle.abort()
       reject(abortError())
     }
 
@@ -50,9 +49,8 @@ export const gmFetch: typeof globalThis.fetch = (input, init) => {
       reject(abortError())
       return
     }
-    signal?.addEventListener('abort', onAbort)
-
-    abortHandle = GM_xmlhttpRequest({
+    // 先拿到 abort 句柄再挂监听：监听一旦触发就会调 abort()，句柄必须已就绪
+    const abortHandle = GM_xmlhttpRequest({
       url,
       method,
       headers,
@@ -76,6 +74,8 @@ export const gmFetch: typeof globalThis.fetch = (input, init) => {
         fail(abortError())
       }
     })
+
+    signal?.addEventListener('abort', onAbort)
   })
 }
 

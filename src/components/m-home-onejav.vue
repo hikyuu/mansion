@@ -64,7 +64,7 @@ whenever(logicAnd(keys.Ctrl_Enter, notUsingInput), () => {
 })
 
 const isLoadAll = computed(() => {
-  return sister.size >= sister.sisterNumber * 0.9 && onejav.waterfall.page.isEnd
+  return sister.size >= sister.sisterNumber * 0.9 && !onejav.waterfall.hasMore
 })
 
 const isDatePage = computed(() => {

@@ -17,7 +17,6 @@ export async function getDetailFromJavStore(javstore: string, retry = 3): Promis
   }
 }
 
-
 export function getTitleFromDetail(detail: Document) {
   try {
     const array = jquery(detail).find(TITLE_SELECTOR)

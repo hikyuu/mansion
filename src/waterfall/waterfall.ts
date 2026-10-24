@@ -1,6 +1,5 @@
-import { SiteAbstract } from '@/site/site-abstract'
 import jquery from 'jquery'
-import { Pagination } from './pagination'
+import { extractItems, Pagination, resolveNextUrl } from './pagination'
 import { ElNotification } from 'element-plus'
 import { WaterfallStatus } from '@/dictionary'
 import { reactive } from 'vue'
@@ -9,23 +8,50 @@ import { useConfigStore } from '@/store/config-store.ts'
 
 const allReadPageLimit = 5
 
+/**
+ * Waterfall 对站点的要求。
+ * 窄接口而非 SiteAbstract：避免 waterfall ↔ site-abstract 的循环依赖。
+ */
+export interface WaterfallHost {
+  resolveElements(elems: JQuery): Promise<JQuery[]>
+  onItemsAppended?(items: JQuery[]): void | Promise<void>
+  allLoadCompleted(): void
+  onScrollEvent(windowHeight: number, scrollTop: number): void
+}
+
 export default class {
-  public page: Pagination
+  /** 分页源。只在本模块内推进；外部要看「还有没有下一页」请用 hasMore */
+  private page: Pagination
   private lock: Lock = new Lock()
-  private baseURI: string = this.getBaseURI()
   private selector: Selector
   private readonly anchor: HTMLElement | undefined = undefined
-  private site: SiteAbstract
-  private allReadedPage: number = 0
+  private host: WaterfallHost
+  private allReadedPage = 0
 
-  constructor(site: SiteAbstract, selector: Selector) {
-    this.site = site
+  constructor(host: WaterfallHost, selector: Selector) {
+    this.host = host
     this.selector = selector
-    this.page = reactive(new Pagination(this.getDetail(document)))
+    // 需要响应式：组件 watch hasMore 时要追到 isEnd 的变化；
+    // reactive 的类型还原会丢掉 private 字段，故断言回类类型
+    this.page = reactive(new Pagination(selector, extractItems(document, selector), this.getBaseURI())) as Pagination
     const $pageNation = jquery(this.selector.pagination)
     if ($pageNation.length > 0) {
       this.anchor = $pageNation[0]
     }
+  }
+
+  /** 还有下一页吗。组件与站点都看这个，不要读分页源内部字段 */
+  get hasMore(): boolean {
+    return !this.page.isEnd
+  }
+
+  /**
+   * 未读条目还够多吗 —— 懒加载的水位判据。
+   * 面板的「翻到快没读了就补一页」与内部批量的「读够了就停」共用这一处，避免两处不等式漂移。
+   */
+  shouldLoadMore(): boolean {
+    const unread = useSisterStore().sisterNumber - useSisterStore().haveReadNumber
+    return unread <= useConfigStore().getSiteConfig.lazyLimit
   }
 
   async flow(waterfallScrollStatus: number | null = null) {
@@ -64,8 +90,9 @@ export default class {
   }
 
   private async loadNext(oneStep = false) {
+    if (this.page.isEnd) return
     console.log(`===加载下一页===`)
-    const nextUrl = this.getNextUrl(document)
+    const nextUrl = resolveNextUrl(document, this.selector, this.getBaseURI())
     if (nextUrl === null) {
       this.isEnd()
       console.log('===当前已经是最后一页===')
@@ -88,13 +115,21 @@ export default class {
       console.log('获取不到滚动高度')
       return false
     }
-    this.site.onScrollEvent(windowHeight, scrollTop)
+    this.host.onScrollEvent(windowHeight, scrollTop)
     return true
   }
 
+  /**
+   * 从当前位置继续追加。第一次调用时还没有下一页地址，先解析出来再取；
+   * 解析不到就落地 —— 否则首个 appendNext 会把瀑布流直接判死。
+   */
   async appendNext(oneStep: boolean = false) {
     if (this.lock.locked) {
       console.log(`下一页正在加载中`)
+      return
+    }
+    if (this.page.nextUrl === null) {
+      await this.loadNext(oneStep)
       return
     }
     await this.fetchNextSync(oneStep)
@@ -119,7 +154,7 @@ export default class {
       this.setSisterNumber()
       // 追加条目交给站点复用首屏的条目处理逻辑（判重、隐藏、绑定、入队等）
       try {
-        await this.site.onItemsAppended?.(items)
+        await this.host.onItemsAppended?.(items)
       } catch (err) {
         console.error('瀑布流: 追加条目回调失败', err)
       }
@@ -134,7 +169,7 @@ export default class {
 
   isEnd() {
     this.page.isEnd = true
-    this.site.allLoadCompleted()
+    this.host.allLoadCompleted()
     ElNotification({ title: '提示', message: `瀑布流落地了`, type: 'success' })
   }
 
@@ -149,77 +184,32 @@ export default class {
     }
     this.lock.lock()
     try {
-      await this.fetchURL()
-      await this.appendNextLocal()
-      if (!oneStep) {
-        const sisterNumber = useSisterStore().sisterNumber
-        const lazyLimit = useConfigStore().getSiteConfig.lazyLimit
-        if (sisterNumber - useSisterStore().haveReadNumber > lazyLimit) {
+      // 用循环代替递归：锁只在整段流程外层持有，递归版本需要在中途 unlock 才能继续
+      for (;;) {
+        const outcome = await this.page.fetchNext()
+        if (outcome === 'end') {
+          this.isEnd()
+          return
+        }
+        if (outcome === 'blocked') {
+          ElNotification({ title: '瀑布流', message: '下一页没有内容，已停止加载', type: 'warning' })
+          this.isEnd()
+          return
+        }
+        if (outcome === 'failed') return
+
+        await this.appendNextLocal()
+        if (this.page.isEnd) return
+        if (!oneStep && !this.shouldLoadMore()) {
+          // 未读还够多，剩下的留给滚动触发
           return
         }
       }
-      this.lock.unlock()
-      if (this.page.isEnd) return
-      await this.fetchNextSync(oneStep)
     } catch (e) {
       console.error(e)
     } finally {
       this.lock.unlock()
     }
-  }
-
-  async fetchURL(retry = 3): Promise<void> {
-    if (this.page.isEnd) return
-    if (this.page.nextUrl === null) {
-      return this.isEnd()
-    }
-    try {
-      const response = await fetch(this.page.nextUrl, { credentials: 'same-origin' })
-      if (!response.ok) {
-        console.log('重试获取下一页:状态错误', this.page.nextUrl)
-        return this.fetchURL(--retry)
-      }
-      const html = await response.text()
-      const doc = new DOMParser().parseFromString(html, 'text/html')
-      const nextUrl = this.getNextUrl(doc)
-      const detail = this.getDetail(doc)
-      // 仍有"下一页"却抽不到条目：多半是限流页/验证页/结果上限，不能当作正常到底
-      if (detail.length === 0 && nextUrl !== null) {
-        console.error('瀑布流: 下一页没有条目，判定为受限或已到上限', this.page.nextUrl)
-        ElNotification({ title: '瀑布流', message: '下一页没有内容，已停止加载', type: 'warning' })
-        return this.isEnd()
-      }
-      this.page.nextUrl = nextUrl
-      this.page.nextDetail = detail
-    } catch (reason) {
-      console.error(reason)
-      if (retry > 0) {
-        console.log('重试获取下一页:报错', this.page.nextUrl)
-        return this.fetchURL(--retry)
-      } else {
-        console.log('重试次数用尽')
-      }
-    }
-  }
-
-  getDetail(doc: Document): JQuery {
-    const details = jquery(doc).find(this.selector.container + ' ' + this.selector.item)
-    for (const elem of details) {
-      const links = elem.getElementsByTagName('a')
-      for (let i = 0; i < links.length; i++) {
-        links[i]!.target = '_blank'
-      }
-    }
-    return details
-  }
-
-  getNextUrl(doc: Document) {
-    // 取最后一个：部分站点头尾各有一个 next 链接（如 #unext / #dnext）
-    const href = jquery(doc).find(this.selector.next).last().attr('href')
-    const a = document.createElement('a')
-    if (href === undefined || href === null) return null
-    a.href = href
-    return `${this.baseURI}${a.pathname}${a.search}`
   }
 
   end() {
@@ -249,7 +239,7 @@ export default class {
       return detail.toArray().map((elem) => jquery(elem))
     }
     if (useConfigStore().getSiteConfig.loadThumbnailSwitch) {
-      return await this.site.resolveElements(detail)
+      return await this.host.resolveElements(detail)
     }
     return []
   }
@@ -277,13 +267,16 @@ export declare interface Selector {
    */
   serialNumber: string
   /**
-   * 日期选择器
+   * 日期选择器：发布日期所在的元素
    */
   date: string
   /**
-   * 路径日期选择器
+   * 路径日期（浏览历史的 path_date）从哪来：
+   * - `dateText`：把日期选择器的文本解析成 PATH_DATE（javdb）
+   * - `href`：取日期选择器上的 href —— 有的站点日期写在链接里（onejav）
+   * - 不填：本页拿不到，由站点在详情页回调里补（javstore）
    */
-  pathDate: string
+  pathDateFrom?: 'dateText' | 'href'
   /**
    * 链接选择器
    */

@@ -13,6 +13,7 @@ import { useSisterStore } from '@/store/sister-store'
 import { useTaskStore } from '@/store/task-store.ts'
 import { useSiteStore } from '@/store/site-store.ts'
 import { useConfigStore } from '@/store/config-store.ts'
+import { markReadIfReady } from '@/site/read-marking'
 
 const sister = useSisterStore()
 
@@ -99,7 +100,11 @@ const src = computed(() => {
 })
 
 function viewOrClose() {
-  showImage.value ? close() : view()
+  if (showImage.value) {
+    close()
+  } else {
+    view()
+  }
 }
 
 function view() {
@@ -152,7 +157,7 @@ watch(
   (key) => {
     // console.log('监听到key变化');
     if (!key) return
-    site.save(key)
+    markReadIfReady(key)
   },
   {
     immediate: true
@@ -163,9 +168,7 @@ watch(
   () => sister.current_index,
   (index) => {
     if (index === undefined) return
-    const sisterNumber = sister.sisterNumber
-    const unreadNumber = sisterNumber - sister.haveReadNumber
-    if (unreadNumber < useConfigStore().getSiteConfig.lazyLimit) {
+    if (site.waterfall.shouldLoadMore()) {
       console.log('加载下一页')
       site.loadNext()
     }
@@ -182,9 +185,9 @@ watch(
 )
 
 watch(
-  () => site.waterfall.page.isEnd,
-  (isEnd) => {
-    loadAll.color = isEnd ? 'green' : site.theme.WARNING_COLOR
+  () => site.waterfall.hasMore,
+  (hasMore) => {
+    loadAll.color = hasMore ? site.theme.WARNING_COLOR : 'green'
   },
   { immediate: true }
 )

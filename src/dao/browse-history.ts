@@ -1,105 +1,62 @@
-import { ElNotification } from 'element-plus'
 import { LockPool } from '@/common/lock-pool'
 import dayjs, { Dayjs } from 'dayjs'
 import { FORMAT } from '@/dictionary'
-import { reactive } from 'vue'
-import { useUserStore } from '@/store/user-store'
 import type { Info } from '@/store/sister-store'
 import { SiteId } from '@/site/site-id'
-
-const refreshTime = new Date()
+import { read, write } from '@/common/db'
 
 const lockPool = new LockPool()
 
-export const dailyNumberRef: Map<string, number> = reactive(new Map())
-
 export async function getHistories(serialNumbers: string[]): Promise<HistoryDto[]> {
-  if (serialNumbers.length === 0) {
-    return Promise.resolve([])
-  }
-  const supabase = await useUserStore().getAuthSupabase()
-  const { data, error } = await supabase.from('browse_history').select().in('serial_number', serialNumbers)
-  if (error) {
-    console.error(error)
-    return Promise.reject(error)
-  }
-  return data
+  if (serialNumbers.length === 0) return []
+  const data = await read<HistoryDto[]>((db) => db.from('browse_history').select().in('serial_number', serialNumbers))
+  return data ?? []
 }
 
-export async function loadDailyHistory(pathDates: Set<string> = new Set(), siteId: SiteId) {
-  if (pathDates.size === 0) {
-    return Promise.resolve([])
-  }
-  const supabase = await useUserStore().getAuthSupabase()
-  const { data, error } = await supabase
-    .from('daily_history')
-    .select()
-    .in('path_date', Array.from(pathDates))
-    .eq('site', siteId)
-
-  if (error) {
-    console.error(error)
-    return Promise.reject(error)
-  }
-  console.log('加载历史记录', data.length)
-  for (const history of data) {
-    dailyNumberRef.set(history.path_date, history.history_number)
-  }
-  return data
+/** 按路径日期批量取每日统计。缓存不在这里写 —— 调用方拿到行后自行灌 store */
+export async function loadDailyHistory(
+  pathDates: Set<string> = new Set(),
+  siteId: SiteId
+): Promise<DailyHistoryDto[]> {
+  if (pathDates.size === 0) return []
+  const data = await read<DailyHistoryDto[]>((db) =>
+    db.from('daily_history').select().in('path_date', Array.from(pathDates)).eq('site', siteId)
+  )
+  console.log('加载历史记录', data?.length ?? 0)
+  return data ?? []
 }
 
-export async function fetchDailyHistoryRange(monthStart: Dayjs, monthEnd: Dayjs, siteId: SiteId) {
-  const supabase = await useUserStore().getAuthSupabase()
-  console.log('siteId', siteId)
-  const { data, error } = await supabase
-    .from('daily_history')
-    .select()
-    .gte('release_date', monthStart.format('YYYY-MM-DD'))
-    .lte('release_date', monthEnd.format('YYYY-MM-DD'))
-    .eq('site', siteId)
-  if (error) {
-    console.error(error)
-    return Promise.reject(error)
-  }
-  console.log('加载月份', monthStart.format('YYYY-MM-DD'), data.length)
-  // console.log(data)
-  for (const history of data) {
-    dailyNumberRef.set(history.path_date, history.history_number)
-  }
-  return data
+/** 按月份区间取每日统计。缓存同上，由调用方灌 */
+export async function fetchDailyHistoryRange(monthStart: Dayjs, monthEnd: Dayjs, siteId: SiteId): Promise<DailyHistoryDto[]> {
+  const data = await read<DailyHistoryDto[]>((db) =>
+    db
+      .from('daily_history')
+      .select()
+      .gte('release_date', monthStart.format('YYYY-MM-DD'))
+      .lte('release_date', monthEnd.format('YYYY-MM-DD'))
+      .eq('site', siteId)
+  )
+  console.log('加载月份', monthStart.format('YYYY-MM-DD'), data?.length ?? 0)
+  return data ?? []
 }
 
-async function uploadRemoteHistory(
-  serialNumber: string,
-  history: HistoryDto,
-  retry: number = 3
-): Promise<HistoryDto[]> {
+async function uploadRemoteHistory(serialNumber: string, history: HistoryDto): Promise<HistoryDto[]> {
   console.log(`记录`, serialNumber)
   lockPool.lock(serialNumber)
-  const supabase = await useUserStore().getAuthSupabase()
-  const { data, error } = await supabase
-    .from('browse_history')
-    .upsert(history, { onConflict: 'serial_number,path_date,site,user_id' })
-    .select()
-  if (error) {
-    console.error(error)
-    console.log(history.serial_number, '上传重试', '重复次数', retry)
-    if (retry <= 0) {
-      ElNotification.error({
-        title: '远程上传失败！',
-        message: `${serialNumber}上传失败，重试次数用尽`
-      })
-      return Promise.reject('重试次数用尽')
-    }
-    return uploadRemoteHistory(serialNumber, history, --retry)
+  try {
+    const data = await write<HistoryDto[]>((db) =>
+      db.from('browse_history').upsert(history, { onConflict: 'serial_number,path_date,site,user_id' }).select()
+    )
+    console.log(serialNumber, '上传成功')
+    return data ?? []
+  } finally {
+    // 失败也必须解锁，否则该番号后续再也传不上去
+    lockPool.unlock(serialNumber)
   }
-  console.log(serialNumber, '上传成功')
-  //解锁
-  lockPool.unlock(serialNumber)
-  return Promise.resolve(data)
 }
+
 export async function uploadHistory(serialNumber: string, info: Info): Promise<HistoryDto[]> {
-  if (lockPool.locked(serialNumber)) return Promise.reject()
+  if (lockPool.locked(serialNumber)) throw new Error(`${serialNumber} 正在上传`)
 
   const parsedDate = dayjs(info.pathDate, FORMAT.PATH_DATE)
 
@@ -114,21 +71,26 @@ export async function uploadHistory(serialNumber: string, info: Info): Promise<H
   return uploadRemoteHistory(serialNumber, history)
 }
 
-export async function loadLatestHistory(): Promise<HistoryDto[]> {
-  console.log('加载最新记录')
-  const supabase = await useUserStore().getAuthSupabase()
-  const { data, error } = await supabase.from('browse_history').select().gte('watch_time', refreshTime.toISOString())
-
-  if (error) {
-    console.error(error)
-    return Promise.reject(error)
-  }
-  refreshTime.setTime(new Date().getTime())
-  return data
+/**
+ * 拉取自 since 之后新增的浏览历史。
+ *
+ * 游标由调用方持有：这个模块不再自己记住「上次到哪」——
+ * 同一参数必须得到同一查询，否则「今天拉到几条」取决于这个函数被调用过几次。
+ */
+export async function fetchHistoriesSince(since: Date): Promise<HistoryDto[]> {
+  console.log('加载最新记录', since.toISOString())
+  const data = await read<HistoryDto[]>((db) =>
+    db.from('browse_history').select().gte('watch_time', since.toISOString())
+  )
+  return data ?? []
 }
 
-export function clearHistory() {
-  dailyNumberRef.clear()
+export declare interface DailyHistoryDto {
+  path_date: string
+  history_number: number
+  release_date: string
+  site: SiteId
+  [key: string]: unknown
 }
 
 export declare interface HistoryDto {

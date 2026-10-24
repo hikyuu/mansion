@@ -162,7 +162,7 @@ function reload() {
   // 先保存配置再刷新
   try {
     configStore.saveConfig()
-  } catch (e) {
+  } catch {
     // ignore
   }
   window.location.reload()

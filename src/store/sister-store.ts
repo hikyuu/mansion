@@ -6,6 +6,28 @@ import { THUMBNAIL_ID } from '@/common/common'
 import type { WritableComputedRef } from 'vue'
 import { SiteId } from '@/site/site-id'
 
+/**
+ * 妹妹的加载/已读状态码，替代散落在缩略图链路与记账处的裸数字。
+ * 注意：**已读的唯一真值是 haveRead**；status 只记录缩略图链路的阶段
+ * （Read 仅随浏览历史记账同步写入，供界面沿用旧语义）。
+ */
+export enum SisterStatus {
+  /** 刚建 Info，缩略图未就绪 */
+  Created = 100,
+  /** 大图就绪，可展示可导航（未读） */
+  ImageReady = 202,
+  /** 浏览历史记账成功，即已读 */
+  Read = 200,
+  /** javstore 条目或详情页找不到 */
+  NotFound = 404,
+  /** 详情页里没有大图地址 */
+  ImageUrlMissing = 405,
+  /** 番号认不出，搜索变体解析失败 */
+  SerialUnparsable = 500,
+  /** 图片加载错误（保留位） */
+  ImageLoadFailed = 501
+}
+
 export const useSisterStore = defineStore('sister', {
   state: (): {
     current_index: number | undefined
@@ -42,7 +64,7 @@ export const useSisterStore = defineStore('sister', {
     },
     nextUnread(y: WritableComputedRef<number, number>) {
       const index = this._queue.findIndex((sister) => {
-        if (!sister.haveRead && sister.status === 202) {
+        if (!sister.haveRead && sister.status === SisterStatus.ImageReady) {
           return true
         }
       })
@@ -173,6 +195,6 @@ export declare interface Info {
   pathDate?: string
   likeWords?: string[]
   unlikeWords?: string[]
-  status?: number //200：成功，202：，404：不存在 405：图片地址获取失败 500:id格式错误 501：图片加载错误
+  status?: SisterStatus
   site?: SiteId // 0 unknown 1 onejav 2 javdb
 }

@@ -12,6 +12,7 @@ import MOnejavCalendar from '@/components/m-onejav-calendar.vue'
 import { useReactStore } from '@/store/react-store'
 import { useSisterStore } from '@/store/sister-store'
 import { useSiteStore } from '@/store/site-store.ts'
+import { activeDownloads } from '@/download/intent'
 const sisters = useSisterStore()
 
 function openJavDB() {
@@ -79,9 +80,9 @@ const haveUnlike = computed(() => {
       </el-text>
     </el-row>
     <el-row>
-      <el-text v-if="site.downloadList.size > 0" style="font-size: 15px">
+      <el-text v-if="activeDownloads.length > 0" style="font-size: 15px">
         [下载列表]
-        <li v-for="(entry, index) in Array.from(site.downloadList)" :key="index">
+        <li v-for="(entry, index) in activeDownloads" :key="index">
           {{ entry }}
         </li>
       </el-text>
@@ -116,9 +117,9 @@ const haveUnlike = computed(() => {
               {{ word }}
             </el-tag>
           </el-text>
-          <el-text style="font-size: 15px" v-if="site.downloadList.size > 0">
+          <el-text style="font-size: 15px" v-if="activeDownloads.length > 0">
             [下载列表]
-            <el-tag v-for="(entry, index) in Array.from(site.downloadList)" :key="index">
+            <el-tag v-for="(entry, index) in activeDownloads" :key="index">
               {{ entry }}
             </el-tag>
           </el-text>

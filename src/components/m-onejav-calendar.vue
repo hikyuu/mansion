@@ -7,7 +7,7 @@ import { Onejav } from '@/site/onejav/onejav'
 import dayjs from 'dayjs'
 import { FORMAT } from '@/dictionary'
 import { type CalendarDateType, type CalendarInstance, ElNotification } from 'element-plus'
-import { dailyNumberRef } from '@/dao/browse-history'
+import { useDailyHistoryStore } from '@/store/daily-history-store'
 import updateLocale from 'dayjs/plugin/updateLocale'
 import 'dayjs/locale/zh-cn' // 引入中文语言包
 
@@ -35,9 +35,11 @@ const visible = ref<boolean>(false)
 //监听visible变化
 watch(visible, (value) => {
   if (value) {
-    fetchRecentDaily(10).then((histories) => {
-      console.log('最近历史日期加载完成', histories.length)
-    })
+    fetchRecentDaily(10)
+      .then((histories) => {
+        console.log('最近历史日期加载完成', histories.length)
+      })
+      .catch((error) => console.error('加载最近每日统计失败', error))
   }
 })
 
@@ -110,7 +112,7 @@ function selectCurrent() {
   calendarDate.value = date.toDate()
 }
 function haveReadNumber(pathDate: string) {
-  return dailyNumberRef.get(pathDate) || 0
+  return useDailyHistoryStore().countOf(pathDate)
 }
 function dateStyle(date: Date) {
   if (!visible.value) return {}

@@ -1,10 +1,11 @@
-import dayjs, { type Dayjs } from 'dayjs'
+import { type Dayjs } from 'dayjs'
 import { fetchTorrentsFromDownloadPage, type TorrentEntry } from './exhentai-api'
 import { download } from '@/download'
 import {
   getHentaiArchivesMapByHash,
   upsertHentaiArchive,
   resolveArchiveWaterline,
+  isNewerThanWaterline,
   HentaiArchiveStatus,
   type HentaiArchiveDto
 } from '@/dao/hentai-archive'
@@ -203,21 +204,6 @@ export class ExhentaiDownloadHandler {
     }
   }
 
-  /** 从归档记录中提取 Dayjs 日期 */
-  private getArchiveDayjs(archive: HentaiArchiveDto): Dayjs | null {
-    if (!archive.date) return null
-    const d = dayjs(archive.date)
-    return d.isValid() ? d : null
-  }
-
-  /**
-   * 从归档记录中挑出判重水位线：200（已下载）/ 304（无更新）都算已处理，排除 400（用户跳过）。
-   * 口径与列表页共用 dao 的 resolveArchiveWaterline，避免两处判定不一致。
-   */
-  private resolveArchive(archives?: HentaiArchiveDto[]): HentaiArchiveDto | null {
-    return resolveArchiveWaterline(archives)
-  }
-
   /** 无存档记录时：直接下载最近的过时种子，归档记为 304（下的是过时种子，保留复查） */
   private async handleNoArchive(entry: TorrentEntry): Promise<boolean> {
     const submitted = await this.downloadAndArchive(entry, HentaiArchiveStatus.NoNewerSeed)
@@ -230,10 +216,8 @@ export class ExhentaiDownloadHandler {
     archive: HentaiArchiveDto,
     entry: TorrentEntry
   ): Promise<'downloaded' | 'not-newer' | 'submit-failed'> {
-    const archiveDayjs = this.getArchiveDayjs(archive)
-    const outdatedDate = entry.parsedDate
-
-    if (outdatedDate && archiveDayjs?.isValid() && outdatedDate.isAfter(archiveDayjs)) {
+    // 比较口径与列表页共用 dao 的 isNewerThanWaterline：严格新于水位线才下载
+    if (isNewerThanWaterline(entry.parsedDate?.toDate(), archive)) {
       const submitted = await this.downloadAndArchive(entry, HentaiArchiveStatus.NoNewerSeed)
       if (!submitted) return 'submit-failed'
       this.notify('已提交更新的过时种子', 'info')
@@ -274,7 +258,8 @@ export class ExhentaiDownloadHandler {
       if (archiveList === undefined && this.titleHash) {
         archiveList = (await getHentaiArchivesMapByHash([this.titleHash]))[this.titleHash]
       }
-      const archive = this.resolveArchive(archiveList)
+      // 判重水位线口径与列表页共用 dao 的 resolveArchiveWaterline
+      const archive = resolveArchiveWaterline(archiveList)
 
       if (archive) {
         const decision = await this.handleExistingArchive(archive, mostRecent)

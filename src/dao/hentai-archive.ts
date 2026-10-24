@@ -1,5 +1,5 @@
-import { useUserStore } from '@/store/user-store'
 import dayjs from 'dayjs'
+import { read, write } from '@/common/db'
 
 export enum HentaiArchiveStatus {
   DownloadSuccess = 200,
@@ -90,8 +90,6 @@ export async function upsertHentaiArchive(
   status: HentaiArchiveStatus,
   title: string
 ): Promise<HentaiArchiveDto | null> {
-  const supabase = await useUserStore().getAuthSupabase()
-
   // 代码层约束：title 非空（与数据库 CHECK 对应）
   if (!title) {
     console.warn('hentai_archive: title 为空，拒绝写入', { gid, status })
@@ -103,16 +101,14 @@ export async function upsertHentaiArchive(
   // - updated_time 在库内刷新为 now()，替代原先由前端显式写 created_time 的做法；
   // - 拆表后不再需要前端拼 title/gid 等实体字段。
   // - p_gid 只落到 hentai_gallery.gid 作追溯元数据（每用户一份、会随重传漂移），不参与库内任何判定。
-  const { data, error } = await supabase.rpc('upsert_hentai_archive', {
-    p_gid: gid,
-    p_title: title,
-    p_date: dayjs(date).toISOString(),
-    p_status: status
-  })
-  if (error) {
-    console.error(error)
-    return Promise.reject(error)
-  }
+  const data = await write<UpsertArchiveRow[]>((db) =>
+    db.rpc('upsert_hentai_archive', {
+      p_gid: gid,
+      p_title: title,
+      p_date: dayjs(date).toISOString(),
+      p_status: status
+    })
+  )
 
   const row = Array.isArray(data) ? (data[0] as UpsertArchiveRow | undefined) : undefined
   if (!row) return null
@@ -146,6 +142,18 @@ export function resolveArchiveWaterline(archives?: HentaiArchiveDto[]): HentaiAr
 }
 
 /**
+ * 这个日期比判重水位线新吗。
+ *
+ * 「哪条记录是水位线」由 resolveArchiveWaterline 回答，「是否越过」只在这里比较一次 ——
+ * 列表页与下载 handler 曾各自写一遍比较、各自包一层 dayjs，口径靠注释维持。
+ * 没有水位线或日期缺失（含 undefined / Invalid Date）时返回 false：宁可不下载，也不要重复下载。
+ */
+export function isNewerThanWaterline(date: Date | null | undefined, waterline: HentaiArchiveDto | null): boolean {
+  if (!date || !waterline) return false
+  return date.getTime() > waterline.date.getTime()
+}
+
+/**
  * 最近一次写入的行（created_time 最大；upsert 已将其刷新为当前时间）。
  * 仅用于"用户主动跳过"这类必须按操作先后判定的场景，不作为判重水位线。
  */
@@ -166,17 +174,9 @@ export function pickLatestOperatedArchive(archives?: HentaiArchiveDto[]): Hentai
 export async function getHentaiArchivesMapByHash(hashes: string[]): Promise<Record<string, HentaiArchiveDto[]>> {
   if (!hashes || hashes.length === 0) return {}
 
-  const supabase = await useUserStore().getAuthSupabase()
-
-  const { data, error } = await supabase
-    .from('hentai_archive')
-    .select('id, gid, date, status, created_time, title, title_hash')
-    .in('title_hash', hashes)
-
-  if (error) {
-    console.error(error)
-    return Promise.reject(error)
-  }
+  const data = await read<Record<string, unknown>[]>((db) =>
+    db.from('hentai_archive').select('id, gid, date, status, created_time, title, title_hash').in('title_hash', hashes)
+  )
   const map: Record<string, HentaiArchiveDto[]> = {}
   if (Array.isArray(data)) {
     data.forEach((row: Record<string, unknown>) => {
