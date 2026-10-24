@@ -14,20 +14,27 @@ import { resolveOnejavTorrent } from '@/site/onejav/onejav-api.ts'
 import { submitDownload } from '@/download/intent'
 import { SiteId } from '@/site/site-id'
 
+/** javdb 侧解析结果：命中返回磁链，未命中带上原因（进通知正文） */
+export interface JavdbMagnetResult {
+  magnet: string | null
+  reason?: string
+}
+
 /**
  * javdb 侧的磁链解析：只解析不提交。
- * FC2 不受 javdb 支持；任何解析异常都返回 null，交给 onejav 自身种子兜底。
+ * FC2 不受 javdb 支持；任何解析异常都折算成「未命中原因」，交给 onejav 自身种子兜底，
+ * 原因最终会出现在下载通知里（如「onejav 种子（javdb 未命中：没有找到高分磁力链接）」）。
  */
-export async function resolveJavdbMagnet(serialNumber: string): Promise<string | null> {
-  if (parseSerialNumber(serialNumber).isFc2) return null
+export async function resolveJavdbMagnet(serialNumber: string): Promise<JavdbMagnetResult> {
+  if (parseSerialNumber(serialNumber).isFc2) return { magnet: null, reason: 'FC2 不受 javdb 支持' }
   try {
-    const sortId = parseSerialNumber(serialNumber).searchVariant(0)
-    console.log('sortId:', sortId)
     const magnet = await highScoreMagnet(serialNumber)
-    return magnet?.attr('href') ?? null
+    const href = magnet?.attr('href')
+    return href ? { magnet: href } : { magnet: null, reason: 'javdb 没有返回磁力链接' }
   } catch (reason) {
+    const message = reason instanceof Error ? reason.message : String(reason)
     console.warn('[onejav] javdb 磁链解析失败，回退 onejav 种子', { serialNumber, reason })
-    return null
+    return { magnet: null, reason: message || 'javdb 解析失败' }
   }
 }
 
@@ -105,14 +112,17 @@ export class Onejav extends SiteAbstract {
       resolveSource: async () => {
         if (!serialNumber) return null
         console.log('下载', serialNumber)
-        const magnet = await resolveJavdbMagnet(serialNumber)
-        if (magnet) return magnet
+        const javdb = await resolveJavdbMagnet(serialNumber)
+        if (javdb.magnet) return { url: javdb.magnet, source: { label: 'javdb 高分磁力' } }
+        const missNote = javdb.reason ? `javdb 未命中：${javdb.reason}` : 'javdb 未命中'
         const href = jquery('#' + serialNumber)
           .find(ONEJAV_DOWNLOAD)
           .first()
           .attr('href')
-        if (!href) return null
-        return await resolveOnejavTorrent(href)
+        if (!href) throw new Error(`onejav 也没有可下载种子（${missNote}）`)
+        const url = await resolveOnejavTorrent(href)
+        if (!url) throw new Error(`onejav 也没有可下载种子（${missNote}）`)
+        return { url, source: { label: 'onejav 种子', note: missNote } }
       }
     })
   }

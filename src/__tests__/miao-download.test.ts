@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ThunderApiError, ThunderClient, ThunderTransportError, type AddTaskResult } from '@hikyuu/thunder-client'
-import { ElNotification } from 'element-plus'
 import { SiteId } from '@/site/site-id'
 import { download } from '@/download/index.ts'
 import { gmFetch } from '@/download/gm-fetch.ts'
@@ -30,9 +29,11 @@ vi.mock('@/download/torrent.ts', async (importOriginal) => {
   return { ...actual, fetchTorrentBase64: vi.fn<(url: string) => Promise<string>>() }
 })
 vi.mock('@/download/thunder.ts', () => ({
-  thunderDownload: vi.fn<(url: string, options?: { silent?: boolean }) => boolean>()
+  thunderDownload: vi.fn<(url: string) => boolean>()
 }))
-vi.mock('@/download/clipboard.ts', () => ({ copyUrl: vi.fn<(text: string) => Promise<boolean>>() }))
+vi.mock('@/download/clipboard.ts', () => ({
+  copyUrl: vi.fn<(text: string) => Promise<{ ok: boolean; message: string }>>()
+}))
 vi.mock('@/store/config-store.ts', () => ({ useConfigStore: vi.fn<() => unknown>() }))
 vi.mock('@/store/site-store.ts', () => ({ useSiteStore: vi.fn<() => unknown>() }))
 vi.mock('@hikyuu/thunder-client', async (importOriginal) => {
@@ -45,7 +46,6 @@ const TORRENT_URL = 'https://exhentai.org/torrent/1/abc.torrent'
 const TORRENT_BASE64 = 'QkVUQ09ERUQ='
 const THUNDER_MOCK = vi.mocked(thunderDownload)
 const COPY_MOCK = vi.mocked(copyUrl)
-const NOTIFY_MOCK = vi.mocked(ElNotification)
 const CLIENT_MOCK = vi.mocked(ThunderClient)
 const PICKER_MOCK = vi.mocked(requestFileSelection)
 const TORRENT_MOCK = vi.mocked(fetchTorrentBase64)
@@ -132,7 +132,7 @@ beforeEach(() => {
     return client as unknown as InstanceType<typeof ThunderClient>
   })
   THUNDER_MOCK.mockImplementation(() => true)
-  COPY_MOCK.mockImplementation(async () => true)
+  COPY_MOCK.mockImplementation(async () => ({ ok: true, message: '已复制下载链接' }))
   PICKER_MOCK.mockResolvedValue(null)
   TORRENT_MOCK.mockReset()
   TORRENT_MOCK.mockResolvedValue(TORRENT_BASE64)
@@ -217,7 +217,7 @@ describe('种子链接直投（torrentBase64）', () => {
     TORRENT_MOCK.mockRejectedValue(new TorrentFetchError('响应不是有效的种子文件（链接可能失效或需要登录）'))
     const result = await download(TORRENT_URL)
     expect(result).toMatchObject({ ok: true, channel: 'thunder', fellBack: true })
-    expect(result.message).toContain('有效的种子文件')
+    expect(result.fallbackReason).toContain('有效的种子文件')
     expect(client.addGalleryTask).not.toHaveBeenCalled()
   })
 })
@@ -247,12 +247,10 @@ describe('miao 失败自动回退迅雷', () => {
   async function expectFallback(messagePart: string, error: unknown) {
     client.addVideoTask.mockRejectedValue(error)
     const result = await download(MAGNET)
-    expect(result).toMatchObject({ ok: true, channel: 'thunder', fellBack: true })
-    expect(THUNDER_MOCK).toHaveBeenCalledWith(MAGNET, { silent: true })
-    const notify = NOTIFY_MOCK.mock.calls.map((call) => call[0]).find((options) => options?.title === '迅雷下载')
-    expect(notify?.type).toBe('warning')
-    expect(notify?.message).toContain('已回退迅雷：')
-    expect(notify?.message).toContain(messagePart)
+    expect(result).toMatchObject({ ok: true, channel: 'thunder', fellBack: true, outcome: 'created' })
+    expect(THUNDER_MOCK).toHaveBeenCalledWith(MAGNET)
+    // 通道不再自己弹通知，原因结构化交给意图层拼「来源 → 通道：结局」
+    expect(result.fallbackReason).toContain(messagePart)
   }
 
   it('连不上 miao（ThunderTransportError）', async () => {
@@ -295,9 +293,7 @@ describe('miao 失败自动回退迅雷', () => {
     client.addVideoTask.mockResolvedValue(messageResult('没有大于 100MB 的视频文件。'))
     const result = await download(MAGNET)
     expect(result).toMatchObject({ ok: true, channel: 'thunder', fellBack: true })
-    expect(NOTIFY_MOCK).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining('没有大于 100MB 的视频文件。') })
-    )
+    expect(result.fallbackReason).toContain('没有大于 100MB 的视频文件。')
   })
 
   it('未知异常按原始文案回退', async () => {
@@ -308,9 +304,9 @@ describe('miao 失败自动回退迅雷', () => {
     client.addVideoTask.mockRejectedValue(new ThunderTransportError('x'))
     THUNDER_MOCK.mockReturnValueOnce(false)
     const result = await download(MAGNET)
-    expect(result).toMatchObject({ ok: false, channel: 'thunder', fellBack: true })
-    expect(result.message).toContain('已回退迅雷失败')
-    expect(NOTIFY_MOCK).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }))
+    expect(result).toMatchObject({ ok: false, channel: 'thunder', fellBack: true, outcome: 'failed' })
+    expect(result.message).toBe('迅雷协议建任务失败')
+    expect(result.fallbackReason).toContain('无法连接 miao 服务')
   })
 })
 
@@ -319,7 +315,7 @@ describe('前置拦截（不建 miao 客户端）', () => {
     const result = await download('https://file.onejav.com/video.mp4')
     expect(result).toMatchObject({ ok: true, channel: 'thunder', fellBack: true })
     expect(CLIENT_MOCK).not.toHaveBeenCalled()
-    expect(result.message).toContain('磁链与种子链接')
+    expect(result.fallbackReason).toContain('磁链与种子链接')
   })
 })
 
@@ -328,14 +324,14 @@ describe('downloadMethod 分发', () => {
     mockConfig({ method: 'thunder' })
     const result = await download(MAGNET)
     expect(result).toMatchObject({ ok: true, channel: 'thunder', fellBack: false })
-    expect(THUNDER_MOCK).toHaveBeenCalledWith(MAGNET, { silent: false })
+    expect(THUNDER_MOCK).toHaveBeenCalledWith(MAGNET)
     expect(CLIENT_MOCK).not.toHaveBeenCalled()
   })
 
   it('复制：走剪贴板通道', async () => {
     mockConfig({ method: 'copy' })
     const result = await download(MAGNET)
-    expect(result).toMatchObject({ ok: true, channel: 'copy', fellBack: false })
+    expect(result).toMatchObject({ ok: true, channel: 'copy', fellBack: false, message: '已复制下载链接' })
     expect(COPY_MOCK).toHaveBeenCalledWith(MAGNET)
     expect(THUNDER_MOCK).not.toHaveBeenCalled()
     expect(CLIENT_MOCK).not.toHaveBeenCalled()

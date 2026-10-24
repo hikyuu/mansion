@@ -118,7 +118,9 @@ export class Javstore extends SiteAbstract {
         if (!serialNumber) return null
         console.log('下载', serialNumber)
         const magnet = await downloadFromJavdb(serialNumber)
-        return magnet?.attr('href') ?? null
+        const url = magnet?.attr('href')
+        if (!url) return null
+        return { url, source: { label: 'javdb 磁力' } }
       }
     })
   }

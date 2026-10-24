@@ -7,7 +7,6 @@ import {
   type AddTaskResult,
   type AddTaskSeedSource
 } from '@hikyuu/thunder-client'
-import { ElNotification } from 'element-plus'
 import { useConfigStore } from '@/store/config-store.ts'
 import { useSiteStore } from '@/store/site-store.ts'
 import { SiteId } from '@/site/site-id'
@@ -236,18 +235,19 @@ async function addTask(
   if (result.outcome === 'needsSelection') {
     const selected = await requestFileSelection({ name: result.name, files: result.files })
     if (selected === null || selected.length === 0) {
-      ElNotification({ title: 'miao', message: '已取消文件选择', type: 'info' })
       return { status: 'cancelled', message: '已取消文件选择' }
     }
     result = await add(selected)
   }
 
+  // 通知由下载意图层统一出（标题=番号），此处只回传通道侧文案
   if (result.outcome === 'created') {
     const count = result.selectedIndexes.length
     const duplicated = result.duplicate ? '（任务已存在，未重复创建）' : ''
-    const message = `已添加 miao 任务 #${result.taskId}${count > 0 ? `（${count} 个文件）` : ''}${duplicated}`
-    ElNotification({ title: 'miao', message, type: 'success' })
-    return { status: 'created', message }
+    return {
+      status: 'created',
+      message: `已添加任务 #${result.taskId}${count > 0 ? `（${count} 个文件）` : ''}${duplicated}`
+    }
   }
 
   // message 结局（无可下载目标）或重试后仍 needsSelection：回退迅雷整链下载，保证下载意图不落空

@@ -77,7 +77,9 @@ export class Javdb extends SiteAbstract {
         const detailHref = getDetailHref(jquery('#' + serialNumber))
         if (detailHref === undefined) return null
         const magnet = await downloadFromLocal(detailHref)
-        return magnet.attr('href') ?? null
+        const url = magnet?.attr('href')
+        if (!url) throw new Error('javdb 详情页没有磁力链接')
+        return { url, source: { label: 'javdb 磁力' } }
       }
     })
   }
