@@ -79,7 +79,7 @@ export class Javdb extends SiteAbstract {
         const magnet = await downloadFromLocal(detailHref)
         const url = magnet?.attr('href')
         if (!url) throw new Error('javdb 详情页没有磁力链接')
-        return { url, source: { label: 'javdb 磁力' } }
+        return { url, source: { label: 'javdb 磁力', origin: 'javdb' } }
       }
     })
   }

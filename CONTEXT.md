@@ -53,7 +53,7 @@ _Avoid_: 查重, dedupe, archive check
 _Avoid_: 下载成功, downloaded, handoff 以外的「已处理」
 
 **下载通知**：
-一次下载只出一条结果通知：标题是番号（exhentai 没有番号，用画廊标题），正文固定为「来源 → 通道：结局」，如 `javdb 高分磁力 → miao：已添加任务 #12`。来源由站点解析器回填，onejav 回退时附「javdb 未命中：原因」；通道层不自己弹通知，回退原因并入正文，不单独弹窗。唯一出口是 `src/download/notice.ts` 的 `notifyDownload`。
+一次下载只出一条结果通知。标题是番号（exhentai 没有番号，用画廊标题）；正文是一张「运单回执」：番号 + 状态词，hairline 之下是字段表「来源 / 通道 / 结果 / 备注」。来源是唯一的徽章，按站点身份色区分（javdb 蓝 / onejav 青 / exhentai 中性）；四态各有配色与停留时长（已投递 / 已回退 / 已取消 / 失败）。来源由站点解析器回填，onejav 回退时把「javdb 未命中：原因」写进备注；通道层不自己弹通知，回退原因并入备注，不单独弹窗。唯一出口是 `src/download/notice.ts` 的 `notifyDownload`（投递回执）与 `notifyIntent`（前置结局）。
 _Avoid_: 下载成功提示, 弹窗, toast
 
 **归档**：

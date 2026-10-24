@@ -1,0 +1,261 @@
+/*
+ * 下载通知的视觉语言：一张「运单回执」，不是弹窗。
+ *
+ * 结构固定为四层，从上到下：
+ *   番号（等宽，唯一标识）  状态词（唯一彩色信号）
+ *   ─────────── hairline ───────────
+ *   来源 → 通道（路径）
+ *   诊断行（javdb 未命中 / miao 回退原因，第三层级）
+ *   结局（正文，失败时染成状态色）
+ *
+ * 克制规则：一张通知只有一个颜色信号（左侧 2px 竖条 + 状态词/点），
+ * 其余全部走中性灰阶；不用图标、不用渐变、不用阴影堆叠。
+ */
+.el-notification.mansion-dn {
+  --dn-bg: #ffffff;
+  --dn-fg: #15181d;
+  --dn-fg-2: #5b6472;
+  --dn-fg-3: #8b939f;
+  --dn-rule: #e4e7ec;
+  --dn-accent: #5b6472;
+
+  width: min(344px, calc(100vw - 24px));
+  padding: 0;
+  border: 1px solid var(--dn-rule);
+  border-left: 2px solid var(--dn-accent);
+  border-radius: 3px;
+  background: var(--dn-bg);
+  box-shadow:
+    0 1px 2px rgb(16 24 40 / 6%),
+    0 12px 32px -18px rgb(16 24 40 / 32%);
+  overflow: hidden;
+}
+
+/* 状态色：只改这一个变量，竖条、点、状态词、失败结局一起变 */
+.el-notification.mansion-dn--success {
+  --dn-accent: #0b8f6a;
+}
+.el-notification.mansion-dn--warning {
+  --dn-accent: #b26a05;
+}
+.el-notification.mansion-dn--error {
+  --dn-accent: #b3261e;
+}
+.el-notification.mansion-dn--info {
+  --dn-accent: #5b6472;
+}
+
+.el-notification.mansion-dn .el-notification__group {
+  width: 100%;
+  margin: 0;
+  padding: 11px 14px 12px;
+}
+
+/* 标题与正文全部由自定义 DOM 承担，关掉 EP 的默认标题位 */
+.el-notification.mansion-dn .el-notification__title {
+  display: none;
+}
+
+.el-notification.mansion-dn .el-notification__content {
+  margin: 0;
+  color: var(--dn-fg);
+}
+
+.el-notification.mansion-dn .el-notification__closeBtn {
+  top: 9px;
+  right: 9px;
+  color: var(--dn-fg-3);
+}
+
+.el-notification.mansion-dn .el-notification__closeBtn:hover {
+  color: var(--dn-fg);
+}
+
+/* 第一层：番号 + 状态词 */
+.mansion-dn__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-right: 22px;
+}
+
+.mansion-dn__serial {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-kerning: normal;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  line-height: 1.35;
+  color: var(--dn-fg);
+}
+
+.mansion-dn__status {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--dn-accent);
+  white-space: nowrap;
+}
+
+.mansion-dn__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+/* 结构分隔：hairline 是层级信息，不是装饰 */
+.mansion-dn__rule {
+  height: 1px;
+  margin: 9px 0;
+  background: var(--dn-rule);
+}
+
+/* 第二层：字段表 —— label 列是扫读锚点，值列左对齐 */
+.mansion-dn__fields {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 3px;
+  align-items: baseline;
+}
+
+.mansion-dn__label {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0.06em;
+  color: var(--dn-fg-3);
+}
+
+.mansion-dn__value {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--dn-fg);
+  overflow-wrap: anywhere;
+}
+
+/* 来源徽章：站点身份色（低饱和底 + 同色系深字），与状态色互不干扰 */
+.mansion-dn__source {
+  display: inline-block;
+  padding: 1px 7px 2px;
+  border-radius: 2px;
+  background: var(--dn-origin-bg);
+  box-shadow: inset 0 0 0 1px var(--dn-origin-ring);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  color: var(--dn-origin-fg);
+}
+
+/* 每个来源一套身份色：变量只挂在徽章上，不污染整张卡 */
+.mansion-dn__origin--javdb {
+  --dn-origin-bg: #eaf2fe;
+  --dn-origin-fg: #1d5fbf;
+  --dn-origin-ring: #cfe1fb;
+}
+
+.mansion-dn__origin--onejav {
+  --dn-origin-bg: #e6f6fa;
+  --dn-origin-fg: #0b6b7d;
+  --dn-origin-ring: #c7e9f2;
+}
+
+.mansion-dn__origin--exhentai {
+  --dn-origin-bg: #f2f1ee;
+  --dn-origin-fg: #5b5347;
+  --dn-origin-ring: #e3e0d8;
+}
+
+.mansion-dn__origin--unknown {
+  --dn-origin-bg: #f1f3f6;
+  --dn-origin-fg: #4b5563;
+  --dn-origin-ring: #e4e7ec;
+}
+
+/* 通道回归普通值：由 label 定位，不再抢来源的层级 */
+.mansion-dn__channel {
+  color: var(--dn-fg-2);
+}
+
+/* 第三层：诊断行（javdb 未命中原因 / miao 回退原因），同一字段内堆叠 */
+.mansion-dn__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mansion-dn__note {
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--dn-fg-3);
+}
+
+.el-notification.mansion-dn--error .mansion-dn__outcome {
+  color: var(--dn-accent);
+}
+
+@media (prefers-color-scheme: dark) {
+  .el-notification.mansion-dn {
+    --dn-bg: #171a1f;
+    --dn-fg: #e8ebf0;
+    --dn-fg-2: #a4adba;
+    --dn-fg-3: #79828f;
+    --dn-rule: #272c34;
+    --dn-accent: #9aa4b2;
+
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 40%),
+      0 12px 32px -18px rgb(0 0 0 / 70%);
+  }
+
+  .el-notification.mansion-dn--success {
+    --dn-accent: #3cc59a;
+  }
+  .el-notification.mansion-dn--warning {
+    --dn-accent: #e0a458;
+  }
+  .el-notification.mansion-dn--error {
+    --dn-accent: #f0736a;
+  }
+  .el-notification.mansion-dn--info {
+    --dn-accent: #9aa4b2;
+  }
+
+  /* 来源徽章的暗色身份色：深底 + 高明度同色系字，保持 4.5:1 以上 */
+  .mansion-dn__origin--javdb {
+    --dn-origin-bg: #1b2a44;
+    --dn-origin-fg: #8ab4f8;
+    --dn-origin-ring: #263a5c;
+  }
+  .mansion-dn__origin--onejav {
+    --dn-origin-bg: #12313a;
+    --dn-origin-fg: #67d4e8;
+    --dn-origin-ring: #1d4552;
+  }
+  .mansion-dn__origin--exhentai {
+    --dn-origin-bg: #2a2823;
+    --dn-origin-fg: #c9c1b2;
+    --dn-origin-ring: #3a372f;
+  }
+  .mansion-dn__origin--unknown {
+    --dn-origin-bg: #24282f;
+    --dn-origin-fg: #a4adba;
+    --dn-origin-ring: #333a44;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .el-notification.mansion-dn {
+    transition: none;
+  }
+}

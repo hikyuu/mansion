@@ -113,7 +113,9 @@ export class Onejav extends SiteAbstract {
         if (!serialNumber) return null
         console.log('下载', serialNumber)
         const javdb = await resolveJavdbMagnet(serialNumber)
-        if (javdb.magnet) return { url: javdb.magnet, source: { label: 'javdb 高分磁力' } }
+        if (javdb.magnet) {
+          return { url: javdb.magnet, source: { label: 'javdb 高分磁力', origin: 'javdb' } }
+        }
         const missNote = javdb.reason ? `javdb 未命中：${javdb.reason}` : 'javdb 未命中'
         const href = jquery('#' + serialNumber)
           .find(ONEJAV_DOWNLOAD)
@@ -122,7 +124,7 @@ export class Onejav extends SiteAbstract {
         if (!href) throw new Error(`onejav 也没有可下载种子（${missNote}）`)
         const url = await resolveOnejavTorrent(href)
         if (!url) throw new Error(`onejav 也没有可下载种子（${missNote}）`)
-        return { url, source: { label: 'onejav 种子', note: missNote } }
+        return { url, source: { label: 'onejav 种子', note: missNote, origin: 'onejav' } }
       }
     })
   }

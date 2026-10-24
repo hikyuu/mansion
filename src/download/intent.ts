@@ -1,7 +1,6 @@
 import { readonly, ref } from 'vue'
-import { ElNotification } from 'element-plus'
 import { download, type DownloadSubmitResult } from '@/download'
-import { notifyDownload, type DownloadSource } from '@/download/notice.ts'
+import { notifyDownload, notifyIntent, type DownloadSource } from '@/download/notice.ts'
 import { haveArchived, upsertArchive } from '@/dao/archive'
 
 /** 下载意图的四态结局 */
@@ -54,13 +53,9 @@ function unmarkInFlight(key: string): void {
   inFlightList.value = [...inFlight]
 }
 
-/** 通知标题：番号；没有选中的场景退化为「下载」 */
-function notify(
-  serialNumber: string | undefined,
-  message: string,
-  type: 'info' | 'warning' | 'error' = 'info'
-): void {
-  ElNotification({ title: serialNumber || '下载', message, type })
+/** 前置结局的通知标题：番号；没有选中的场景退化为「下载」 */
+function noticeTitle(serialNumber?: string): string {
+  return serialNumber || '下载'
 }
 
 /** 判档失败不应阻塞下载：按「未归档」继续，并留下诊断日志 */
@@ -84,19 +79,19 @@ async function isArchived(serialNumber: string): Promise<boolean> {
 export async function submitDownload(input: SubmitDownloadInput): Promise<DownloadIntentResult> {
   const serialNumber = input.serialNumber?.trim()
   if (!serialNumber) {
-    notify(undefined, '没有选中')
+    notifyIntent({ title: noticeTitle(), type: 'info', statusText: '未选中', detail: '没有选中番号' })
     return { status: 'failed', message: '没有选中' }
   }
 
   if (inFlight.has(serialNumber)) {
-    notify(serialNumber, '正在下载中')
+    notifyIntent({ title: serialNumber, type: 'info', statusText: '进行中', detail: '同一番号还在下载中' })
     return { status: 'blocked', message: '正在下载中' }
   }
 
   markInFlight(serialNumber)
   try {
     if (input.checkArchive && (await isArchived(serialNumber))) {
-      notify(serialNumber, '已经归档')
+      notifyIntent({ title: serialNumber, type: 'info', statusText: '已归档', detail: '之前已交付过，本次跳过' })
       return { status: 'skipped', message: '已经归档' }
     }
 
@@ -106,12 +101,18 @@ export async function submitDownload(input: SubmitDownloadInput): Promise<Downlo
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       console.error('[intent] 解析下载地址失败', { serialNumber, error })
-      notify(serialNumber, message ? `解析下载地址失败：${message}` : '解析下载地址失败', 'error')
+      notifyIntent({
+        title: serialNumber,
+        type: 'error',
+        statusText: '失败',
+        detail: '解析下载地址失败',
+        notes: message ? [message] : []
+      })
       return { status: 'failed', message }
     }
 
     if (!resolved) {
-      notify(serialNumber, '没有找到下载地址', 'warning')
+      notifyIntent({ title: serialNumber, type: 'warning', statusText: '无地址', detail: '没有找到下载地址' })
       return { status: 'failed', message: '没有找到下载地址' }
     }
 

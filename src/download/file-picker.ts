@@ -12,6 +12,40 @@ interface PendingRequest extends FileSelectionPayload {
   resolve: (indexes: number[] | null) => void
 }
 
+/** 视频容器扩展名（小写）；弹窗默认勾选命中这些扩展名的文件 */
+const VIDEO_EXTENSIONS = new Set([
+  '3g2',
+  '3gp',
+  'asf',
+  'avi',
+  'divx',
+  'f4v',
+  'flv',
+  'm2ts',
+  'm4v',
+  'mkv',
+  'mov',
+  'mp4',
+  'mpeg',
+  'mpg',
+  'mts',
+  'ogv',
+  'rm',
+  'rmvb',
+  'ts',
+  'vob',
+  'webm',
+  'wmv'
+])
+
+/** 相对路径是否指向视频文件（扩展名大小写不敏感） */
+export function isVideoFile(path: string): boolean {
+  const name = path.split(/[\\/]/).pop() ?? ''
+  const dot = name.lastIndexOf('.')
+  if (dot < 0) return false
+  return VIDEO_EXTENSIONS.has(name.slice(dot + 1).toLowerCase())
+}
+
 /** 模块级、非响应式：弹窗 Promise 的 resolver 与 FIFO 队列不进 reactive 状态 */
 const waiting: PendingRequest[] = []
 let currentResolve: ((indexes: number[] | null) => void) | null = null

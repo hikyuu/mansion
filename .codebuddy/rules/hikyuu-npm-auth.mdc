@@ -1,0 +1,79 @@
+---
+alwaysApply: false
+description: 安装/发布 @hikyuu/* 私有包（npm.pkg.github.com）时如何从 DPAPI 加密文件取出 PAT 注入 NODE_AUTH_TOKEN；含 401/403/404 排查与 token 轮换步骤
+---
+
+# @hikyuu 私有 npm 包的 PAT 处理
+
+## 核心原则
+
+`@hikyuu/*` 来自 GitHub Packages（`npm.pkg.github.com`），`.npmrc` 用 `${NODE_AUTH_TOKEN}` 引用环境变量，**不存明文 token**：
+
+```ini
+@hikyuu:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+```
+
+token 只在 `$env:USERPROFILE\.npm-token.dpapi` 里，由 DPAPI（当前用户作用域）加密，内容是 `ConvertFrom-SecureString` 输出的十六进制串。
+
+因此：**每次安装前必须在同一个进程里把 `NODE_AUTH_TOKEN` 设为解密后的明文**。环境变量不跨进程，新开 shell / 新子进程都要重设。
+
+## 正确写法（Windows PowerShell）
+
+```powershell
+$sec  = Get-Content -LiteralPath "$env:USERPROFILE\.npm-token.dpapi" | ConvertTo-SecureString
+$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
+try { $env:NODE_AUTH_TOKEN = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) }
+finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+```
+
+设完立刻装包，必须同一条命令里串联（否则换个进程就失效）：
+
+```powershell
+$sec  = Get-Content -LiteralPath "$env:USERPROFILE\.npm-token.dpapi" | ConvertTo-SecureString
+$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
+$env:NODE_AUTH_TOKEN = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+npm install
+```
+
+## 验证是否生效
+
+只输出长度与前缀，不打印全文：
+
+```powershell
+"len=$($env:NODE_AUTH_TOKEN.Length) prefix=$($env:NODE_AUTH_TOKEN.Substring(0,4))"
+```
+
+正常应为 `len=40 prefix=ghp_`（新版细粒度 PAT 为 `github_pat_`）。进一步用注册表探活：
+
+```powershell
+npm view @hikyuu/thunder-client version --registry=https://npm.pkg.github.com
+```
+
+## 排错对照
+
+| 现象 | 原因 |
+| --- | --- |
+| `ENEEDAUTH` / `401 Unauthorized` | 当前进程没有 `NODE_AUTH_TOKEN`（变量只在别处设过，环境变量不跨进程） |
+| `403 Forbidden` | token 缺 `read:packages` 作用域；组织启用了 SSO 但 token 未 authorize；发布还需 `write:packages` |
+| `404 Not Found`（包确实存在） | GitHub Packages 对无权限的私有包返回 404 而非 403，本质仍是权限/作用域问题 |
+| 解密报 `Input string was not in a correct format` | hex 串混入了尾部换行，按行读取（不用 `-Raw`）或先 `.Trim()` |
+| 解密报 `Key not valid for use in specified state` | DPAPI 文件不是当前用户加密的（换了机器/账号），只能重新生成 |
+
+## token 轮换
+
+用户重新签发 PAT 后，用交互式输入覆盖加密文件，避免明文过 shell 历史：
+
+```powershell
+Read-Host -AsSecureString "new PAT" | ConvertFrom-SecureString |
+  Set-Content -LiteralPath "$env:USERPROFILE\.npm-token.dpapi" -NoNewline
+```
+
+`-NoNewline` 是关键：省掉尾部换行，后续 `Get-Content` 才能直接喂给 `ConvertTo-SecureString`。
+
+## 权限边界
+
+- 允许直接执行注入命令并继续 `npm install` / `npm publish`。
+- 不得在回复、命令回显、临时文件中暴露 token 明文；需要说明状态时用长度/前缀。
+- CI 环境不走 DPAPI，用 secrets 直接注入 `NODE_AUTH_TOKEN`，本规则不适用。

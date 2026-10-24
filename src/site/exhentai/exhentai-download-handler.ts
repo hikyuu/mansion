@@ -163,7 +163,7 @@ export class ExhentaiDownloadHandler {
   }
 
   private async handleLatestTorrent(latest: TorrentEntry): Promise<boolean> {
-    const result = await this.submitTorrent(latest, { label: 'exhentai 最新种子' })
+    const result = await this.submitTorrent(latest, { label: 'exhentai 最新种子', origin: 'exhentai' })
     if (!result.ok) return false
     try {
       await upsertHentaiArchive(Number(this.gid), this.date.toDate(), HentaiArchiveStatus.DownloadSuccess, this.title)
@@ -226,7 +226,8 @@ export class ExhentaiDownloadHandler {
     // 「没有下载记录」作为来源补充写进结果通知，不再单独刷一条提示
     return await this.downloadAndArchive(entry, HentaiArchiveStatus.NoNewerSeed, {
       label: 'exhentai 过时种子',
-      note: '没有下载记录，取最近一条'
+      note: '没有下载记录，取最近一条',
+      origin: 'exhentai'
     })
   }
 
@@ -239,7 +240,8 @@ export class ExhentaiDownloadHandler {
     if (isNewerThanWaterline(entry.parsedDate?.toDate(), archive)) {
       const submitted = await this.downloadAndArchive(entry, HentaiArchiveStatus.NoNewerSeed, {
         label: 'exhentai 过时种子',
-        note: '比归档记录更新'
+        note: '比归档记录更新',
+        origin: 'exhentai'
       })
       if (!submitted) return 'submit-failed'
       return 'downloaded'
