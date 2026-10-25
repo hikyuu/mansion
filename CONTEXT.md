@@ -60,6 +60,18 @@ _Avoid_: 下载成功提示, 弹窗, toast
 记录「某个番号已交付过」的表，字段 `download_time` 指交付时刻，不代表文件已落盘。
 _Avoid_: 下载记录, 历史
 
+**Cloudflare 拦截**：
+CF 的挑战页 / 封禁页 / 限流页。识别口径只在 `src/common/cloudflare.ts` 一处：响应头、页面特征与最终 URL 多信号判定，404 与种子二进制不算拦截。三种形态：挑战页（challenge）、访问封禁（blocked）、请求过快（rate-limited）。挑战页的最终 URL 与原 URL 相同、状态码也可能是 200，任何「URL 没变就是直链」的推断都会误判。
+_Avoid_: 被墙, 反爬, 打码
+
+**兜底重取**：
+页面请求命中 Cloudflare 拦截后改由 FlareSolverr 会话池取回，并在本会话内对该站点固定走兜底（不再先撞墙）。它只能取 HTML，不能代下种子二进制。
+_Avoid_: 重试, 代理, 绕过
+
+**clearance 预热**：
+种子链路命中拦截时，先过挑战换 `cf_clearance` 再带 Cookie 重取一次；仍被拦就报拦截原因，不静默重试。凭据只存内存（20 分钟上限），不进 GM 存储、不落日志。
+_Avoid_: 缓存 cookie, token 复用
+
 ### exhentai
 
 **画廊**：

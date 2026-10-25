@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ThunderApiError, ThunderClient, ThunderTransportError, type AddTaskResult } from '@hikyuu/thunder-client'
 import { SiteId } from '@/site/site-id'
@@ -204,9 +205,14 @@ describe('种子链接直投（torrentBase64）', () => {
     expect(THUNDER_MOCK).not.toHaveBeenCalled()
   })
 
-  it('onejav 种子：走 addVideoTask', async () => {
+  it('onejav 种子：走 addVideoTask，并带上换取 cf_clearance 的站点信息', async () => {
+    mockConfig({ siteId: SiteId.ONEJAV })
     client.addVideoTask.mockResolvedValue(createdResult())
-    await download('https://onejav.com/torrent/a/download/1/a.torrent')
+    const url = 'https://onejav.com/torrent/a/download/1/a.torrent'
+    await download(url)
+    expect(TORRENT_MOCK).toHaveBeenCalledWith(url, {
+      clearance: { site: 'onejav', cookieDomain: 'onejav.com' }
+    })
     expect(client.addVideoTask).toHaveBeenCalledWith({
       torrentBase64: TORRENT_BASE64,
       savePath: 'L:\\Downloads'

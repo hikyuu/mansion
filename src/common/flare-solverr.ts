@@ -1,4 +1,4 @@
-import { GM_xmlhttpRequest } from 'vite-plugin-monkey/dist/client'
+import { GM_cookie, GM_xmlhttpRequest } from 'vite-plugin-monkey/dist/client'
 import type { RequestGetParams, SessionCreateParams, SessionDestroyParams, Solution } from 'flare-solverr'
 
 // ========== 配置常量 ==========
@@ -255,4 +255,17 @@ export interface GmCallbackCookie {
   secure: boolean
   session: boolean
   value: string
+}
+
+/**
+ * 读取指定域名的站点 cookie，交给 FlareSolverr 复现登录态（exhentai/onejav 的种子链接需要）。
+ * 读不到不致命：先按未登录态过挑战，拿不到 cf_clearance 时由调用方决定是否报错。
+ */
+export function listCookies(domain: string): Promise<GmCallbackCookie[]> {
+  return new Promise((resolve, reject) => {
+    GM_cookie.list({ domain }, (cookies) => {
+      if (cookies) resolve(cookies as GmCallbackCookie[])
+      else reject(new FlareSolverrError(`读取 ${domain} 的 cookie 失败`))
+    })
+  })
 }

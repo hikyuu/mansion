@@ -12,7 +12,11 @@ import { useSiteStore } from '@/store/site-store.ts'
 import { SiteId } from '@/site/site-id'
 import { gmFetch } from '@/download/gm-fetch.ts'
 import { requestFileSelection } from '@/download/file-picker.ts'
-import { fetchTorrentBase64, TorrentFetchError } from '@/download/torrent.ts'
+import {
+  fetchTorrentBase64,
+  TorrentFetchError,
+  type TorrentClearanceOptions
+} from '@/download/torrent.ts'
 
 /** miao 任务类型：exhentai 画廊任务，其余站点视频任务 */
 export type MiaoTaskKind = 'gallery' | 'video'
@@ -38,6 +42,15 @@ export function classifyDownloadUrl(url: string): DownloadUrlKind {
 
 export function pickTaskKind(siteId: SiteId): MiaoTaskKind {
   return siteId === SiteId.EXHENTAI ? 'gallery' : 'video'
+}
+
+/**
+ * 种子链路被 Cloudflare 拦住时，用哪个站点标识去换 cf_clearance。
+ * 目前只有 onejav 的种子链接会撞挑战页；其余站点传 undefined，命中拦截时只报原因不做重试。
+ */
+export function clearanceFor(siteId: SiteId): TorrentClearanceOptions | undefined {
+  if (siteId === SiteId.ONEJAV) return { site: 'onejav', cookieDomain: 'onejav.com' }
+  return undefined
 }
 
 export interface MiaoDecision {
@@ -137,7 +150,7 @@ export async function miaoDownload(url: string): Promise<MiaoAttempt> {
   }
 
   try {
-    const source = await resolveSeedSource(target, urlKind)
+    const source = await resolveSeedSource(target, urlKind, clearanceFor(useSiteStore().getSite.siteId))
     console.log('[miao] 种子来源就绪', summarizeSource(source))
     const attempt = await addTask(createClient(baseUrl), taskKind, source, savePath.trim())
     console.log('[miao] 结局', attempt)
@@ -149,9 +162,14 @@ export async function miaoDownload(url: string): Promise<MiaoAttempt> {
 }
 
 /** 种子来源：磁链原样透传；远程种子先带 Cookie 下载，再以 base64 上传（免种子目录白名单） */
-async function resolveSeedSource(url: string, urlKind: DownloadUrlKind): Promise<AddTaskSeedSource> {
+async function resolveSeedSource(
+  url: string,
+  urlKind: DownloadUrlKind,
+  clearance?: TorrentClearanceOptions
+): Promise<AddTaskSeedSource> {
   if (urlKind === 'torrent') {
-    return { torrentBase64: await fetchTorrentBase64(url) }
+    // 只有需要兜底的站点才多带一个参数，其余站点的调用保持原样
+    return { torrentBase64: clearance ? await fetchTorrentBase64(url, { clearance }) : await fetchTorrentBase64(url) }
   }
   return { magnet: url }
 }

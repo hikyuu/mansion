@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest'
 import { SiteId } from '@/site/site-id'
 import { classifyDownloadUrl, decideMiaoAction, pickTaskKind } from '@/download/miao.ts'

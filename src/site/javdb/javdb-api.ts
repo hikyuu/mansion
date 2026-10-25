@@ -2,8 +2,13 @@ import { JAVDB_NAME, javdb_detail_selector, javdb_selector } from '@/site/javdb/
 import { request } from '@/common/common'
 import { parseSerialNumber } from '@/common/serial-number'
 import { SessionPool } from '@/common/session-pool.ts'
-import type { GmCallbackCookie } from '@/common/flare-solverr.ts'
-import { GM_cookie, type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
+import { listCookies } from '@/common/flare-solverr.ts'
+import {
+  CLOUDFLARE_PROBE_CHARS,
+  describeCloudflareBlock,
+  detectCloudflareBlock
+} from '@/common/cloudflare'
+import type { GmResponseEvent } from 'vite-plugin-monkey/dist/client'
 import jquery from 'jquery'
 
 const baseUrl = 'https://javdb.com'
@@ -14,9 +19,23 @@ const sessionPool = SessionPool.getInstance()
 /** 当前是否已触发 FlareSolverr 绕过模式 */
 let bypassSuccess = false
 
-/** Cloudflare 拦截判据：HTTP 状态码非 200 或返回挑战页 */
-function isCloudflareBlocked(res: GmResponseEvent<'document'>, doc: JQuery<HTMLElement>): boolean {
-  return res.status !== 200 || doc.text().includes('Just a moment...')
+/**
+ * 是否需要切 FlareSolverr：命中 CF 特征必定切；其它非 2xx 保守切，
+ * 但 404/410 是「本来就没有这个页面」，切过去只会白等一次兜底。
+ */
+function needsFlareFallback(res: GmResponseEvent<'document'>): boolean {
+  const block = detectCloudflareBlock({
+    status: res.status,
+    responseHeaders: res.responseHeaders,
+    body: res.responseText.slice(0, CLOUDFLARE_PROBE_CHARS),
+    finalUrl: res.finalUrl
+  })
+  if (block) {
+    console.warn('[javdb] 命中 Cloudflare 拦截', describeCloudflareBlock(block))
+    return true
+  }
+  if (res.status === 404 || res.status === 410) return false
+  return res.status >= 400
 }
 
 /**
@@ -26,8 +45,7 @@ function isCloudflareBlocked(res: GmResponseEvent<'document'>, doc: JQuery<HTMLE
 async function fetchPageDoc(url: string): Promise<JQuery<HTMLElement>> {
   if (!bypassSuccess) {
     const res = await request(url, 'https://javdb.com/')
-    const doc = jquery(res.responseText)
-    if (!isCloudflareBlocked(res, doc)) return doc
+    if (!needsFlareFallback(res)) return jquery(res.responseText)
     console.log('检测到 Cloudflare 拦截，切换为 FlareSolverr 绕过模式', url)
     bypassSuccess = true
   }
@@ -98,7 +116,7 @@ function handleMagnet(doc: JQuery) {
  * - 500 错误自动重建 session 并重试
  */
 async function flareGet(fullUrl: string): Promise<string> {
-  const siteCookies = await getCookies()
+  const siteCookies = await listCookies('javdb.com')
   const { solution } = await sessionPool.request(JAVDB_NAME, fullUrl, siteCookies)
   if (!solution.response) {
     throw new Error('FlareSolverr 未返回有效响应')
@@ -157,13 +175,5 @@ export async function detailUrl(serialNumber: string) {
     const url = getDetailHref(item)
     if (!url) throw new Error('没有找到详情链接')
     return url
-  })
-}
-function getCookies(): Promise<GmCallbackCookie[]> {
-  return new Promise((resolve, reject) => {
-    GM_cookie.list({ domain: 'javdb.com' }, (cookies) => {
-      if (cookies) resolve(cookies)
-      else reject('Failed to get cookies')
-    })
   })
 }
