@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import jquery from 'jquery'
 import { ElMessage } from 'element-plus'
 import { onKeyStroke, useActiveElement, useMagicKeys, useScroll, whenever } from '@vueuse/core'
@@ -18,8 +18,6 @@ import { markReadIfReady } from '@/site/read-marking'
 const sister = useSisterStore()
 
 const site = useSiteStore().getSite
-
-const showImage = ref(false)
 
 const loadAll = reactive({
   color: site.theme.WARNING_COLOR
@@ -87,36 +85,6 @@ whenever(logicAnd(keys.Ctrl_right, notUsingInput), () => {
   console.log('Ctrl_right have been pressed')
   sister.nextUnread(y)
 })
-
-const haveRead = computed(() => {
-  const info = sister.currentSister
-  if (!info) return false
-  return info.haveRead
-})
-
-const src = computed(() => {
-  const info = sister.currentSister
-  if (info === undefined) return undefined
-  return info.src
-})
-
-function viewOrClose() {
-  if (showImage.value) {
-    close()
-  } else {
-    view()
-  }
-}
-
-function view() {
-  showImage.value = true
-  jquery('html').css('overflow', 'hidden')
-}
-
-function close() {
-  showImage.value = false
-  jquery(`html`).css('overflow', 'auto')
-}
 
 function previous(event: KeyboardEvent) {
   event.preventDefault()
@@ -206,11 +174,6 @@ function location() {
 </script>
 
 <template>
-  <div v-if="showImage" class="view-image">
-    <div id="show-image" class="show-image-wrap vertical">
-      <img v-for="(item, index) in src" :src="item" :key="index" alt="" class="panel-img-size" />
-    </div>
-  </div>
   <m-img-box>
     <m-img-item v-if="useReactStore().wgt1670" style="height: 60px">
       <div class="count-group">
@@ -241,11 +204,6 @@ function location() {
       </div>
     </m-img-item>
 
-    <m-img-item v-if="false">
-      <el-icon size="60" class="icon-button" @click="viewOrClose" :color="site.theme.PRIMARY_COLOR">
-        <so-fullscreen />
-      </el-icon>
-    </m-img-item>
     <m-img-item>
       <el-icon size="60" class="icon-button" @click="useTaskStore().reverseActive" :color="site.theme.PRIMARY_COLOR">
         <VideoPause v-if="useTaskStore().isActive" />
@@ -259,11 +217,6 @@ function location() {
     </m-img-item>
     <m-img-item>
       <div style="display: flex; justify-content: center">
-        <m-img-item v-if="false">
-          <el-icon v-if="haveRead" :color="site.theme.PRIMARY_COLOR" size="50">
-            <svg-readed />
-          </el-icon>
-        </m-img-item>
         <m-img-item>
           <el-icon size="60" :color="site.theme.PRIMARY_COLOR" class="download" @click="download">
             <fa-solid-file-download />
@@ -280,20 +233,6 @@ function location() {
 </template>
 
 <style scoped>
-.view-image {
-  box-sizing: border-box;
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(24, 25, 28, 0.85);
-  transform: scale(1);
-  user-select: none;
-}
-
 .download {
   cursor: pointer;
 }
@@ -301,23 +240,6 @@ function location() {
 .icon-button {
   -webkit-user-drag: none;
   cursor: pointer;
-}
-
-.show-image-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  max-height: 100%;
-  padding: 0 100px;
-  overflow: auto;
-}
-
-.vertical {
-  flex-direction: column;
-  justify-content: start;
 }
 
 .count-group {

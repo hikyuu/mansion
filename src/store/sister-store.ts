@@ -90,20 +90,12 @@ export const useSisterStore = defineStore('sister', {
     previous() {
       // console.log(this)
       if (!this.current_key || this.current_index === undefined || this.current_index <= 0) return
-      const $image = jquery('#show-image')
-      const info = this._queue[this.current_index]
-      const scrollTop = $image.scrollTop()
-      if (info) info.scrollTop = scrollTop ? scrollTop : 0
       this.setCurrentIndex(this.current_index - 1)
       this.current_key = this._queue[this.current_index]!.serialNumber
     },
     nextStep() {
       if (!this.current_key || this.current_index === undefined) return
       if (this.current_index >= this._queue.length - 1) return
-      const $image = jquery('#show-image')
-      const info = this._queue[this.current_index]
-      const scrollTop = $image.scrollTop()
-      if (info) info.scrollTop = scrollTop ? scrollTop : 0
       this.setCurrentIndex(this.current_index + 1)
       this.current_key = this._queue[this.current_index]!.serialNumber
     },
@@ -238,7 +230,6 @@ export declare interface Info {
   loadCompleted?: boolean
   haveRead?: boolean
   javStoreUrl?: string
-  scrollTop?: number
   repeatSite?: SiteId
   src?: string[]
   date?: string
