@@ -106,6 +106,18 @@ export abstract class SiteAbstract {
     // 默认不处理
   }
 
+  /**
+   * 视口稳定（滚动停止或按键导航落地）后调用，此时 current_index 已确定。
+   * 默认什么都不做 —— 需要按「当前条目上方的固定窗口」裁页面的站点（javdb）
+   * 在这里动手，别处不得自己监听 store。
+   *
+   * 不挂在「已读记账成功」上：窗口是位置口径，记账却要凑齐缩略图与日期条件，
+   * 记账失败时窗口就永远不裁。
+   */
+  onViewportSettled(): void {
+    // 默认不处理
+  }
+
   infoLoadCompleted(serialNumber: string) {
     useSisterStore().updateInfo({ serialNumber, loadCompleted: true })
   }

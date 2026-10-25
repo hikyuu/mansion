@@ -46,6 +46,14 @@ export function isVideoFile(path: string): boolean {
   return VIDEO_EXTENSIONS.has(name.slice(dot + 1).toLowerCase())
 }
 
+/** 默认勾选的大小门槛：片子都在这之上，样片 / 花絮多小于 100 MB */
+const DEFAULT_SELECT_MIN_SIZE = 100 * 1024 * 1024
+
+/** 弹窗打开时默认勾选的文件：视频格式且大于 100 MB */
+export function isDefaultSelected(file: TaskFileMeta): boolean {
+  return file.size > DEFAULT_SELECT_MIN_SIZE && isVideoFile(file.path)
+}
+
 /** 模块级、非响应式：弹窗 Promise 的 resolver 与 FIFO 队列不进 reactive 状态 */
 const waiting: PendingRequest[] = []
 let currentResolve: ((indexes: number[] | null) => void) | null = null

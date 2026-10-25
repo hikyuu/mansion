@@ -3,7 +3,7 @@ import { download, type DownloadSubmitResult } from '@/download'
 import { notifyDownload, notifyIntent, type DownloadSource } from '@/download/notice.ts'
 import { haveArchived, upsertArchive } from '@/dao/archive'
 
-/** 下载意图的四态结局 */
+/** 下载意图的五态结局 */
 export type DownloadIntentStatus =
   /** 同一番号的意图还在途，本次被守卫拦下 */
   | 'blocked'
@@ -11,6 +11,8 @@ export type DownloadIntentStatus =
   | 'skipped'
   /** 已提交给下载通道（不代表文件已落盘） */
   | 'submitted'
+  /** 已交给浏览器自己下载：地址进了标签页，文件不归 miao */
+  | 'handoff'
   /** 未选中 / 解析失败 / 提交失败 */
   | 'failed'
 
@@ -25,6 +27,11 @@ export interface DownloadIntentResult {
 export interface ResolvedDownloadSource {
   url: string
   source: DownloadSource
+  /**
+   * `'browser'` = 站点已把地址交给浏览器自己打开（如 onejav 的 Turnstile 只认顶层导航），
+   * 意图层不再提交通道、不写归档。
+   */
+  handoff?: 'browser'
 }
 
 export interface SubmitDownloadInput {
@@ -114,6 +121,18 @@ export async function submitDownload(input: SubmitDownloadInput): Promise<Downlo
     if (!resolved) {
       notifyIntent({ title: serialNumber, type: 'warning', statusText: '无地址', detail: '没有找到下载地址' })
       return { status: 'failed', message: '没有找到下载地址' }
+    }
+
+    // 地址已交给浏览器：提交通道只会再吃一次 403；文件不归 miao，所以不写归档
+    if (resolved.handoff === 'browser') {
+      notifyIntent({
+        title: serialNumber,
+        type: 'info',
+        statusText: '已交给浏览器',
+        detail: '浏览器会完成验证并下载 .torrent',
+        notes: ['miao 自动入库不适用']
+      })
+      return { status: 'handoff', message: '已交给浏览器下载' }
     }
 
     const submit = await download(resolved.url)

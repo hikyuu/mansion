@@ -102,6 +102,24 @@ describe('submitDownload 结局', () => {
     expect(noticeClass()).toBe('mansion-dn mansion-dn--warning')
   })
 
+  it('来源标记 handoff=browser → 已交给浏览器，不提交通道也不记账', async () => {
+    const result = await submitDownload({
+      serialNumber: SERIAL,
+      checkArchive: true,
+      resolveSource: async () => ({
+        url: 'https://onejav.com/torrent/a/download/1/a.torrent',
+        source: { label: 'onejav 种子' },
+        handoff: 'browser'
+      })
+    })
+
+    expect(result.status).toBe('handoff')
+    expect(downloadMock).not.toHaveBeenCalled()
+    expect(upsertArchiveMock).not.toHaveBeenCalled()
+    expect(noticeText()).toContain('已交给浏览器')
+    expect(noticeText()).toContain('miao 自动入库不适用')
+  })
+
   it('解析抛 Error → failed 且透出原因', async () => {
     const result = await submitDownload({
       serialNumber: SERIAL,

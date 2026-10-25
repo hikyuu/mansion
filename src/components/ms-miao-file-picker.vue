@@ -1,14 +1,14 @@
 <script lang="ts" setup>
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { type TableInstance } from 'element-plus'
-import { isVideoFile, useFilePickerStore } from '@/download/file-picker.ts'
+import { isDefaultSelected, useFilePickerStore } from '@/download/file-picker.ts'
 import type { TaskFileMeta } from '@hikyuu/thunder-client'
 
 const store = useFilePickerStore()
 const selected = ref<TaskFileMeta[]>([])
 const tableRef = ref<TableInstance>()
 
-// 每次展示弹窗（含排队时切换到下一个种子）都重算默认勾选：视频文件全选，其余保持未勾
+// 每次展示弹窗（含排队时切换到下一个种子）都重算默认勾选：大于 100 MB 的视频全选，其余保持未勾
 watch(
   () => (store.visible ? store.files : null),
   async (files) => {
@@ -19,7 +19,7 @@ watch(
     if (!table) return
     table.clearSelection()
     for (const file of files) {
-      if (isVideoFile(file.path)) table.toggleRowSelection(file, true)
+      if (isDefaultSelected(file)) table.toggleRowSelection(file, true)
     }
   },
   { flush: 'post' }

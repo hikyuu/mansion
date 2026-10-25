@@ -79,7 +79,7 @@ export function parseResponseHeaders(raw: string | undefined): Map<string, strin
 }
 
 /** CF 的 cf-ray 形如 8f2a1c3b4d5e6f70-SJC，取 '-' 前的主机部分 */
-function parseRayId(value: string | undefined): string | undefined {
+export function parseRayId(value: string | undefined): string | undefined {
   if (!value) return undefined
   const ray = value.split('-')[0]?.trim()
   return ray ? ray : undefined

@@ -10,7 +10,7 @@ import { highScoreMagnet } from '@/site/javdb/javdb-api'
 import { uploadDaily } from '@/dao/onejav-daily-dao'
 import { fetchHistoriesSince, loadDailyHistory, uploadHistory } from '@/dao/browse-history'
 import { useDailyHistoryStore } from '@/store/daily-history-store'
-import { resolveOnejavTorrent } from '@/site/onejav/onejav-api.ts'
+import { resolveOnejavSeed } from '@/site/onejav/onejav-api.ts'
 import { submitDownload } from '@/download/intent'
 import { SiteId } from '@/site/site-id'
 
@@ -121,10 +121,14 @@ export class Onejav extends SiteAbstract {
           .find(ONEJAV_DOWNLOAD)
           .first()
           .attr('href')
-        if (!href) throw new Error(`onejav 也没有可下载种子（${missNote}）`)
-        const url = await resolveOnejavTorrent(href)
-        if (!url) throw new Error(`onejav 也没有可下载种子（${missNote}）`)
-        return { url, source: { label: 'onejav 种子', note: missNote, origin: 'onejav' } }
+        if (!href) throw new Error(`onejav 详情页没有下载按钮（${missNote}）`)
+        const seed = await resolveOnejavSeed(href)
+        if (!seed) throw new Error(`onejav 下载页解析不到种子地址（${missNote}）`)
+        return {
+          url: seed.url,
+          source: { label: 'onejav 种子', note: missNote, origin: 'onejav' },
+          ...(seed.handoff ? { handoff: seed.handoff } : {})
+        }
       }
     })
   }

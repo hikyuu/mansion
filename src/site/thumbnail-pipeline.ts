@@ -83,7 +83,7 @@ export class ThumbnailPipeline {
     const loadUrl = picx('/load.svg')
     // 日期与路径日期由「妹妹条目」统一读，站点不再各自往 Info 上补字段
     const entry = parseSister(item, this.site.selector)
-    return useSisterStore().updateInfo({
+    const info = useSisterStore().updateInfo({
       serialNumber,
       src: [loadUrl],
       date: entry?.date ?? '',
@@ -92,6 +92,14 @@ export class ThumbnailPipeline {
       site: this.site.siteId,
       status: SisterStatus.Created
     })
+    // 卡片已被裁掉（迟到的任务）：链路到此为止，别再往页面上补缩略图
+    if (info === undefined) {
+      throw new ProjectError({
+        name: 'GET_PROJECT_ERROR',
+        message: `${serialNumber} 已从页面裁掉，跳过缩略图链路`
+      })
+    }
+    return info
   }
 
   private addLink(

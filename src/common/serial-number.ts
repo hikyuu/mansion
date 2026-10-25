@@ -31,6 +31,8 @@ export interface SerialNumber {
 
 const FC2_REG = /(FC2PPV)(\d+)/i
 const FC2_LOOSE_REG = /(FC2)(\S*)(ppv)/i
+/** javdb 的列表页只写 `FC2-4997634`，没有 PPV 段 */
+const FC2_DASH_REG = /^fc2[-_ ]+(\d+)$/i
 const ALPHANUMBER_REG = /(^[a-z].*[a-z])(\d+)/i
 const NUMBERBEGIN_REG = /(^\d+)([a-z].*[a-z])(\d+)/i
 const ALLDIGIT_REG = /^\d+$/
@@ -41,6 +43,16 @@ const TEXT_SERIAL_REG = /([a-z0-9]+)-([a-z0-9-]+)/i
 
 function identityOf(raw: string): string {
   return raw.replace(/[\r\n]/gi, '').replace(/[\s\-_]/g, '')
+}
+
+/**
+ * javdb 把 FC2 番号写成 `FC2-4997634`，其它站点写 `FC2-PPV-4997634`。
+ * 同一部作品必须有同一个身份，所以这里补回 PPV 段；归档键不受影响（都是 FC2+数字）。
+ * 只认带分隔符的写法 —— `FC2123` 是归档键形态，不能倒推回 PPV。
+ */
+function normalizeFc2(raw: string): string {
+  const matched = raw.match(FC2_DASH_REG)
+  return matched?.[1] ? 'FC2PPV' + matched[1] : raw
 }
 
 function archiveKeyOf(raw: string): string {
@@ -190,13 +202,14 @@ function javdbVariantOf(originalId: string): string {
 
 /** 一个番号的四种写法。纯计算，不会抛错；只有 searchVariant / javdbVariant 会。 */
 export function parseSerialNumber(raw: string): SerialNumber {
+  const normalized = normalizeFc2(raw.trim())
   return {
     raw,
-    identity: identityOf(raw),
-    archiveKey: archiveKeyOf(raw),
-    isFc2: FC2_LOOSE_REG.test(raw),
-    searchVariant: (type: number) => searchVariantOf(raw, type),
-    javdbVariant: () => javdbVariantOf(raw)
+    identity: identityOf(normalized),
+    archiveKey: archiveKeyOf(normalized),
+    isFc2: FC2_LOOSE_REG.test(normalized),
+    searchVariant: (type: number) => searchVariantOf(normalized, type),
+    javdbVariant: () => javdbVariantOf(normalized)
   }
 }
 
@@ -209,7 +222,7 @@ export function extractSerialNumber(text: string): string | undefined {
   if (fc2?.[1]) return identityOf('FC2PPV' + fc2[1])
 
   const match = text.match(TEXT_SERIAL_REG)
-  if (match?.[1] && match[2]) return identityOf(match[1] + match[2])
+  if (match?.[1] && match[2]) return identityOf(normalizeFc2(`${match[1]}-${match[2]}`))
 
   return undefined
 }

@@ -2,10 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GM_xmlhttpRequest } from 'vite-plugin-monkey/dist/client'
 import { fetchTorrentBase64, TorrentFetchError } from '@/download/torrent.ts'
 import { CloudflareBlockedError } from '@/common/cloudflare'
-
-const clearanceMock = vi.hoisted(() => ({
-  ensureClearance: vi.fn<(input: unknown) => Promise<{ cookieHeader?: string; reason?: string }>>()
-}))
+import { navigationHeaders } from '@/common/navigation-headers.ts'
 
 vi.mock('vite-plugin-monkey/dist/client', () => ({
   GM_xmlhttpRequest: vi.fn<(details: unknown) => { abort: () => void }>(),
@@ -13,7 +10,6 @@ vi.mock('vite-plugin-monkey/dist/client', () => ({
   GM_setValue: vi.fn<(key: string, value: unknown) => void>(),
   monkeyWindow: {}
 }))
-vi.mock('@/common/cloudflare-guard', () => ({ ensureClearance: clearanceMock.ensureClearance }))
 
 const gmMock = vi.mocked(GM_xmlhttpRequest)
 
@@ -31,6 +27,7 @@ interface GmDetails {
 }
 
 const URL_TORRENT = 'https://exhentai.org/torrent/1/a.torrent'
+const CF_HEADERS = 'server: cloudflare\r\ncf-ray: 8f2a1c3b4d5e6f70-SJC'
 
 function respondWith(buffer: ArrayBuffer | string) {
   gmMock.mockImplementation(((details: GmDetails) => {
@@ -39,8 +36,20 @@ function respondWith(buffer: ArrayBuffer | string) {
   }) as unknown as typeof GM_xmlhttpRequest)
 }
 
+function respondChallenge(buffer: ArrayBuffer, status = 403, finalUrl = URL_TORRENT) {
+  gmMock.mockImplementation(((details: GmDetails) => {
+    details.onload?.({ response: buffer, status, responseHeaders: CF_HEADERS, finalUrl })
+    return { abort: vi.fn<() => void>() }
+  }) as unknown as typeof GM_xmlhttpRequest)
+}
+
 function bytes(...values: number[]): ArrayBuffer {
   return new Uint8Array(values).buffer
+}
+
+function challengePage(): ArrayBuffer {
+  return new TextEncoder().encode('<html><head><title>Just a moment...</title></head></html>')
+    .buffer as ArrayBuffer
 }
 
 beforeEach(() => {
@@ -54,6 +63,14 @@ describe('fetchTorrentBase64', () => {
     const details = gmMock.mock.calls[0]?.[0] as { url: string; responseType: string }
     expect(details.url).toBe(URL_TORRENT)
     expect(details.responseType).toBe('arraybuffer')
+  })
+
+  it('请求按导航形态发（带 Sec-Fetch-*），减少托管挑战误伤', async () => {
+    respondWith(bytes(0x64, 0x65))
+    await fetchTorrentBase64(URL_TORRENT)
+    const details = gmMock.mock.calls[0]?.[0] as { headers?: Record<string, string> }
+    expect(details.headers?.['Sec-Fetch-Dest']).toBe('document')
+    expect(details.headers?.['Sec-Fetch-Mode']).toBe('navigate')
   })
 
   it('响应不是 bencode（登录页 / 失效页）→ TorrentFetchError', async () => {
@@ -90,70 +107,42 @@ describe('fetchTorrentBase64', () => {
 })
 
 describe('fetchTorrentBase64 · Cloudflare 拦截', () => {
-  const CF_HEADERS = 'server: cloudflare\r\ncf-ray: 8f2a1c3b4d5e6f70-SJC'
-  const CHALLENGE = new TextEncoder().encode(
-    '<html><head><title>Just a moment...</title></head></html>'
-  ).buffer as ArrayBuffer
-  const CLEARANCE = { site: 'onejav', cookieDomain: 'onejav.com' }
-
-  /** 按调用顺序回放响应：第 1 次挑战页，第 2 次给什么由用例决定 */
-  function respondSequence(buffers: ArrayBuffer[]) {
-    let index = 0
-    gmMock.mockImplementation(((details: GmDetails) => {
-      const buffer = buffers[index++] ?? new ArrayBuffer(0)
-      details.onload?.({
-        response: buffer,
-        status: 403,
-        responseHeaders: CF_HEADERS,
-        finalUrl: URL_TORRENT
-      })
-      return { abort: vi.fn<() => void>() }
-    }) as unknown as typeof GM_xmlhttpRequest)
-  }
-
-  it('挑战页且没有兜底配置 → CloudflareBlockedError，不尝试预热凭据', async () => {
-    respondSequence([CHALLENGE])
+  it('403 挑战页 → CloudflareBlockedError，提示交给浏览器，不重试', async () => {
+    respondChallenge(challengePage())
 
     const error = await fetchTorrentBase64(URL_TORRENT).catch((reason: unknown) => reason)
 
     expect(error).toBeInstanceOf(CloudflareBlockedError)
     expect((error as Error).message).toContain('Cloudflare 拦截')
-    expect(clearanceMock.ensureClearance).not.toHaveBeenCalled()
-  })
-
-  it('挑战页 → 换取 cf_clearance 后重取一次，成功返回 base64', async () => {
-    respondSequence([CHALLENGE, bytes(0x64, 0x65)])
-    clearanceMock.ensureClearance.mockResolvedValue({ cookieHeader: 'cf_clearance=token' })
-
-    await expect(fetchTorrentBase64(URL_TORRENT, { clearance: CLEARANCE })).resolves.toBe('ZGU=')
-
-    expect(clearanceMock.ensureClearance).toHaveBeenCalledWith(
-      expect.objectContaining({ site: 'onejav', url: URL_TORRENT, cookieDomain: 'onejav.com' })
-    )
-    const retry = gmMock.mock.calls[1]?.[0] as { headers?: Record<string, string> }
-    expect(retry.headers?.Cookie).toBe('cf_clearance=token')
-  })
-
-  it('预热失败 → CloudflareBlockedError，文案带上底层原因', async () => {
-    respondSequence([CHALLENGE])
-    clearanceMock.ensureClearance.mockResolvedValue({ reason: 'FlareSolverr 请求超时' })
-
-    const error = await fetchTorrentBase64(URL_TORRENT, { clearance: CLEARANCE }).catch(
-      (reason: unknown) => reason
-    )
-
-    expect(error).toBeInstanceOf(CloudflareBlockedError)
-    expect((error as Error).message).toContain('FlareSolverr 请求超时')
+    expect((error as Error).message).toContain('交给浏览器')
     expect(gmMock).toHaveBeenCalledTimes(1)
   })
 
-  it('带凭据重取仍是挑战页 → CloudflareBlockedError，提示去浏览器过验证', async () => {
-    respondSequence([CHALLENGE, CHALLENGE])
-    clearanceMock.ensureClearance.mockResolvedValue({ cookieHeader: 'cf_clearance=token' })
-
-    await expect(fetchTorrentBase64(URL_TORRENT, { clearance: CLEARANCE })).rejects.toThrow(
-      '请在浏览器打开站点通过验证后重试'
+  it('200 + 挑战页 → 按拦截处理，不报「不是种子」', async () => {
+    respondChallenge(
+      new TextEncoder().encode('<html><script>window._cf_chl_opt={}</script></html>').buffer as ArrayBuffer,
+      200,
+      'https://file.onejav.com/torrents/abc/1/a.torrent'
     )
-    expect(gmMock).toHaveBeenCalledTimes(2)
+
+    const error = await fetchTorrentBase64(URL_TORRENT).catch((reason: unknown) => reason)
+
+    expect(error).toBeInstanceOf(CloudflareBlockedError)
+    expect((error as Error).message).toContain('file.onejav.com')
+    expect((error as Error).message).not.toContain('不是有效的种子文件')
+  })
+})
+
+describe('navigationHeaders', () => {
+  it('带齐导航特征，Referer 为空时不写空值', () => {
+    const headers = navigationHeaders()
+    expect(headers['Sec-Fetch-Dest']).toBe('document')
+    expect(headers['Sec-Fetch-Mode']).toBe('navigate')
+    expect(headers.Accept).toContain('text/html')
+    expect(headers).not.toHaveProperty('Referer')
+  })
+
+  it('给了 referer 就带上', () => {
+    expect(navigationHeaders('https://onejav.com/').Referer).toBe('https://onejav.com/')
   })
 })

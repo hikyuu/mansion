@@ -1,5 +1,6 @@
 import { GM_xmlhttpRequest, type GmResponseEvent } from 'vite-plugin-monkey/dist/client'
 import jquery from 'jquery'
+import { navigationHeaders } from '@/common/navigation-headers.ts'
 
 export const THUMBNAIL_ID = 'thumbnail'
 
@@ -56,26 +57,32 @@ export async function getImgUrlFromPixhost(javUrl: string, retry: number = 3): P
   }
 }
 
+export interface RequestOptions {
+  /** 显式附加的 Cookie 头：部分管理器不会把浏览器 Cookie（含 cf_clearance）带给 GM 请求 */
+  cookie?: string
+}
+
 export function request(
   url: string,
   referer: string = '',
-  timeoutInt: number = -1
+  timeoutInt: number = -1,
+  options: RequestOptions = {}
 ): Promise<GmResponseEvent<'document'>> {
   let cookies = ''
   if (url.match(/(pixhost)/gi)) {
     if (cookies != '') cookies += '; '
     cookies += 'pixhostads=1'
   }
+  const cookieHeader = options.cookie ?? cookies
 
   return new Promise<GmResponseEvent<'document'>>((resolve, reject) => {
     // console.log(`发起网址请求：${url}`)
     GM_xmlhttpRequest({
       url,
       method: 'GET',
-      cookie: cookies,
-      headers: {
-        Referer: referer
-      },
+      // 显式传空 cookie 会把站点自身的 Cookie（含 cf_clearance）顶掉，只有真要附加时才传这个字段
+      ...(cookieHeader ? { cookie: cookieHeader } : {}),
+      headers: navigationHeaders(referer),
       timeout: timeoutInt > 0 ? timeoutInt : 30000,
 
       onload: (response: GmResponseEvent<'document'>) => {

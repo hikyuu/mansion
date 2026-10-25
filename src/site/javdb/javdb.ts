@@ -12,9 +12,16 @@ import { SiteId } from '@/site/site-id'
 
 export const JAVDB_NAME = 'javdb'
 
+/** 当前条目往上的已读卡片窗口：窗口外的更早已读卡片从 DOM 里清掉 */
+export const READ_CARD_LIMIT = 20
+
+/**
+ * 列表根节点只认 `movie-list`：普通列表页带 `h cols-4`，
+ * FC2 专题页（/fc2）的根节点只有 `movie-list` 一个类，写死列数类会让整页认不到妹妹。
+ */
 export const javdb_selector: Selector = {
   next: 'a.pagination-next',
-  container: 'div.movie-list.h.cols-4',
+  container: 'div.movie-list',
   item: 'div.item',
   pagination: 'nav.pagination',
   serialNumber: 'div.video-title strong',
@@ -64,6 +71,47 @@ export class Javdb extends SiteAbstract {
     GM_addStyle(`.movie-list{display: flex;flex-direction: column;} .max{width:100%} .min{width:100%} 
         .movie-list .item .cover { position: relative; padding-top: 15%; background: white;}`)
     console.log(`样式添加成功`)
+  }
+
+  /**
+   * 视口稳定后裁卡片：当前条目连同它上方 READ_CARD_LIMIT 条留在页面上，
+   * 位置更早的已读卡片清掉。当前条目没越过窗口时一条都不删 —— 用户可能正停在列表上方。
+   * 未读卡片一张不动 —— 它们还没被看过，删掉等于丢内容。
+   */
+  onViewportSettled(): void {
+    const overflow = this.sister.readOverflow(READ_CARD_LIMIT)
+    if (overflow.length === 0) return
+    this.removeReadCards(overflow)
+  }
+
+  /**
+   * 移除已读卡片，并让 store 与 DOM 对齐（队列、番号集合、妹妹数一起减）。
+   * 删的多半是当前视口上方的卡片，页面会整体上移，所以按当前条目补偿滚动位置。
+   */
+  private removeReadCards(serialNumbers: string[]): void {
+    const container = jquery(this.selector.container)[0]
+    const current = this.sister.current_key ? document.getElementById(this.sister.current_key) : null
+    const beforeTop = current?.getBoundingClientRect().top
+    let removed = 0
+
+    serialNumbers.forEach((serialNumber) => {
+      const node = document.getElementById(serialNumber)
+      // 只删列表容器里的卡片：同 id 的元素可能属于页面别处（弹窗、推荐位）
+      if (node === null || container === undefined || !container.contains(node)) return
+      node.remove()
+      removed++
+    })
+
+    if (current !== null && beforeTop !== undefined) {
+      const delta = current.getBoundingClientRect().top - beforeTop
+      // 必须 instant：站点若开了 scroll-behavior: smooth，补偿会变成一段可见的滚动动画
+      if (delta !== 0) window.scrollTo({ top: window.scrollY + delta, behavior: 'instant' })
+    }
+
+    // 卡片可能早已不在 DOM（上一次裁过），store 记录照样要清，否则窗口永远溢出
+    this.sister.forgetRead(serialNumbers)
+    this.waterfall.setSisterNumber()
+    console.log(`已读卡片只留当前条目及上方 ${READ_CARD_LIMIT} 条，移除 ${removed} 张`)
   }
 
   async download(checkArchive: boolean): Promise<void> {

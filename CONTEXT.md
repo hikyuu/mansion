@@ -15,7 +15,7 @@ _Avoid_: 卡片, item, 条目
 
 一个番号有四种写法，各有明确用途，不可互相替换：
 
-- **身份**（identity）：去掉空白与分隔符，保留大小写。store 的 key 与浏览历史的 `serial_number` 用它。
+- **身份**（identity）：去掉空白与分隔符，保留大小写。store 的 key 与浏览历史的 `serial_number` 用它。javdb 列表页把 FC2 写成 `FC2-4997634`（缺 PPV 段），归一化时补回，与其它站点的 `FC2-PPV-4997634` 共用同一个身份。
 - **归档键**（archiveKey）：身份之上压平 FC2 前缀、去掉开头的纯数字段并统一大写。归档表主键用它 —— 历史行就是这么存的，不要改成身份。
 - **搜索变体**（searchVariant）：站点搜索框要的写法，`type` 越大越宽松；认不出格式时抛错，调用方靠这个异常走「没找到」。
 - **javdb 变体**（javdbVariant）：javdb 搜索专用，全数字番号用下划线连接。
@@ -35,13 +35,13 @@ _Avoid_: 无限滚动, infinite scroll
 _Avoid_: 日期, date
 
 **已读**：
-浏览历史里存在该番号的记录。
+浏览历史里存在该番号的记录。javdb 页面上已读卡片只留「当前条目 + 上方 19 条」这一窗口：视口稳定后若当前条目已越过 20 条窗口，就把窗口之外的更早已读卡片裁掉；当前条目还在窗口内时一条都不裁，未读卡片不动；口径在 `src/site/javdb/javdb.ts` 的 `onViewportSettled`，DOM 与 store 必须一起收窄。
 _Avoid_: 看过, visited
 
 ### 下载
 
 **下载意图**：
-用户对某个番号发起的一次「去下载」请求 —— 从在途守卫、判档、提交到记账的整条流程。结局四态：`blocked`（在途重复）、`skipped`（已归档）、`submitted`、`failed`。
+用户对某个番号发起的一次「去下载」请求 —— 从在途守卫、判档、提交到记账的整条流程。结局五态：`blocked`（在途重复）、`skipped`（已归档）、`submitted`、`handoff`（已交给浏览器）、`failed`。
 _Avoid_: 下载任务, download task, job
 
 **判档**：
@@ -64,13 +64,9 @@ _Avoid_: 下载记录, 历史
 CF 的挑战页 / 封禁页 / 限流页。识别口径只在 `src/common/cloudflare.ts` 一处：响应头、页面特征与最终 URL 多信号判定，404 与种子二进制不算拦截。三种形态：挑战页（challenge）、访问封禁（blocked）、请求过快（rate-limited）。挑战页的最终 URL 与原 URL 相同、状态码也可能是 200，任何「URL 没变就是直链」的推断都会误判。
 _Avoid_: 被墙, 反爬, 打码
 
-**兜底重取**：
-页面请求命中 Cloudflare 拦截后改由 FlareSolverr 会话池取回，并在本会话内对该站点固定走兜底（不再先撞墙）。它只能取 HTML，不能代下种子二进制。
-_Avoid_: 重试, 代理, 绕过
-
-**clearance 预热**：
-种子链路命中拦截时，先过挑战换 `cf_clearance` 再带 Cookie 重取一次；仍被拦就报拦截原因，不静默重试。凭据只存内存（20 分钟上限），不进 GM 存储、不落日志。
-_Avoid_: 缓存 cookie, token 复用
+**浏览器接管**：
+命中 Cloudflare 拦截后把种子地址交给浏览器自己打开（`GM_openInTab` → `window.open` → 当前页导航），由浏览器完成 Turnstile 验证并下载 `.torrent`。它不经过下载通道、不写归档 —— 文件落进浏览器下载目录，不归 miao，通知里要写清这一点。只在 onejav 生效：实测该站的挑战只认顶层导航，XHR / GM 请求 / FlareSolverr（无头浏览器 60s 超时）一律 403。
+_Avoid_: 绕过, 代理, 兜底重取
 
 ### exhentai
 

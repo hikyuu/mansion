@@ -205,14 +205,9 @@ describe('种子链接直投（torrentBase64）', () => {
     expect(THUNDER_MOCK).not.toHaveBeenCalled()
   })
 
-  it('onejav 种子：走 addVideoTask，并带上换取 cf_clearance 的站点信息', async () => {
-    mockConfig({ siteId: SiteId.ONEJAV })
+  it('onejav 种子：走 addVideoTask', async () => {
     client.addVideoTask.mockResolvedValue(createdResult())
-    const url = 'https://onejav.com/torrent/a/download/1/a.torrent'
-    await download(url)
-    expect(TORRENT_MOCK).toHaveBeenCalledWith(url, {
-      clearance: { site: 'onejav', cookieDomain: 'onejav.com' }
-    })
+    await download('https://onejav.com/torrent/a/download/1/a.torrent')
     expect(client.addVideoTask).toHaveBeenCalledWith({
       torrentBase64: TORRENT_BASE64,
       savePath: 'L:\\Downloads'

@@ -17,6 +17,10 @@ describe('番号 · 身份', () => {
   it('原文保留，便于日志追溯', () => {
     expect(parseSerialNumber('ABF-274').raw).toBe('ABF-274')
   })
+
+  it('javdb 的 FC2-数字 归一成与其它站点一致的 FC2PPV 身份', () => {
+    expect(parseSerialNumber('FC2-4997634').identity).toBe('FC2PPV4997634')
+  })
 })
 
 describe('番号 · 归档键', () => {
@@ -40,6 +44,11 @@ describe('番号 · 归档键', () => {
     expect(serial.archiveKey).toBe('FC2123')
     expect(serial.identity).toBe('FC2PPV123')
   })
+
+  it('javdb 的 FC2-数字 与 FC2PPV 写法共用一个归档键', () => {
+    expect(parseSerialNumber('FC2-4997634').archiveKey).toBe('FC24997634')
+    expect(parseSerialNumber('FC2PPV4997634').archiveKey).toBe('FC24997634')
+  })
 })
 
 describe('番号 · FC2 判定', () => {
@@ -47,6 +56,10 @@ describe('番号 · FC2 判定', () => {
     expect(parseSerialNumber('FC2PPV123').isFc2).toBe(true)
     expect(parseSerialNumber('fc2-ppv-123').isFc2).toBe(true)
     expect(parseSerialNumber('FC2_PPV_123').isFc2).toBe(true)
+  })
+
+  it('javdb 的 FC2-数字 也认', () => {
+    expect(parseSerialNumber('FC2-4997634').isFc2).toBe(true)
   })
 
   it('归档键形态不再被认作 FC2', () => {
@@ -69,6 +82,10 @@ describe('番号 · 搜索变体', () => {
   it('FC2 的搜索变体', () => {
     expect(parseSerialNumber('FC2PPV123').searchVariant(0)).toBe('Fc2-PpV-123')
     expect(parseSerialNumber('FC2PPV123').searchVariant(2)).toBe('FC2PPV-123')
+  })
+
+  it('javdb 的 FC2-数字 按 FC2 的变体搜索，而不是当成普通字母番号', () => {
+    expect(parseSerialNumber('FC2-4997634').searchVariant(0)).toBe('Fc2-PpV-4997634')
   })
 
   it('数字开头的番号带上前导数字', () => {
@@ -104,6 +121,11 @@ describe('番号 · 从文本抽取', () => {
     expect(extractSerialNumber('FC2-PPV-1234567 素人')).toBe('FC2PPV1234567')
     expect(extractSerialNumber('fc2ppv1234567')).toBe('FC2PPV1234567')
     expect(extractSerialNumber('FC2 PPV 1234567')).toBe('FC2PPV1234567')
+  })
+
+  it('从 javdb 列表页抽没有 PPV 段的 FC2 写法', () => {
+    expect(extractSerialNumber('FC2-4997634')).toBe('FC2PPV4997634')
+    expect(extractSerialNumber('FC2-4997634 素人作品')).toBe('FC2PPV4997634')
   })
 
   it('抽不到返回 undefined，而不是抛错', () => {

@@ -6,7 +6,7 @@ import {
   detectCloudflareBlock,
   type CloudflareProbe
 } from '@/common/cloudflare'
-import { ensureClearance } from '@/common/cloudflare-guard'
+import { navigationHeaders } from '@/common/navigation-headers.ts'
 
 /** 服务端 torrentBase64 的硬上限（base64 解码后 ≤ 5MiB） */
 const MAX_TORRENT_BYTES = 5 * 1024 * 1024
@@ -19,20 +19,8 @@ export class TorrentFetchError extends Error {
   }
 }
 
-/** 命中 Cloudflare 时换取 cf_clearance 所需的站点信息 */
-export interface TorrentClearanceOptions {
-  /** SessionPool 分桶与 bypass 标记的键，如 'onejav' */
-  site: string
-  /** 读取站点 cookie 的域名，如 'onejav.com' */
-  cookieDomain: string
-  /** 文案里展示的站点名，缺省用种子链接的主机名 */
-  siteLabel?: string
-}
-
 export interface TorrentFetchOptions {
   timeoutMs?: number
-  /** 不传则命中拦截时只报原因，不做自动重试 */
-  clearance?: TorrentClearanceOptions
 }
 
 interface TorrentResponse {
@@ -55,17 +43,13 @@ function hostOf(url: string): string {
   }
 }
 
-function requestBuffer(url: string, timeoutMs: number, cookieHeader?: string): Promise<TorrentResponse> {
-  const headers: Record<string, string> = {}
-  const referer = refererOf()
-  if (referer) headers.Referer = referer
-  if (cookieHeader) headers.Cookie = cookieHeader
-
+function requestBuffer(url: string, timeoutMs: number): Promise<TorrentResponse> {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
       url,
       method: 'GET',
-      headers: Object.keys(headers).length > 0 ? headers : undefined,
+      // 按导航形态发，减少「XHR 被单独挑战」的误伤
+      headers: navigationHeaders(refererOf() ?? ''),
       responseType: 'arraybuffer',
       timeout: timeoutMs,
       onload: (res) => {
@@ -123,48 +107,19 @@ function toBase64(res: TorrentResponse): string {
  * 走 GM_xmlhttpRequest：油猴请求自带站点 Cookie（exhentai/onejav 的种子链接需要登录态），
  * 且不受同源策略约束。服务端不经过种子目录白名单，只校验 5MiB 上限与 bencode 合法性。
  *
- * 命中 Cloudflare 时不能靠 FlareSolverr 代下（它的 request.get 只返回文本），
- * 只能先过挑战换 cf_clearance，再带 Cookie 重取一次；仍被拦就明确报拦截，
- * 而不是混在「链接可能失效」里让用户去猜。
+ * 命中 Cloudflare 就直接报拦截：这类站点的挑战只认真实浏览器导航，
+ * 换 cf_clearance 重取实测也过不去，不如让用户把地址交给浏览器。
  */
 export async function fetchTorrentBase64(url: string, options: TorrentFetchOptions = {}): Promise<string> {
-  const timeoutMs = options.timeoutMs ?? FETCH_TIMEOUT_MS
-  const first = await requestBuffer(url, timeoutMs)
-  const block = detectCloudflareBlock(probeOf(first))
-  if (!block) return toBase64(first)
-
-  const label = options.clearance?.siteLabel ?? hostOf(url)
-  console.warn('[torrent] 种子下载命中 Cloudflare 拦截', { url, ...describeCloudflareBlock(block) })
-
-  if (!options.clearance) {
-    throw new CloudflareBlockedError(label, block, '未配置兜底站点，无法自动换取 cf_clearance')
+  const res = await requestBuffer(url, options.timeoutMs ?? FETCH_TIMEOUT_MS)
+  const block = detectCloudflareBlock(probeOf(res))
+  if (block) {
+    // 文案用最终主机：重定向后的 file.* 才是真正被拦的下载源
+    const label = hostOf(res.finalUrl || url)
+    console.warn('[torrent] 种子下载命中 Cloudflare 拦截', { url, ...describeCloudflareBlock(block) })
+    throw new CloudflareBlockedError(label, block, '种子链接只接受浏览器导航，请把地址交给浏览器下载')
   }
-
-  const clearance = await ensureClearance({
-    site: options.clearance.site,
-    siteLabel: label,
-    url,
-    cookieDomain: options.clearance.cookieDomain
-  })
-  if (!clearance.cookieHeader) {
-    throw new CloudflareBlockedError(
-      label,
-      block,
-      `已尝试换取 cf_clearance 仍失败：${clearance.reason ?? '未知原因'}`
-    )
-  }
-
-  const retry = await requestBuffer(url, timeoutMs, clearance.cookieHeader)
-  const retryBlock = detectCloudflareBlock(probeOf(retry))
-  if (retryBlock) {
-    console.warn('[torrent] 带 cf_clearance 重取仍被拦截', { url, ...describeCloudflareBlock(retryBlock) })
-    throw new CloudflareBlockedError(
-      label,
-      retryBlock,
-      '已带 cf_clearance 重取仍被拦截，请在浏览器打开站点通过验证后重试'
-    )
-  }
-  return toBase64(retry)
+  return toBase64(res)
 }
 
 /** 分块编码，避免 String.fromCharCode 参数过多导致爆栈 */

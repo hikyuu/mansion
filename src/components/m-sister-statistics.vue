@@ -33,6 +33,7 @@ const loadAll = computed(() => {
 const { y } = useScroll(window, {
   onStop: () => {
     props.site.waterfall.onScrollEvent()
+    props.site.onViewportSettled()
   },
   behavior: useConfigStore().getSiteConfig.smooth ? 'smooth' : 'auto'
 })
