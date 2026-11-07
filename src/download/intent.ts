@@ -3,7 +3,7 @@ import { download, type DownloadSubmitResult } from '@/download'
 import { notifyDownload, notifyIntent, type DownloadSource } from '@/download/notice.ts'
 import { haveArchived, upsertArchive } from '@/dao/archive'
 
-/** 下载意图的五态结局 */
+/** 下载意图的四态结局 */
 export type DownloadIntentStatus =
   /** 同一番号的意图还在途，本次被守卫拦下 */
   | 'blocked'
@@ -11,8 +11,6 @@ export type DownloadIntentStatus =
   | 'skipped'
   /** 已提交给下载通道（不代表文件已落盘） */
   | 'submitted'
-  /** 已交给浏览器自己下载：地址进了标签页，文件不归 miao */
-  | 'handoff'
   /** 未选中 / 解析失败 / 提交失败 */
   | 'failed'
 
@@ -28,10 +26,10 @@ export interface ResolvedDownloadSource {
   url: string
   source: DownloadSource
   /**
-   * `'browser'` = 站点已把地址交给浏览器自己打开（如 onejav 的 Turnstile 只认顶层导航），
-   * 意图层不再提交通道、不写归档。
+   * 备用地址：这条地址在交付阶段被 Cloudflare 拦下时改投它（如 onejav 种子 → javdb 磁力）。
+   * 由站点解析器预先给出，意图层不再回头找站点要地址。
    */
-  handoff?: 'browser'
+  fallback?: ResolvedDownloadSource
 }
 
 export interface SubmitDownloadInput {
@@ -123,20 +121,21 @@ export async function submitDownload(input: SubmitDownloadInput): Promise<Downlo
       return { status: 'failed', message: '没有找到下载地址' }
     }
 
-    // 地址已交给浏览器：提交通道只会再吃一次 403；文件不归 miao，所以不写归档
-    if (resolved.handoff === 'browser') {
-      notifyIntent({
-        title: serialNumber,
-        type: 'info',
-        statusText: '已交给浏览器',
-        detail: '浏览器会完成验证并下载 .torrent',
-        notes: ['miao 自动入库不适用']
+    let attempt = resolved
+    let submit = await download(attempt.url)
+
+    // 地址本身被站点拦下（而非通道不可用）：同一条地址换通道也没用，改投备用地址一次
+    if (!submit.ok && submit.blocked && attempt.fallback) {
+      console.warn('[intent] 地址被 Cloudflare 拦下，改投备用地址', {
+        serialNumber,
+        from: attempt.url,
+        to: attempt.fallback.url
       })
-      return { status: 'handoff', message: '已交给浏览器下载' }
+      attempt = attempt.fallback
+      submit = await download(attempt.url)
     }
 
-    const submit = await download(resolved.url)
-    notifyDownload({ title: serialNumber, source: resolved.source, result: submit })
+    notifyDownload({ title: serialNumber, source: attempt.source, result: submit })
     if (!submit.ok) {
       return { status: 'failed', message: submit.message, submit }
     }

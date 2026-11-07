@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { CloudflareBlockedError, detectCloudflareBlock } from '@/common/cloudflare'
+import {
+  CloudflareBlockedError,
+  describeProxyFailure,
+  detectCloudflareBlock
+} from '@/common/cloudflare'
 
 describe('detectCloudflareBlock · 挑战页', () => {
   it('响应头带 cf-mitigated: challenge 即判定为挑战页', () => {
@@ -19,6 +23,74 @@ describe('detectCloudflareBlock · 挑战页', () => {
     })
 
     expect(block).toMatchObject({ kind: 'challenge', status: 200 })
+  })
+
+  it('正常页内联 jsd 检测脚本不算拦截（onejav 列表页实测形态）', () => {
+    const normalPage = `<html><body><div class="card"><a href="/torrent/siro5780">x</a></div>
+      <script>var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5622bc6da4e5f2c';</script>
+      ${'<div class="card"><a href="/torrent/aaaa1111">y</a></div>'.repeat(120)}
+    </body></html>`
+
+    const block = detectCloudflareBlock({
+      status: 200,
+      responseHeaders: 'server: cloudflare\r\ncf-ray: 8f2a1c3b4d5e6f70-SJC',
+      body: normalPage
+    })
+
+    expect(block).toBeNull()
+  })
+
+  it('只有挑战骨架（challenge-platform + 极短页面）仍判挑战页', () => {
+    const block = detectCloudflareBlock({
+      status: 200,
+      body: '<html><head><script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1?ray=1"></script></head><body></body></html>'
+    })
+
+    expect(block).toMatchObject({ kind: 'challenge' })
+  })
+})
+
+describe('detectCloudflareBlock · Turnstile 与经典挑战分开', () => {
+  const TURNSTILE_HTML = `<html><head><title>Just a moment...</title></head><body>
+    <div class="cf-turnstile" data-sitekey="0x4AAA"></div>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  </body></html>`
+
+  it('页面里嵌 Turnstile 时判为 turnstile，而不是封禁（哪怕 403 + cf-ray）', () => {
+    const block = detectCloudflareBlock({
+      status: 403,
+      responseHeaders: 'server: cloudflare\r\ncf-ray: 8f2a1c3b4d5e6f70-SJC',
+      body: TURNSTILE_HTML
+    })
+
+    expect(block).toMatchObject({ kind: 'turnstile', status: 403 })
+  })
+
+  it('经典挑战页（只有 Just a moment / _cf_chl_opt）仍是 challenge，不算 turnstile', () => {
+    const block = detectCloudflareBlock({
+      status: 200,
+      body: '<html><script>window._cf_chl_opt={}</script><p>Just a moment...</p></html>'
+    })
+
+    expect(block).toMatchObject({ kind: 'challenge' })
+  })
+
+  it('Turnstile 的形态文案写进错误消息', () => {
+    const error = new CloudflareBlockedError('onejav', {
+      kind: 'turnstile',
+      status: 403,
+      evidence: '页面特征 cf-turnstile'
+    })
+
+    expect(error.message).toContain('Turnstile 验证')
+  })
+
+  it('describeProxyFailure 区分「没代取通道」「试了没过」「带原因」', () => {
+    expect(describeProxyFailure({ attempted: false })).toContain('脚本请求无法通过')
+    expect(describeProxyFailure({ attempted: true })).toContain('miao 代取未通过该站点验证')
+    expect(describeProxyFailure({ attempted: true, reason: '过盾器未启动' })).toBe(
+      'miao 代取未通过：过盾器未启动'
+    )
   })
 })
 
@@ -105,9 +177,9 @@ describe('CloudflareBlockedError', () => {
     const error = new CloudflareBlockedError(
       'onejav',
       { kind: 'blocked', status: 403, evidence: '响应头 cf-ray + 状态码 403' },
-      'FlareSolverr 兜底未成功：请求超时'
+      'miao 代取未通过：过盾超时'
     )
 
-    expect(error.message).toBe('onejav 被 Cloudflare 拦截（访问封禁），FlareSolverr 兜底未成功：请求超时')
+    expect(error.message).toBe('onejav 被 Cloudflare 拦截（访问封禁），miao 代取未通过：过盾超时')
   })
 })

@@ -3,8 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CloudflareBlockedError } from '@/common/cloudflare'
 
 const mocks = vi.hoisted(() => ({
-  fetchPage: vi.fn<(input: unknown) => Promise<unknown>>(),
-  handoff: vi.fn<(url: string) => 'tab' | 'same-tab'>()
+  fetchPage: vi.fn<(input: unknown) => Promise<unknown>>()
 }))
 
 vi.mock('vite-plugin-monkey/dist/client', () => ({
@@ -18,12 +17,15 @@ vi.mock('vite-plugin-monkey/dist/client', () => ({
 }))
 vi.mock('element-plus', () => ({ ElNotification: vi.fn<(options: unknown) => void>() }))
 vi.mock('@/common/cloudflare-guard', () => ({ fetchPageThroughCloudflare: mocks.fetchPage }))
-vi.mock('@/download/browser', () => ({ handoffToBrowser: mocks.handoff }))
 
-const DETAIL = '/torrent/abf274/download/94029137/onejav.com_abf274.torrent'
-const TORRENT_URL = 'https://onejav.com' + DETAIL
+/** 详情页（非直链，进页面探测路径） */
+const DETAIL = '/torrent/abf274'
+/** 详情页里解析出的种子直链 */
+const LINK = '/torrent/abf274/download/94029137/onejav.com_abf274.torrent'
+const DETAIL_URL = 'https://onejav.com' + DETAIL
+const TORRENT_URL = 'https://onejav.com' + LINK
 
-const DOWNLOAD_HTML = `<html><body><div class="card"><a title="Download .torrent" href="${DETAIL}">Download</a></div></body></html>`
+const DOWNLOAD_HTML = `<html><body><div class="card"><a title="Download .torrent" href="${LINK}">Download</a></div></body></html>`
 
 interface PageOverrides {
   url?: string
@@ -34,7 +36,7 @@ interface PageOverrides {
 
 function page(overrides: PageOverrides = {}) {
   return {
-    url: TORRENT_URL,
+    url: DETAIL_URL,
     status: 200,
     html: DOWNLOAD_HTML,
     headers: { 'content-type': 'text/html; charset=utf-8' },
@@ -46,7 +48,7 @@ function challengeError() {
   return new CloudflareBlockedError(
     'onejav',
     { kind: 'challenge', status: 403, rayId: '8f2a1c3b', evidence: '页面特征 just a moment' },
-    '脚本请求无法通过该站点验证，已改为交给浏览器'
+    '脚本请求无法通过该站点验证'
   )
 }
 
@@ -56,7 +58,6 @@ async function api() {
 
 beforeEach(() => {
   mocks.fetchPage.mockReset()
-  mocks.handoff.mockReset().mockReturnValue('tab')
 })
 
 describe('resolveOnejavTorrent', () => {
@@ -86,37 +87,18 @@ describe('resolveOnejavTorrent', () => {
     const { resolveOnejavTorrent } = await api()
     await expect(resolveOnejavTorrent(DETAIL)).resolves.toBeNull()
   })
-})
 
-describe('resolveOnejavSeed · 命中拦截交给浏览器', () => {
-  it('被 Cloudflare 拦下 → 把绝对种子地址交给浏览器，并标记 handoff', async () => {
+  it('被 Cloudflare 拦下时原样抛出 CloudflareBlockedError，不在这里决定去向', async () => {
     mocks.fetchPage.mockRejectedValue(challengeError())
 
-    const { resolveOnejavSeed } = await api()
-    await expect(resolveOnejavSeed(DETAIL)).resolves.toEqual({ url: TORRENT_URL, handoff: 'browser' })
-    expect(mocks.handoff).toHaveBeenCalledWith(TORRENT_URL)
+    const { resolveOnejavTorrent } = await api()
+    await expect(resolveOnejavTorrent(DETAIL)).rejects.toBeInstanceOf(CloudflareBlockedError)
   })
 
-  it('绝对地址原样使用，不重复拼站点前缀', async () => {
-    mocks.fetchPage.mockRejectedValue(challengeError())
-
-    const { resolveOnejavSeed } = await api()
-    await expect(resolveOnejavSeed(TORRENT_URL)).resolves.toMatchObject({ url: TORRENT_URL })
-  })
-
-  it('正常解析时不触发浏览器接管', async () => {
-    mocks.fetchPage.mockResolvedValue(page())
-
-    const { resolveOnejavSeed } = await api()
-    await expect(resolveOnejavSeed(DETAIL)).resolves.toEqual({ url: TORRENT_URL })
-    expect(mocks.handoff).not.toHaveBeenCalled()
-  })
-
-  it('非 Cloudflare 的异常原样抛出（不吞成 handoff）', async () => {
+  it('非 Cloudflare 的异常原样抛出', async () => {
     mocks.fetchPage.mockRejectedValue(new Error('请求超时'))
 
-    const { resolveOnejavSeed } = await api()
-    await expect(resolveOnejavSeed(DETAIL)).rejects.toThrow('请求超时')
-    expect(mocks.handoff).not.toHaveBeenCalled()
+    const { resolveOnejavTorrent } = await api()
+    await expect(resolveOnejavTorrent(DETAIL)).rejects.toThrow('请求超时')
   })
 })

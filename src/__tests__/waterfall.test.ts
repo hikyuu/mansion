@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import jquery from 'jquery'
+import { WaterfallStatus } from '@/dictionary'
 import { Pagination } from '@/waterfall/pagination'
 import Waterfall from '@/waterfall/waterfall'
 import type { Selector, WaterfallHost } from '@/waterfall/waterfall'
@@ -57,12 +58,12 @@ function failPage() {
   return { ok: false, text: async () => '' }
 }
 
-function setupStores(): void {
+function setupStores(scrollStatus = 1): void {
   setActivePinia(createPinia())
   useSiteStore().setSite({ name: 'fake' } as never)
   useConfigStore().sites.set('fake', {
     loadThumbnailSwitch: true,
-    scrollStatus: 1,
+    scrollStatus,
     smooth: 1,
     downloadMethod: 'miao',
     navigationPoint: 0,
@@ -203,5 +204,47 @@ describe('Waterfall', () => {
     expect(fetchMock).not.toHaveBeenCalled()
     expect(host.allLoadCompleted).toHaveBeenCalledTimes(1)
     expect(waterfall.hasMore).toBe(false)
+  })
+})
+
+describe('Waterfall · 关闭瀑布流', () => {
+  beforeEach(() => {
+    // 首屏有妹妹，flow 才会走到加载分支
+    document.body.innerHTML =
+      '<div class="list"><div class="item">1</div></div><a class="next" href="/page/2">next</a><nav class="pagination"></nav>'
+    setupStores(WaterfallStatus.close.code)
+  })
+
+  it('站点强制懒加载（javdb / javstore / onejav）也不能越过用户的关闭', async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchMock)
+    const host = createHost()
+    const waterfall = new Waterfall(host, selector)
+
+    await waterfall.flow(WaterfallStatus.lazy.code)
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(host.allLoadCompleted).not.toHaveBeenCalled()
+  })
+
+  it('关闭后 appendNext 一次请求都不发', async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchMock)
+    const host = createHost()
+    const waterfall = new Waterfall(host, selector)
+
+    await waterfall.appendNext()
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(host.onItemsAppended).not.toHaveBeenCalled()
+  })
+
+  it('关闭时 shouldLoadMore 恒为 false，面板不会因「快读完了」触发补页', () => {
+    const host = createHost()
+    const waterfall = new Waterfall(host, selector)
+    // 未读 3 条，远低于 lazyLimit(100)：正常模式下会判 true，关闭后必须为 false
+    useSisterStore().sisterNumber = 3
+
+    expect(waterfall.shouldLoadMore()).toBe(false)
   })
 })

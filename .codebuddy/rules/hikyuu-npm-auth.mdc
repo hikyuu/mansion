@@ -48,7 +48,7 @@ npm install
 正常应为 `len=40 prefix=ghp_`（新版细粒度 PAT 为 `github_pat_`）。进一步用注册表探活：
 
 ```powershell
-npm view @hikyuu/thunder-client version --registry=https://npm.pkg.github.com
+npm view @hikyuu/miao version --registry=https://npm.pkg.github.com
 ```
 
 ## 排错对照

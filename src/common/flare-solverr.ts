@@ -4,7 +4,7 @@ import type { RequestGetParams, SessionCreateParams, SessionDestroyParams, Solut
 // ========== 配置常量 ==========
 
 /** FlareSolverr 服务地址 */
-export const FLARESOLVERR_URL = 'http://192.168.31.1:8191/v1'
+export const FLARESOLVERR_URL = 'http://127.0.0.1:8191/v1'
 
 /** 默认会话 TTL（分钟）- FlareSolverr 到期自动销毁 Chrome 实例 */
 export const DEFAULT_SESSION_TTL_MINUTES = 30
@@ -20,6 +20,17 @@ export const MAX_RETRY_ON_500 = 2
 
 /** 重试退避基础间隔（毫秒） */
 export const RETRY_BASE_DELAY = 1000
+
+/**
+ * 让 FlareSolverr 过一次挑战所需的站点坐标。
+ * 「过一个站点」＝ 用它的 session 打开目标地址、把解出来的 cookie 带回 GM 请求。
+ */
+export interface FlareClearanceTarget {
+  /** SessionPool 的站点标识，如 'onejav' */
+  site: string
+  /** 读取站内 cookie 的域名，如 'onejav.com' */
+  cookieDomain: string
+}
 
 /** FlareSolverr 调用失败：文案里保留 HTTP 状态码，withRetry 依赖「状态码: 500」判定会话失效 */
 export class FlareSolverrError extends Error {

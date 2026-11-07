@@ -102,24 +102,6 @@ describe('submitDownload 结局', () => {
     expect(noticeClass()).toBe('mansion-dn mansion-dn--warning')
   })
 
-  it('来源标记 handoff=browser → 已交给浏览器，不提交通道也不记账', async () => {
-    const result = await submitDownload({
-      serialNumber: SERIAL,
-      checkArchive: true,
-      resolveSource: async () => ({
-        url: 'https://onejav.com/torrent/a/download/1/a.torrent',
-        source: { label: 'onejav 种子' },
-        handoff: 'browser'
-      })
-    })
-
-    expect(result.status).toBe('handoff')
-    expect(downloadMock).not.toHaveBeenCalled()
-    expect(upsertArchiveMock).not.toHaveBeenCalled()
-    expect(noticeText()).toContain('已交给浏览器')
-    expect(noticeText()).toContain('miao 自动入库不适用')
-  })
-
   it('解析抛 Error → failed 且透出原因', async () => {
     const result = await submitDownload({
       serialNumber: SERIAL,
@@ -236,6 +218,91 @@ describe('通知口径：标题=番号，正文=来源 → 通道：结局', () 
     expect(noticeClass()).toBe('mansion-dn mansion-dn--error')
     expect(noticeText()).toContain(SERIAL)
     expect(noticeText()).toContain('迅雷协议建任务失败')
+  })
+})
+
+describe('交付阶段被 Cloudflare 拦下：改投备用地址', () => {
+  const SEED = 'https://onejav.com/torrent/a/download/1/a.torrent'
+  const FALLBACK: ResolvedDownloadSource = {
+    url: MAGNET,
+    source: { label: 'javdb 磁力', note: 'onejav 种子被 Cloudflare 拦截', origin: 'javdb' }
+  }
+
+  it('blocked + 有备用地址 → 再投一次，通知用备用来源并记账', async () => {
+    downloadMock
+      .mockResolvedValueOnce(submitResult({ ok: false, outcome: 'failed', message: '被 Cloudflare 拦截', blocked: true }))
+      .mockResolvedValueOnce(submitResult({ channel: 'miao', message: '已添加任务 #7' }))
+
+    const result = await submitDownload({
+      serialNumber: SERIAL,
+      checkArchive: true,
+      resolveSource: async () => ({
+        url: SEED,
+        source: { label: 'onejav 种子', note: 'javdb 未命中：没有找到高分磁力链接', origin: 'onejav' },
+        fallback: FALLBACK
+      })
+    })
+
+    expect(downloadMock).toHaveBeenNthCalledWith(1, SEED)
+    expect(downloadMock).toHaveBeenNthCalledWith(2, MAGNET)
+    expect(result.status).toBe('submitted')
+    expect(upsertArchiveMock).toHaveBeenCalledWith(SERIAL)
+    expect(noticeClass()).toBe('mansion-dn mansion-dn--success')
+    expect(noticeText()).toContain('javdb 磁力')
+    expect(noticeText()).toContain('onejav 种子被 Cloudflare 拦截')
+  })
+
+  it('blocked 但没有备用地址 → failed，只投一次', async () => {
+    downloadMock.mockResolvedValue(
+      submitResult({ ok: false, outcome: 'failed', message: '被 Cloudflare 拦截', blocked: true })
+    )
+
+    const result = await submitDownload({
+      serialNumber: SERIAL,
+      checkArchive: true,
+      resolveSource: async () => ({ url: SEED, source: { label: 'onejav 种子', origin: 'onejav' } })
+    })
+
+    expect(downloadMock).toHaveBeenCalledTimes(1)
+    expect(result.status).toBe('failed')
+    expect(upsertArchiveMock).not.toHaveBeenCalled()
+  })
+
+  it('非 blocked 的失败（通道不可用）→ 不换地址', async () => {
+    downloadMock.mockResolvedValue(submitResult({ ok: false, outcome: 'failed', message: '迅雷协议建任务失败' }))
+
+    await submitDownload({
+      serialNumber: SERIAL,
+      checkArchive: true,
+      resolveSource: async () => ({
+        url: SEED,
+        source: { label: 'onejav 种子', origin: 'onejav' },
+        fallback: FALLBACK
+      })
+    })
+
+    expect(downloadMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('备用地址也失败 → failed，不记账', async () => {
+    downloadMock
+      .mockResolvedValueOnce(submitResult({ ok: false, outcome: 'failed', message: '被 Cloudflare 拦截', blocked: true }))
+      .mockResolvedValueOnce(submitResult({ ok: false, outcome: 'failed', message: '迅雷协议建任务失败' }))
+
+    const result = await submitDownload({
+      serialNumber: SERIAL,
+      checkArchive: true,
+      resolveSource: async () => ({
+        url: SEED,
+        source: { label: 'onejav 种子', origin: 'onejav' },
+        fallback: FALLBACK
+      })
+    })
+
+    expect(downloadMock).toHaveBeenCalledTimes(2)
+    expect(result.status).toBe('failed')
+    expect(upsertArchiveMock).not.toHaveBeenCalled()
+    expect(activeDownloads.value).toEqual([])
   })
 })
 

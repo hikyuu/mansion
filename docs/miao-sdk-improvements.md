@@ -1,7 +1,8 @@
-# @hikyuu/thunder-client SDK 完善思路
+# @hikyuu/miao SDK 完善思路
 
 > 来源：mansion 油猴脚本（javdb / javstore / onejav / exhentai）接入 miao REST 服务的实践反馈。
-> 接入实现见 mansion `src/download/`（miao.ts / gm-fetch.ts / torrent.ts / file-picker.ts），
+> 包名：`@hikyuu/thunder-client` → `@hikyuu/miao`（0.5.0 起改名，API 不变）。
+> 接入实现见 mansion `src/download/`（miao.ts / miao-clearance.ts / gm-fetch.ts / torrent.ts / file-picker.ts），
 > 接口规格见 [`miao/docs/thunder-rest-api.md`](../../flutter/miao/docs/thunder-rest-api.md)。
 >
 > 本文档随 SDK 更新同步：✅ = 新版 SDK 已落地，⏳ = 仍建议跟进。
@@ -35,6 +36,7 @@ mansion 把 miao 设为**优先默认下载方式**：磁链与远程种子链�
 | **`cancelMagnetTemp`** | 删除磁链两段式的临时任务 | needsSelection 超时/取消后可清理残留后台任务 |
 | **`openMiaoWithConfirm`** | 深链接拉起 + REST 轮询确认 | 后续可做「REST 未开启时拉起应用」的混合模式 |
 | **安全加固** | Origin 白名单 fail-closed、token 走 DPAPI + 恒定时间比较、health 免鉴权只回布尔位 | mansion 无需 token 配置，健康检查可直接用 |
+| **web 能力（过盾）** | `web.fetch` 代取页面、`web.download` 代下载二进制（回 base64）；health 带 `webSupported` / `solverReachable` / `webHostWhitelistReady` / `cookieExportAllowed` | onejav 被 CF 拦时整页与种子都由 miao 取 —— 脚本侧改不了 UA，拿凭证自取必然再吃挑战 |
 
 ## ⏳ 仍建议跟进
 

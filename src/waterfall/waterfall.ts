@@ -50,23 +50,35 @@ export default class {
    * 面板的「翻到快没读了就补一页」与内部批量的「读够了就停」共用这一处，避免两处不等式漂移。
    */
   shouldLoadMore(): boolean {
+    if (this.closedByUser) return false
     const unread = useSisterStore().sisterNumber - useSisterStore().haveReadNumber
     return unread <= useConfigStore().getSiteConfig.lazyLimit
   }
 
+  /**
+   * 用户把瀑布流关掉了吗。
+   * 站点的 waterfallStatus()（如 javdb 的「页数多一律懒加载」）只决定加载方式，
+   * 不得越过用户显式选择的「关闭」—— 否则关闭开关在这些站点上形同虚设。
+   */
+  private get closedByUser(): boolean {
+    return useConfigStore().getSiteConfig.scrollStatus === WaterfallStatus.close.code
+  }
+
+  /** 实际生效的加载模式：用户关闭 > 站点强制 > 用户配置 */
+  private resolveStatus(siteStatus: number | null): number {
+    if (this.closedByUser) return WaterfallStatus.close.code
+    return siteStatus ?? useConfigStore().getSiteConfig.scrollStatus
+  }
+
   async flow(waterfallScrollStatus: number | null = null) {
-    if (jquery(this.selector.item).length <= 0) {
+    if (jquery(this.selector.container).find(this.selector.item).length <= 0) {
       console.info(`没有妹妹`)
       return
     }
     await this.loadThumbnail(this.page.detail)
     this.setSisterNumber()
 
-    if (waterfallScrollStatus == null) {
-      waterfallScrollStatus = useConfigStore().getSiteConfig.scrollStatus
-    }
-
-    switch (waterfallScrollStatus) {
+    switch (this.resolveStatus(waterfallScrollStatus)) {
       case WaterfallStatus.close.code:
         ElNotification({ title: '瀑布流', message: `瀑布流已关闭`, type: 'info' })
         break
@@ -124,6 +136,9 @@ export default class {
    * 解析不到就落地 —— 否则首个 appendNext 会把瀑布流直接判死。
    */
   async appendNext(oneStep: boolean = false) {
+    // 关闭后仍会被面板的「当前条目变化」与站点滚动回调调到，这里直接吞掉：
+    // 关闭期间一次网络请求都不该发出
+    if (this.closedByUser) return
     if (this.lock.locked) {
       console.log(`下一页正在加载中`)
       return
@@ -186,6 +201,11 @@ export default class {
     try {
       // 用循环代替递归：锁只在整段流程外层持有，递归版本需要在中途 unlock 才能继续
       for (;;) {
+        // 中途在设置里关掉也要停（一步到位模式可能还在批量翻页）
+        if (this.closedByUser) {
+          console.log('瀑布流已关闭，停止加载')
+          return
+        }
         const outcome = await this.page.fetchNext()
         if (outcome === 'end') {
           this.isEnd()
@@ -224,7 +244,8 @@ export default class {
   }
 
   setSisterNumber() {
-    const sisterNumber = jquery(this.selector.item).length
+    // 只数容器里的条目：页面别处可能有同样结构的卡片（javdb 的「每週推薦」也带 div.item）
+    const sisterNumber = jquery(this.selector.container).find(this.selector.item).length
     if (sisterNumber === 0) {
       console.error('没有找到妹妹！')
     }

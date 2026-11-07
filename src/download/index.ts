@@ -19,6 +19,11 @@ export interface DownloadSubmitResult {
   outcome: DownloadOutcome
   /** 通道侧文案：不含来源与通道前缀，由通知层拼「来源 → 通道：结局」 */
   message: string
+  /**
+   * 未交付且原因是站点把这条地址拦下了：换通道重试同一条地址没有意义，
+   * 只有换一条地址（如 onejav 种子 → javdb 磁力）才可能成功。
+   */
+  blocked?: boolean
 }
 
 /**
@@ -52,7 +57,7 @@ export async function download(url: string): Promise<DownloadSubmitResult> {
   }
 }
 
-/** miao 优先：失败或 URL 不支持时回退迅雷 */
+/** miao 优先：失败或 URL 不支持时回退迅雷；被 Cloudflare 拦下时不回退（换地址才有意义） */
 async function submitMiao(url: string): Promise<DownloadSubmitResult> {
   const attempt = await miaoDownload(url)
   if (attempt.status === 'created') {
@@ -60,6 +65,16 @@ async function submitMiao(url: string): Promise<DownloadSubmitResult> {
   }
   if (attempt.status === 'cancelled') {
     return { ok: false, channel: 'miao', fellBack: false, outcome: 'cancelled', message: attempt.message }
+  }
+  if (attempt.status === 'blocked') {
+    return {
+      ok: false,
+      channel: 'miao',
+      fellBack: false,
+      outcome: 'failed',
+      message: attempt.message,
+      blocked: true
+    }
   }
   return submitThunder(url, attempt.message)
 }

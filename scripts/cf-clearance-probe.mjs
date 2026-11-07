@@ -4,13 +4,13 @@
  * 以及它换回的 cf_clearance 能否被浏览器（Edge）复用。
  *
  * 用法：node scripts/cf-clearance-probe.mjs "<torrent url>"
- * 环境变量：CDP_URL（默认 http://127.0.0.1:9223）、FLARE_URL（默认 http://192.168.31.1:8191/v1）
+ * 环境变量：CDP_URL（默认 http://127.0.0.1:9223）、FLARE_URL（默认 http://127.0.0.1:8191/v1）
  *
  * 全程不打印 cookie 原文，只打印长度与是否拿到。
  */
 
 const CDP = (process.env.CDP_URL ?? 'http://127.0.0.1:9223').replace(/\/$/, '')
-const FLARE = process.env.FLARE_URL ?? 'http://192.168.31.1:8191/v1'
+const FLARE = process.env.FLARE_URL ?? 'http://127.0.0.1:8191/v1'
 const TARGET = process.argv[2]
 
 if (!TARGET) {

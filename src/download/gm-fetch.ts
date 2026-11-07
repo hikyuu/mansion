@@ -1,16 +1,16 @@
 import { GM_xmlhttpRequest } from 'vite-plugin-monkey/dist/client'
 
 /**
- * GM_xmlhttpRequest → fetch 形状适配器，注入 ThunderClient 的 options.fetch。
+ * GM_xmlhttpRequest → fetch 形状适配器，注入 MiaoClient 的 options.fetch。
  *
  * miao REST 服务不返回 CORS 头，网页环境直接 fetch 跨源会被同源策略拦截；
  * GM_xmlhttpRequest 是油猴特权接口（connect 权限含 *），可直连 127.0.0.1:6427。
- * 只实现 ThunderClient 实际用到的最小面：
+ * 只实现 MiaoClient 实际用到的最小面：
  * - 请求侧：method / headers / body / signal
  * - 响应侧：ok / status / text()
  *
  * abort 语义：signal 触发或 GM 级 abort 时 reject，且 error.name === 'AbortError'，
- * 否则 ThunderClient 的超时归因会失真（它按 name === 'AbortError' 区分超时与连接失败）。
+ * 否则 MiaoClient 的超时归因会失真（它按 name === 'AbortError' 区分超时与连接失败）。
  */
 export const gmFetch: typeof globalThis.fetch = (input, init) => {
   return new Promise<Response>((resolve, reject) => {

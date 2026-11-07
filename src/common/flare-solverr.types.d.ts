@@ -94,7 +94,6 @@ declare module 'flare-solverr' {
     cmd: 'request.get'
     url: string
     returnOnlyCookies?: boolean
-    userAgent?: string
     cookies?: Array<{
       name: string
       value: string
@@ -112,7 +111,6 @@ declare module 'flare-solverr' {
     url: string
     postData: string // application/x-www-form-urlencoded 格式
     returnOnlyCookies?: boolean
-    userAgent?: string
   }
 
   // 会话管理参数

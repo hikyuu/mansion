@@ -1,14 +1,16 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ThunderApiError, ThunderClient, ThunderTransportError, type AddTaskResult } from '@hikyuu/thunder-client'
+import { ThunderApiError, MiaoClient, ThunderTransportError, type AddTaskResult } from '@hikyuu/miao'
 import { SiteId } from '@/site/site-id'
 import { download } from '@/download/index.ts'
 import { gmFetch } from '@/download/gm-fetch.ts'
 import { requestFileSelection } from '@/download/file-picker.ts'
 import { fetchTorrentBase64, TorrentFetchError } from '@/download/torrent.ts'
+import { CloudflareBlockedError } from '@/common/cloudflare'
 import { thunderDownload } from '@/download/thunder.ts'
 import { copyUrl } from '@/download/clipboard.ts'
 import { miaoHealth } from '@/download/miao.ts'
+import { miaoBrowserDownload } from '@/download/miao-proxy.ts'
 import { useConfigStore } from '@/store/config-store.ts'
 import { useSiteStore } from '@/store/site-store.ts'
 
@@ -29,6 +31,11 @@ vi.mock('@/download/torrent.ts', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
   return { ...actual, fetchTorrentBase64: vi.fn<(url: string) => Promise<string>>() }
 })
+// 代下载通道整体替身：这里只关心「有没有把它交给种子下载」，通道本身在 miao-proxy.test.ts 里测
+vi.mock('@/download/miao-proxy.ts', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>()
+  return { ...actual, miaoBrowserDownload: vi.fn<(url: string) => Promise<unknown>>() }
+})
 vi.mock('@/download/thunder.ts', () => ({
   thunderDownload: vi.fn<(url: string) => boolean>()
 }))
@@ -37,9 +44,9 @@ vi.mock('@/download/clipboard.ts', () => ({
 }))
 vi.mock('@/store/config-store.ts', () => ({ useConfigStore: vi.fn<() => unknown>() }))
 vi.mock('@/store/site-store.ts', () => ({ useSiteStore: vi.fn<() => unknown>() }))
-vi.mock('@hikyuu/thunder-client', async (importOriginal) => {
+vi.mock('@hikyuu/miao', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
-  return { ...actual, ThunderClient: vi.fn<(...args: unknown[]) => unknown>() }
+  return { ...actual, MiaoClient: vi.fn<(...args: unknown[]) => unknown>() }
 })
 
 const MAGNET = 'magnet:?xt=urn:btih:624ed719aaf2205a5c7b4c72a6a0c97e7f66b0e2'
@@ -47,7 +54,7 @@ const TORRENT_URL = 'https://exhentai.org/torrent/1/abc.torrent'
 const TORRENT_BASE64 = 'QkVUQ09ERUQ='
 const THUNDER_MOCK = vi.mocked(thunderDownload)
 const COPY_MOCK = vi.mocked(copyUrl)
-const CLIENT_MOCK = vi.mocked(ThunderClient)
+const CLIENT_MOCK = vi.mocked(MiaoClient)
 const PICKER_MOCK = vi.mocked(requestFileSelection)
 const TORRENT_MOCK = vi.mocked(fetchTorrentBase64)
 
@@ -128,9 +135,9 @@ beforeEach(() => {
   client.addGalleryTask.mockReset()
   client.health.mockReset()
   client.getConfig.mockReset()
-  // 构造调用（new ThunderClient）必须用普通函数：箭头函数不是构造器
+  // 构造调用（new MiaoClient）必须用普通函数：箭头函数不是构造器
   CLIENT_MOCK.mockImplementation(function () {
-    return client as unknown as InstanceType<typeof ThunderClient>
+    return client as unknown as InstanceType<typeof MiaoClient>
   })
   THUNDER_MOCK.mockImplementation(() => true)
   COPY_MOCK.mockImplementation(async () => ({ ok: true, message: '已复制下载链接' }))
@@ -176,7 +183,7 @@ describe('miao 成功路径', () => {
     expect(result.message).toContain('任务已存在')
   })
 
-  it('ThunderClient 注入 gmFetch 与 baseUrl（超时用 SDK 分接口默认值）', async () => {
+  it('MiaoClient 注入 gmFetch 与 baseUrl（超时用 SDK 分接口默认值）', async () => {
     client.addVideoTask.mockResolvedValue(createdResult())
     await download(MAGNET)
     expect(CLIENT_MOCK).toHaveBeenCalledWith({ baseUrl: 'http://127.0.0.1:6427', fetch: gmFetch })
@@ -191,12 +198,13 @@ describe('miao 成功路径', () => {
 })
 
 describe('种子链接直投（torrentBase64）', () => {
-  it('exhentai 种子：下载编码后走 addGalleryTask', async () => {
+  it('exhentai 种子：下载编码后走 addGalleryTask，不交给 miao 代下载', async () => {
     mockConfig({ siteId: SiteId.EXHENTAI })
     client.addGalleryTask.mockResolvedValue(createdResult())
     const result = await download(TORRENT_URL)
     expect(result).toMatchObject({ ok: true, channel: 'miao', fellBack: false })
-    expect(TORRENT_MOCK).toHaveBeenCalledWith(TORRENT_URL)
+    // exhentai 的种子链接靠浏览器登录态，miao 没有那份 cookie，只能走 GM
+    expect(TORRENT_MOCK).toHaveBeenCalledWith(TORRENT_URL, {})
     expect(client.addGalleryTask).toHaveBeenCalledWith({
       torrentBase64: TORRENT_BASE64,
       savePath: 'L:\\Downloads'
@@ -205,9 +213,12 @@ describe('种子链接直投（torrentBase64）', () => {
     expect(THUNDER_MOCK).not.toHaveBeenCalled()
   })
 
-  it('onejav 种子：走 addVideoTask', async () => {
+  it('onejav 种子：走 addVideoTask，并交给 miao 代下载', async () => {
+    mockConfig({ siteId: SiteId.ONEJAV })
     client.addVideoTask.mockResolvedValue(createdResult())
-    await download('https://onejav.com/torrent/a/download/1/a.torrent')
+    const url = 'https://onejav.com/torrent/a/download/1/a.torrent'
+    await download(url)
+    expect(TORRENT_MOCK).toHaveBeenCalledWith(url, { proxy: miaoBrowserDownload, proxyOnly: true })
     expect(client.addVideoTask).toHaveBeenCalledWith({
       torrentBase64: TORRENT_BASE64,
       savePath: 'L:\\Downloads'
@@ -219,6 +230,20 @@ describe('种子链接直投（torrentBase64）', () => {
     const result = await download(TORRENT_URL)
     expect(result).toMatchObject({ ok: true, channel: 'thunder', fellBack: true })
     expect(result.fallbackReason).toContain('有效的种子文件')
+    expect(client.addGalleryTask).not.toHaveBeenCalled()
+  })
+
+  it('种子被 Cloudflare 拦下（过盾也没过）：不回退迅雷，标记 blocked', async () => {
+    mockConfig({ siteId: SiteId.ONEJAV })
+    TORRENT_MOCK.mockRejectedValue(
+      new CloudflareBlockedError('onejav.com', { kind: 'challenge', status: 403, evidence: '测试' })
+    )
+    const result = await download(TORRENT_URL)
+
+    expect(result).toMatchObject({ ok: false, channel: 'miao', fellBack: false, blocked: true })
+    expect(result.message).toContain('Cloudflare 拦截')
+    expect(THUNDER_MOCK).not.toHaveBeenCalled()
+    expect(client.addVideoTask).not.toHaveBeenCalled()
     expect(client.addGalleryTask).not.toHaveBeenCalled()
   })
 })
@@ -397,5 +422,41 @@ describe('miaoHealth 连接测试', () => {
     client.getConfig.mockRejectedValue(new ThunderApiError(401, 'UNAUTHORIZED', 'x'))
     const result = await miaoHealth()
     expect(result.ok).toBe(true)
+  })
+
+  it('web 能力就绪：建任务与过盾都正常', async () => {
+    client.health.mockResolvedValue(
+      healthResult({
+        apiVersion: 3,
+        webSupported: true,
+        webHostWhitelistReady: true,
+        solverReachable: true,
+        cookieExportAllowed: true
+      })
+    )
+    const result = await miaoHealth()
+    expect(result).toMatchObject({ ok: true, type: 'success' })
+    expect(result.message).toContain('过盾就绪')
+  })
+
+  it('老版本 miao 不返回 web 字段：警示过盾不可用（按版本过低处理，不按 false 报错）', async () => {
+    client.health.mockResolvedValue(healthResult({ apiVersion: 1 }))
+    const result = await miaoHealth()
+    expect(result).toMatchObject({ ok: true, type: 'warning' })
+    expect(result.message).toContain('web 能力')
+  })
+
+  it('过盾器没启动：建任务仍算正常，但提示过盾不可用', async () => {
+    client.health.mockResolvedValue(
+      healthResult({
+        apiVersion: 3,
+        webSupported: true,
+        webHostWhitelistReady: true,
+        solverReachable: false
+      })
+    )
+    const result = await miaoHealth()
+    expect(result).toMatchObject({ ok: true, type: 'warning' })
+    expect(result.message).toContain('过盾器未启动')
   })
 })

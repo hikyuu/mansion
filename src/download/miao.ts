@@ -1,18 +1,21 @@
 import {
   ThunderApiError,
-  ThunderClient,
   ThunderTransportError,
+  type MiaoClient,
   type AddTaskFileRef,
   type AddTaskOptions,
   type AddTaskResult,
-  type AddTaskSeedSource
-} from '@hikyuu/thunder-client'
+  type AddTaskSeedSource,
+  type Health
+} from '@hikyuu/miao'
 import { useConfigStore } from '@/store/config-store.ts'
 import { useSiteStore } from '@/store/site-store.ts'
 import { SiteId } from '@/site/site-id'
-import { gmFetch } from '@/download/gm-fetch.ts'
+import { createMiaoClient } from '@/download/miao-client.ts'
+import { miaoBrowserDownload } from '@/download/miao-proxy.ts'
 import { requestFileSelection } from '@/download/file-picker.ts'
 import { fetchTorrentBase64, TorrentFetchError } from '@/download/torrent.ts'
+import { CloudflareBlockedError } from '@/common/cloudflare.ts'
 
 /** miao 任务类型：exhentai 画廊任务，其余站点视频任务 */
 export type MiaoTaskKind = 'gallery' | 'video'
@@ -22,8 +25,11 @@ export type DownloadUrlKind = 'magnet' | 'torrent' | 'other'
 
 /** miao 下载尝试的结局 */
 export interface MiaoAttempt {
-  /** created=已建任务；fallback=需回退迅雷（message 为原因）；cancelled=用户取消，不回退 */
-  status: 'created' | 'fallback' | 'cancelled'
+  /**
+   * created=已建任务；fallback=需回退迅雷（message 为原因）；cancelled=用户取消，不回退；
+   * blocked=种子被 Cloudflare 拦下且 miao 代下载也没成 —— 换一条地址才可能成功，不回退迅雷。
+   */
+  status: 'created' | 'fallback' | 'cancelled' | 'blocked'
   message: string
 }
 
@@ -109,15 +115,7 @@ function summarizeSource(source: AddTaskSeedSource): Record<string, unknown> {
   return { magnet: source.magnet }
 }
 
-function createClient(baseUrl: string): ThunderClient {
-  const trimmed = baseUrl.trim()
-  // 超时用 SDK 分接口默认值（建任务 90s / 查询 15s / health 5s），无需在此覆盖
-  return new ThunderClient({
-    // 空串回退 SDK 默认地址，避免拼出相对 URL 请求到当前页面
-    baseUrl: trimmed || undefined,
-    fetch: gmFetch
-  })
-}
+
 
 /**
  * miao 通道主入口：磁链 / 远程种子建任务（按站点选画廊或视频任务），
@@ -128,7 +126,8 @@ export async function miaoDownload(url: string): Promise<MiaoAttempt> {
   const target = url.trim()
   const urlKind = classifyDownloadUrl(target)
   const decision = decideMiaoAction(urlKind)
-  const taskKind = pickTaskKind(useSiteStore().getSite.siteId)
+  const siteId = useSiteStore().getSite.siteId
+  const taskKind = pickTaskKind(siteId)
   const context = { url: target, urlKind, taskKind, baseUrl, savePath }
   console.log('[miao] 提交建任务', context)
   if (!decision.proceed) {
@@ -137,21 +136,45 @@ export async function miaoDownload(url: string): Promise<MiaoAttempt> {
   }
 
   try {
-    const source = await resolveSeedSource(target, urlKind)
+    const source = await resolveSeedSource(target, urlKind, siteId)
     console.log('[miao] 种子来源就绪', summarizeSource(source))
-    const attempt = await addTask(createClient(baseUrl), taskKind, source, savePath.trim())
+    const attempt = await addTask(createMiaoClient(baseUrl), taskKind, source, savePath.trim())
     console.log('[miao] 结局', attempt)
     return attempt
   } catch (error) {
     logMiaoError('建任务', error, context)
+    // 种子被 Cloudflare 拦下：同一条地址回退迅雷也一样过不去，交给上层换地址
+    if (error instanceof CloudflareBlockedError) {
+      return { status: 'blocked', message: error.message }
+    }
     return { status: 'fallback', message: describeMiaoError(error) }
   }
 }
 
-/** 种子来源：磁链原样透传；远程种子先带 Cookie 下载，再以 base64 上传（免种子目录白名单） */
-async function resolveSeedSource(url: string, urlKind: DownloadUrlKind): Promise<AddTaskSeedSource> {
+/**
+ * 需要 miao 代下载（`web.download`）的站点。
+ *
+ * 只有「对非导航请求也下 Turnstile」的站点才需要它：onejav 的 `file.*` 子域属于这类，
+ * 浏览器栈（GM）拿不到字节。其它站点一律走 GM 直取 —— exhentai 靠浏览器登录态，
+ * 本来就不需要过盾；用黑名单（排除 exhentai）会让将来新增的站点默认白等一次过盾。
+ */
+const PROXY_DOWNLOAD_SITES: ReadonlySet<SiteId> = new Set<SiteId>([SiteId.ONEJAV])
+
+/**
+ * 种子来源：磁链原样透传；远程种子先拿到字节，再以 base64 上传（免种子目录白名单）。
+ *
+ * 白名单内的站点（onejav）**只走** `web.download({ mode: 'auto' })`：由服务端先试纯 HTTP、
+ * 撞挑战再降级浏览器下载栈，代下载失败也不回落 GM（那条请求必被 Turnstile 拦下），直接判 blocked 换地址。
+ * 其余站点走 GM 直取。miao 侧还有一层站点白名单（fail-closed），没配的会被快速拒掉。
+ */
+async function resolveSeedSource(
+  url: string,
+  urlKind: DownloadUrlKind,
+  siteId: SiteId
+): Promise<AddTaskSeedSource> {
   if (urlKind === 'torrent') {
-    return { torrentBase64: await fetchTorrentBase64(url) }
+    const proxy = PROXY_DOWNLOAD_SITES.has(siteId) ? miaoBrowserDownload : undefined
+    return { torrentBase64: await fetchTorrentBase64(url, proxy ? { proxy, proxyOnly: true } : {}) }
   }
   return { magnet: url }
 }
@@ -166,7 +189,7 @@ export interface MiaoHealthResult {
 export async function miaoHealth(): Promise<MiaoHealthResult> {
   const { baseUrl } = useConfigStore().common.miao
   try {
-    const client = createClient(baseUrl)
+    const client = createMiaoClient(baseUrl)
     const health = await client.health()
     if (!health.thunderSupported) {
       return { ok: false, type: 'error', message: 'miao 服务端不是 Windows，不支持迅雷任务' }
@@ -188,11 +211,47 @@ export async function miaoHealth(): Promise<MiaoHealthResult> {
     } catch {
       // ignore：config 需要鉴权，读不到按未配置处理
     }
+
+    // 建任务通不代表过盾可用：过盾（web 能力）是独立开关，缺件时下载被拦就没有兜底
+    const clearance = describeClearanceReadiness(health)
     const dirText = defaultSavePath ? `，默认下载目录：${defaultSavePath}` : ''
-    return { ok: true, type: 'success', message: `连接正常（apiVersion ${health.apiVersion}）${dirText}` }
+    if (!clearance.ready) {
+      return {
+        ok: true,
+        type: 'warning',
+        message: `连接正常（apiVersion ${health.apiVersion}）${dirText}，但${clearance.message}，被拦的站点会直接失败`
+      }
+    }
+    return {
+      ok: true,
+      type: 'success',
+      message: `连接正常（apiVersion ${health.apiVersion}）${dirText}，${clearance.message}`
+    }
   } catch (error) {
     return { ok: false, type: 'error', message: describeMiaoError(error) }
   }
+}
+
+/**
+ * 过盾就绪度：web 能力（`apiVersion ≥ 3`）→ 站点白名单 → 过盾器可达 → 允许导出凭证。
+ *
+ * health 里的 web 字段都是可选的：老版本 miao 不返回，用 `undefined` 判「版本过低」，
+ * 不能按 `false` 报错。
+ */
+function describeClearanceReadiness(health: Health): { ready: boolean; message: string } {
+  if (health.webSupported !== true) {
+    return { ready: false, message: 'miao 未启用 web 能力（需 apiVersion ≥ 3）' }
+  }
+  if (!health.webHostWhitelistReady) {
+    return { ready: false, message: 'miao 未配置站点白名单，过盾会被拒绝' }
+  }
+  if (health.solverReachable === false) {
+    return { ready: false, message: '过盾器未启动（去 miao 的「过盾」页启动）' }
+  }
+  if (health.cookieExportAllowed === false) {
+    return { ready: false, message: 'miao 关闭了过盾凭证导出，无法自行重取' }
+  }
+  return { ready: true, message: '过盾就绪' }
 }
 
 /** 服务端下载目录白名单与默认目录（供设置面板「下载目录」下拉使用） */
@@ -208,7 +267,7 @@ export interface MiaoSavePathList {
  */
 export async function fetchMiaoSavePaths(): Promise<MiaoSavePathList> {
   const { baseUrl } = useConfigStore().common.miao
-  const config = await createClient(baseUrl).getConfig()
+  const config = await createMiaoClient(baseUrl).getConfig()
   return {
     savePaths: Array.isArray(config.savePaths) ? config.savePaths.filter((path) => !!path) : [],
     defaultSavePath: config.defaultSavePath || null
@@ -216,7 +275,7 @@ export async function fetchMiaoSavePaths(): Promise<MiaoSavePathList> {
 }
 
 async function addTask(
-  client: ThunderClient,
+  client: MiaoClient,
   taskKind: MiaoTaskKind,
   source: AddTaskSeedSource,
   savePath: string

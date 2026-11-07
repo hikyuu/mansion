@@ -1,8 +1,9 @@
 /**
  * Cloudflare 拦截识别层：纯函数，无 IO、无 DOM 依赖。
  *
- * 判定不依赖单一文案：Cloudflare 的挑战页/封禁页会改版，但响应头（`cf-ray` / `cf-mitigated`）
- * 与挑战平台脚本地址（`/cdn-cgi/challenge-platform/`）相对稳定，页面文案只作补充信号。
+ * 判定不依赖单一文案：响应头（`cf-mitigated` / `cf-ray` 配状态码）最稳，页面特征作补充。
+ * 页面特征必须「只在拦截页出现」才可用 —— CF 会给正常页注入 JS 检测脚本，
+ * 拿脚本地址判拦截会把正常页误判成挑战页（见 `CHALLENGE_BODY_MARKERS` 的说明）。
  */
 
 /** 判定只看响应体前 8KB：挑战页/封禁页的信号都在页头 */
@@ -20,6 +21,12 @@ export interface CloudflareProbe {
 }
 
 export type CloudflareBlockKind =
+  /**
+   * Turnstile 小部件挑战：托管页里嵌的是 Turnstile，只认真实浏览器交互。
+   * 与「挑战页」分开是因为排查口径不一样：这种页面失败时更可能是站点策略拒绝了自动化浏览器，
+   * 而不是过盾器没跑起来。
+   */
+  | 'turnstile'
   /** JS 挑战页（cf-mitigated: challenge / Just a moment... / challenge-platform） */
   | 'challenge'
   /** WAF 封禁页（Attention Required! / 1020 / 403 + cf-ray） */
@@ -41,15 +48,38 @@ interface Signals {
   evidence: string
 }
 
-/** 挑战页特征：命中任一即可（顺序即优先级） */
+/**
+ * Turnstile 特征：命中任一即可。
+ * 用具体脚本地址 / 小部件类名，不用「turnstile」这个词 —— 经典 IUAM 页里也会提到它。
+ */
+const TURNSTILE_BODY_MARKERS = [
+  'cf-turnstile',
+  'challenges.cloudflare.com/turnstile',
+  'turnstile/v0/api.js',
+  'turnstile.render'
+]
+
+/**
+ * 挑战页特征：命中任一即可（顺序即优先级）。
+ *
+ * 只收「只在挑战页出现」的信号。`/cdn-cgi/challenge-platform/` 与 `challenges.cloudflare.com`
+ * 不能单独当判据：CF 会在**正常页面**里内联 `challenge-platform/scripts/jsd/main.js`
+ * 做 JS 检测（onejav 列表页实测含此脚本），拿脚本地址判拦截会把正常页误判成挑战页 ——
+ * 结果是白过一次盾、重取后仍被误判，最后报「拦截」。
+ */
 const CHALLENGE_BODY_MARKERS = [
   'just a moment',
   '_cf_chl_opt',
-  '/cdn-cgi/challenge-platform/',
   'enable javascript and cookies to continue',
   'cf-browser-verification',
-  'challenges.cloudflare.com'
+  'cf-chl-widget',
+  'challenge-form',
+  'challenge-running',
+  'challenge-stage'
 ]
+
+/** 挑战骨架的长度上限：整页只有骨架、没有正文时才可能这么短 */
+const CHALLENGE_SKELETON_MAX_CHARS = 4096
 
 /** 封禁页特征 */
 const BLOCKED_BODY_MARKERS = [
@@ -118,9 +148,22 @@ function detectByHeaders(
   return undefined
 }
 
+/**
+ * 挑战骨架：挑战平台脚本 + 极短页面。
+ *
+ * `challenge-platform` 自身不是判据（正常页也内联 jsd 检测脚本），但只吐一个脚本骨架、
+ * 连正文都没有的页面只可能是挑战页。
+ */
+function isChallengeSkeletonPage(body: string): boolean {
+  return body.includes('/cdn-cgi/challenge-platform/') && body.length < CHALLENGE_SKELETON_MAX_CHARS
+}
+
 function detectByBody(body: string): Signals | undefined {
   const challenge = findMarker(body, CHALLENGE_BODY_MARKERS)
   if (challenge) return { kind: 'challenge', evidence: `页面特征 ${challenge}` }
+  if (isChallengeSkeletonPage(body)) {
+    return { kind: 'challenge', evidence: '页面特征 挑战骨架（challenge-platform + 极短页面）' }
+  }
 
   const blocked = findMarker(body, BLOCKED_BODY_MARKERS)
   if (blocked) return { kind: 'blocked', evidence: `页面特征 ${blocked}` }
@@ -143,7 +186,8 @@ function detectByFinalUrl(finalUrl: string | undefined): Signals | undefined {
 
 /**
  * 未拦截返回 null；命中返回结构化结论。
- * 判定优先级：挑战 > 封禁 > 限流，同级别取第一个命中的信号。
+ * 判定优先级：Turnstile > 响应头（挑战 / 封禁 / 限流）> 其余页面特征 > 最终 URL，
+ * 同级别取第一个命中的信号。
  */
 export function detectCloudflareBlock(probe: CloudflareProbe): CloudflareBlock | null {
   const body = probe.body ?? ''
@@ -153,7 +197,11 @@ export function detectCloudflareBlock(probe: CloudflareProbe): CloudflareBlock |
   const hasCloudflare =
     headers.has('cf-ray') || (headers.get('server') ?? '').toLowerCase().includes('cloudflare')
 
+  // Turnstile 先于响应头判定：托管挑战页常是「403 + cf-ray」，只看头会归成封禁，
+  // 调用方就分不清该不该尝试 FlareSolverr
+  const turnstile = findMarker(body, TURNSTILE_BODY_MARKERS)
   const signals =
+    (turnstile ? { kind: 'turnstile' as const, evidence: `页面特征 ${turnstile}` } : undefined) ??
     detectByHeaders(headers, probe.status, hasCloudflare) ??
     detectByBody(body) ??
     detectByFinalUrl(probe.finalUrl)
@@ -169,9 +217,22 @@ export function detectCloudflareBlock(probe: CloudflareProbe): CloudflareBlock |
 }
 
 const KIND_LABELS: Record<CloudflareBlockKind, string> = {
+  turnstile: 'Turnstile 验证',
   challenge: '挑战页',
   blocked: '访问封禁',
   'rate-limited': '请求过快'
+}
+
+/**
+ * 拦截错误末尾「还剩什么路」的措辞：有没有代取通道、代取为什么没成。
+ * 页面抓取与种子字节两条路共用这一处口径，避免同一件事两种说法。
+ *
+ * 代取通道由 miao 提供（见 `@/download/miao-proxy.ts`），失败原因取自服务端
+ * 错误码，所以这里只负责把「试过 / 没试」和原因拼成一句给用户看的话。
+ */
+export function describeProxyFailure(input: { attempted: boolean; reason?: string }): string {
+  if (!input.attempted) return '脚本请求无法通过该站点验证'
+  return input.reason ? `miao 代取未通过：${input.reason}` : 'miao 代取未通过该站点验证'
 }
 
 /**

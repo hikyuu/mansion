@@ -2,7 +2,7 @@
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { type TableInstance } from 'element-plus'
 import { isDefaultSelected, useFilePickerStore } from '@/download/file-picker.ts'
-import type { TaskFileMeta } from '@hikyuu/thunder-client'
+import type { TaskFileMeta } from '@hikyuu/miao'
 
 const store = useFilePickerStore()
 const selected = ref<TaskFileMeta[]>([])

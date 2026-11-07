@@ -18,10 +18,15 @@ export const READ_CARD_LIMIT = 20
 /**
  * 列表根节点只认 `movie-list`：普通列表页带 `h cols-4`，
  * FC2 专题页（/fc2）的根节点只有 `movie-list` 一个类，写死列数类会让整页认不到妹妹。
+ *
+ * 但「每週推薦」区块也用 `div.movie-list`（`cols-5 mb-4`），卡片同样是 `div.item`，
+ * 只是没有日期与磁链标签 —— 不排掉它，推荐位会被当成懒加载列表的一部分
+ * （条数虚高、瀑布流锚点可能落错容器、缩略图链路去解析没有日期的卡片）。
+ * 推荐位有稳定的 `#recommend-container`，用 id 排除比写死列数类更可靠。
  */
 export const javdb_selector: Selector = {
   next: 'a.pagination-next',
-  container: 'div.movie-list',
+  container: 'div.movie-list:not(#recommend-container)',
   item: 'div.item',
   pagination: 'nav.pagination',
   serialNumber: 'div.video-title strong',
@@ -32,14 +37,56 @@ export const javdb_selector: Selector = {
 
 /**
  * 详情页磁力区块选择器
- * - 新版详情页的磁力条目为 div.item[data-rank]，不再带 columns/is-desktop
- * - 容器内混有广告（div.sda-content），磁力链接需以 magnet: 开头区分
+ * - 磁力条目只认 `div.item`：新版是 `div.item[data-rank]`，旧版是 `div.item.columns.is-desktop`，
+ *   把 `data-rank` 写进选择器会让还在旧版页面的条目一条都匹配不上
+ * - 容器内混有广告（div.sda-content）与排序控件（div.magnet-sort），两者都不是 div.item
+ * - 磁力链接以 magnet: 开头，据此排除「複製」「下載」按钮
+ * - 质量标记从名字后缀搬到了 div.tags 下的 span.tag（如 高清），挑选磁力时按它数标签
  */
 export const javdb_detail_selector = {
   magnetsContainer: '#magnets-content',
   magnetItem: 'div.item',
   magnetLink: 'a[href^="magnet:"]',
-  magnetName: 'span.name'
+  magnetName: 'span.name',
+  magnetTags: 'div.tags span.tag',
+  /** 详情页骨架：磁力区块缺失时用它区分「该作品没有磁链」与「页面根本没拿到」 */
+  detailSkeleton: 'div.video-detail, div.movie-panel-info'
+}
+
+/**
+ * 「每週推薦」区块的选择器
+ * - 标题 h1 上带 `data-container-id` / `data-cookie-key`，折叠状态由站点的 recommend 控制器写进 cookie
+ * - 折叠链接上是 `click->recommend#collapse`；同一链接收起后变成「展開」，点错会把推荐位点开
+ */
+export const javdb_recommend_selector = {
+  container: '#recommend-container',
+  collapseLink: 'a[data-action*="recommend#collapse"]',
+  collapseText: '.text.collapse'
+}
+
+/** 元素是否已经被隐藏（站点控制器收起时挂的是内联 display:none，不依赖布局测量） */
+function isHidden(element: Element): boolean {
+  if ((element as HTMLElement).hidden) return true
+  return window.getComputedStyle(element).display === 'none'
+}
+
+/**
+ * 收起「每週推薦」：点站点自己的「收起到下次更新」，而不是把容器藏起来。
+ * 站点控制器会把折叠状态写进 cookie（键名挂在 h1[data-cookie-key] 上，跟着每周一/四的更新轮次走），
+ * 所以收起后一直生效到下一次更新，脚本不用自己记状态。
+ */
+export function collapseRecommend(): void {
+  const container = jquery<HTMLElement>(javdb_recommend_selector.container)[0]
+  if (container === undefined || isHidden(container)) return
+  const link = jquery<HTMLElement>(javdb_recommend_selector.collapseLink)[0]
+  if (link === undefined) return
+  // 只有当前处于展开态才点：收起态再点一次会展开推荐位
+  const collapseText = jquery(link).find(javdb_recommend_selector.collapseText)[0]
+  if (collapseText !== undefined && isHidden(collapseText)) return
+  link.click()
+  // 控制器没接上（脚本先于站点 JS 执行）时兜个底，至少别让推荐位占着主列表位置
+  if (!isHidden(container)) container.style.display = 'none'
+  console.log('每週推薦已收起到下次更新')
 }
 
 export class Javdb extends SiteAbstract {
@@ -62,6 +109,15 @@ export class Javdb extends SiteAbstract {
   /** javdb 的页数多，一律懒加载 */
   protected waterfallStatus(): number | null {
     return WaterfallStatus.lazy.code
+  }
+
+  /**
+   * 初始化先收起「每週推薦」再挂瀑布流：推荐位的卡片不是列表条目，
+   * 收起后主列表才是页面上唯一的列表容器。
+   */
+  mount(): void {
+    collapseRecommend()
+    super.mount()
   }
 
   protected addStyle() {
@@ -121,8 +177,12 @@ export class Javdb extends SiteAbstract {
       checkArchive,
       resolveSource: async () => {
         if (!serialNumber) return null
+        // 用 getElementById 而不是 `#番号`：番号里可能带会破坏选择器的字符，
+        // 选择器语法错误会直接抛进下载意图、被报成「解析下载地址失败」
+        const card = document.getElementById(serialNumber)
+        if (card === null) return null
         console.log('下载', serialNumber)
-        const detailHref = getDetailHref(jquery('#' + serialNumber))
+        const detailHref = getDetailHref(jquery(card))
         if (detailHref === undefined) return null
         const magnet = await downloadFromLocal(detailHref)
         const url = magnet?.attr('href')

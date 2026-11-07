@@ -27,7 +27,7 @@ _Avoid_: ID, 编号, code
 _Avoid_: item, 卡片数据, entry
 
 **瀑布流**：
-把后续分页内容解析后追加到当前页的加载方式，分懒加载与一步到位两种。
+把后续分页内容解析后追加到当前页的加载方式，分懒加载与一步到位两种。加载模式优先级：用户的「关闭」> 站点强制（javdb / javstore / onejav 页数多一律懒加载）> 用户配置；关闭后一次分页请求都不发（启动、滚动补页、批量翻页三处都拦）。口径在 `src/waterfall/waterfall.ts`。
 _Avoid_: 无限滚动, infinite scroll
 
 **路径日期**（pathDate）：
@@ -41,7 +41,7 @@ _Avoid_: 看过, visited
 ### 下载
 
 **下载意图**：
-用户对某个番号发起的一次「去下载」请求 —— 从在途守卫、判档、提交到记账的整条流程。结局五态：`blocked`（在途重复）、`skipped`（已归档）、`submitted`、`handoff`（已交给浏览器）、`failed`。
+用户对某个番号发起的一次「去下载」请求 —— 从在途守卫、判档、提交到记账的整条流程。结局四态：`blocked`（在途重复）、`skipped`（已归档）、`submitted`、`failed`。
 _Avoid_: 下载任务, download task, job
 
 **判档**：
@@ -50,10 +50,14 @@ _Avoid_: 查重, dedupe, archive check
 
 **交付**：
 番号的下载地址已提交给下载通道并拿到成功结局。只有交付才写归档；复制链接通道不算交付（复制成功只代表链接已进剪贴板，文件并未交给下载器）。
-_Avoid_: 下载成功, downloaded, handoff 以外的「已处理」
+_Avoid_: 下载成功, downloaded, 已处理
+
+**备用地址**：
+解析时随首选地址一起给出的第二条地址（`ResolvedDownloadSource.fallback`，如 onejav 种子 → javdb 磁力）。只有首选地址「本身被站点拦下」（`blocked`）时意图层才改投它一次；换通道也救不了同一条地址，所以这种情况不回退迅雷。备用地址必须在解析阶段就备好，交付阶段被拦时不再回头请求站点。
+_Avoid_: 第二方案, plan B
 
 **下载通知**：
-一次下载只出一条结果通知。标题是番号（exhentai 没有番号，用画廊标题）；正文是一张「运单回执」：番号 + 状态词，hairline 之下是字段表「来源 / 通道 / 结果 / 备注」。来源是唯一的徽章，按站点身份色区分（javdb 蓝 / onejav 青 / exhentai 中性）；四态各有配色与停留时长（已投递 / 已回退 / 已取消 / 失败）。来源由站点解析器回填，onejav 回退时把「javdb 未命中：原因」写进备注；通道层不自己弹通知，回退原因并入备注，不单独弹窗。唯一出口是 `src/download/notice.ts` 的 `notifyDownload`（投递回执）与 `notifyIntent`（前置结局）。
+一次下载只出一条结果通知。标题是番号（exhentai 没有番号，用画廊标题）；正文是一张「运单回执」：番号 + 状态词，hairline 之下是字段表「来源 / 通道 / 结果 / 备注」。来源是唯一的徽章，按站点身份色区分（javdb 蓝 / onejav 青 / exhentai 中性）；四态各有配色与停留时长（已投递 / 已回退 / 已取消 / 失败）。来源由站点解析器回填，onejav 回退时把「javdb 未命中：原因」或「onejav 种子被 Cloudflare 拦截」写进备注；通道层不自己弹通知，回退原因并入备注，不单独弹窗。唯一出口是 `src/download/notice.ts` 的 `notifyDownload`（投递回执）与 `notifyIntent`（前置结局）。
 _Avoid_: 下载成功提示, 弹窗, toast
 
 **归档**：
@@ -61,12 +65,27 @@ _Avoid_: 下载成功提示, 弹窗, toast
 _Avoid_: 下载记录, 历史
 
 **Cloudflare 拦截**：
-CF 的挑战页 / 封禁页 / 限流页。识别口径只在 `src/common/cloudflare.ts` 一处：响应头、页面特征与最终 URL 多信号判定，404 与种子二进制不算拦截。三种形态：挑战页（challenge）、访问封禁（blocked）、请求过快（rate-limited）。挑战页的最终 URL 与原 URL 相同、状态码也可能是 200，任何「URL 没变就是直链」的推断都会误判。
+CF 的挑战页 / 封禁页 / 限流页。识别口径只在 `src/common/cloudflare.ts` 一处：响应头、页面特征与最终 URL 多信号判定，404 与种子二进制不算拦截。四种形态：Turnstile 验证（turnstile）、挑战页（challenge）、访问封禁（blocked）、请求过快（rate-limited）。Turnstile 单独成一类只为排查口径：这类页面失败更可能是站点策略拒绝自动化浏览器，而不是过盾器没跑起来；过盾器换成真浏览器内核后，它不再是「跳过尝试」的理由。判定先于响应头，否则「403 + cf-ray」会被归成封禁。挑战页的最终 URL 与原 URL 相同、状态码也可能是 200，任何「URL 没变就是直链」的推断都会误判。
 _Avoid_: 被墙, 反爬, 打码
 
+**过盾**：
+把「过 Cloudflare + 发请求」整体交给 miao 的 web 能力：页面走 `MiaoClient.web.fetch`（`POST /api/v1/web/fetch`，服务端真浏览器，Turnstile 也能过），二进制走 `MiaoClient.web.download`（`POST /api/v1/web/download`，回 base64，`mode: auto|http|browser`；onejav 的下载链接用 `auto`，由 `miaoBrowserDownload` 先试纯 HTTP、撞挑战再让服务端降级到浏览器下载栈）。**仓库侧不发被拦的请求**，因为 `GM_xmlhttpRequest` 改不了 `User-Agent`（浏览器保留头），而 miao 的 `cf_clearance` 绑定它自己的 UA，自己带凭证重取必然再吃挑战（FlareSolverr 的 `request.get` 同样没有自定义 UA 参数，两边 UA 无从对齐，所以凭证一律不跨栈复用）；onejav 更是对页面内 XHR 一律下挑战，浏览器栈拿不到种子字节。过盾器的安装、启停、版本与站点白名单都在 miao 里管（fail-closed），仓库不再直连 `127.0.0.1:8191` 管会话池、也不再按站点维护「过盾坐标」。通道形状在 `src/common/miao-proxy.ts`（`PageFetchProvider` / `BinaryFetchProvider`，约定不抛错），唯一实现在 `src/download/miao-proxy.ts`，调用方（`fetchPageThroughCloudflare` / `fetchTorrentBase64`）只依赖形状。代下载按**站点白名单**启用（`miao.ts` 的 `PROXY_DOWNLOAD_SITES`，当前只有 onejav）：exhentai 不需要过盾（靠浏览器登录态），走 GM 直取；白名单写法让新增站点默认不白等一次过盾。miao 侧站点白名单仍是 fail-closed，没配的会被快速拒掉。SDK 包名为 `@hikyuu/miao`（原 `@hikyuu/thunder-client`），统一用 `MiaoClient`（迅雷任务 + web 共用一份地址与 fetch），`ThunderClient` 是它的父类、仅作兼容保留。挑战没过（`CHALLENGE_FAILED` / `CHALLENGE_TIMEOUT`）或代取回来的 HTML 仍是挑战页时，调 `MiaoClient.web.invalidate(origin)` 销毁 miao 侧该站点的会话：坏会话留着只会让下一次命中同一份凭证再撞一次墙，销毁后才会重新过盾；因此不再保留「最近失败过」的快失败记忆，每次下载意图都会真正发一次请求。
+_Avoid_: 绕盾, bypass, 过验证码
+
 **浏览器接管**：
-命中 Cloudflare 拦截后把种子地址交给浏览器自己打开（`GM_openInTab` → `window.open` → 当前页导航），由浏览器完成 Turnstile 验证并下载 `.torrent`。它不经过下载通道、不写归档 —— 文件落进浏览器下载目录，不归 miao，通知里要写清这一点。只在 onejav 生效：实测该站的挑战只认顶层导航，XHR / GM 请求 / FlareSolverr（无头浏览器 60s 超时）一律 403。
-_Avoid_: 绕过, 代理, 兜底重取
+已废弃。曾用于 onejav：命中 Cloudflare 拦截后把种子地址交给浏览器自己过 Turnstile。放弃的原因是文件落进浏览器下载目录、不进 miao，等于没交付；现在改为从 javdb 取磁力（见「onejav 下载链条」）。
+
+**磁力挑选**：
+javdb 详情页多条磁力里选哪一条：高分（名字里带 `-c` 中文字幕 / `-uc` 无码）→ 标签多（`div.tags` 下的 `span.tag`，如高清）→ 页面顺序第一个，三级依次降级。口径只在 `src/site/javdb/javdb-api.ts` 的 `pickMagnet` 一处；`pickJavdbMagnet` 把分数一并交给调用方，只有 onejav 的第一级要求分数 > 0，其余入口不设门槛。
+_Avoid_: 最佳种子, 择优
+
+**onejav 下载链条**：
+onejav 下载意图的地址解析顺序，三级降级：javdb 高分磁力 → onejav 种子（`resolveOnejavTorrent`：`.torrent` / `file.*` 直链直接交给下载通道，页面才取回来找下载按钮） → 种子链接被 Cloudflare 拦下时改用 javdb 磁力。javdb 只请求一次：`pickJavdbMagnet` 一次解析就同时带出「挑出的那条 + 分数」（`src/site/javdb/javdb-api.ts`），第三级复用同一次解析里挑出的那条，不再发第二次搜索 / 详情请求。第三级不设高分门槛，只求拿得到地址：onejav 的挑战只认顶层导航，XHR / GM 请求一律 403，被拦后先过一次盾（miao），仍失败就不再重试 onejav。三级口径只在 `src/site/onejav/onejav.ts` 的 `resolveOnejavSource` 一处。
+
+解析成功不等于拿得到字节：onejav 的种子链接**只走** `web.download({ mode: 'auto' })`（`fetchTorrentBase64` 的 `proxyOnly`），代下载失败不再回落 GM —— 那条请求必被 Turnstile 拦下，白等超时还会盖住 miao 的真实失败原因；直接抛 `blocked`，由意图层改投第 2 级就挂好的备用地址（javdb 磁力），不回退迅雷、不重试 onejav。其余站点（exhentai）仍走 GM 直取，代下载失败才回落。
+
+详情页这一步同样只给一次机会：`fetchPageThroughCloudflare` 命中拦截就把整页交给 miao 代取（`web.fetch`），回来的 HTML 再判一次拦截，仍被拦就抛拦截，交给第 3 级。两处都只试一次（失败原因取自 miao 的错误码，写进拦截文案），Turnstile 也照试 —— 过盾器是真浏览器内核，旧的「无头浏览器过不去」前提不再成立。失败后的会话销毁见「过盾」：本次意图仍只试一次，但下一次意图不会被「最近失败过」挡住。
+_Avoid_: 兜底链, fallback chain
 
 ### exhentai
 

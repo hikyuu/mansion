@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { TaskFileMeta } from '@hikyuu/thunder-client'
+import type { TaskFileMeta } from '@hikyuu/miao'
 
 export interface FileSelectionPayload {
   /** 种子/任务名，展示在弹窗标题 */
